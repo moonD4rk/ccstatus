@@ -1,0 +1,8 @@
+# See https://github.com/crate-ci/typos/blob/master/docs/reference.md to configure typos
+[default.extend-words]
+moond4rk = "moond4rk"
+ccstatus = "ccstatus"
+ansi = "ansi"
+
+[files]
+extend-exclude = ["go.sum", "*.json", "*.jsonl"]

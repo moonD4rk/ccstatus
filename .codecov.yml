@@ -1,0 +1,35 @@
+# codecov.yml - Codecov Configuration
+# Purpose: Visualization + PR comments + trending, but NO enforced CI requirements
+
+coverage:
+  precision: 2
+  round: down
+  range: 70..100
+
+  status:
+    project:
+      default:
+        target: auto
+        informational: true
+
+    patch:
+      default:
+        target: auto
+        informational: true
+
+ignore:
+  - "cmd/*/main.go"
+  - "testdata/**/*"
+
+comment:
+  require_changes: false
+  layout: "reach,diff,flags,files,footer"
+  behavior: default
+  require_base: false
+  require_head: true
+
+flags:
+  unittests:
+    paths:
+      - "**/*.go"
+    carryforward: false
