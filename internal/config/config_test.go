@@ -19,9 +19,11 @@ func TestDefaultSettings(t *testing.T) {
 	assert.Equal(t, "|", s.DefaultSeparator)
 	assert.Equal(t, " ", s.DefaultPadding)
 	require.Len(t, s.Lines, 1)
-	require.Len(t, s.Lines[0], 7)
+	require.Len(t, s.Lines[0], 5)
 	assert.Equal(t, "model", s.Lines[0][0].Type)
 	assert.Equal(t, "cyan", s.Lines[0][0].Color)
+	assert.Equal(t, "context-percentage", s.Lines[0][2].Type)
+	assert.Equal(t, "git-branch", s.Lines[0][4].Type)
 }
 
 func TestLoadMissingFile(t *testing.T) {

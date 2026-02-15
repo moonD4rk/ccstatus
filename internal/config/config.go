@@ -42,11 +42,9 @@ func DefaultSettings() Settings {
 			{
 				{ID: "1", Type: "model", Color: "cyan"},
 				{ID: "2", Type: "separator"},
-				{ID: "3", Type: "context-length", Color: "brightBlack"},
+				{ID: "3", Type: "context-percentage", Color: "brightBlack"},
 				{ID: "4", Type: "separator"},
 				{ID: "5", Type: "git-branch", Color: "magenta"},
-				{ID: "6", Type: "separator"},
-				{ID: "7", Type: "git-changes", Color: "yellow"},
 			},
 		},
 	}
