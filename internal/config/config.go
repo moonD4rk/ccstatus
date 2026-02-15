@@ -42,11 +42,19 @@ func DefaultSettings() Settings {
 			{
 				{ID: "1", Type: "model", Color: "cyan"},
 				{ID: "2", Type: "separator"},
-				{ID: "3", Type: "context-length", Color: "brightBlack"},
+				{ID: "3", Type: "context-percentage", Color: "brightBlack"},
 				{ID: "4", Type: "separator"},
 				{ID: "5", Type: "git-branch", Color: "magenta"},
 				{ID: "6", Type: "separator"},
 				{ID: "7", Type: "git-changes", Color: "yellow"},
+				{ID: "8", Type: "separator"},
+				{ID: "9", Type: "lines-added", Color: "green"},
+				{ID: "10", Type: "lines-removed", Color: "red"},
+				{ID: "11", Type: "separator"},
+				{ID: "12", Type: "session-cost", Color: "green"},
+			},
+			{
+				{ID: "13", Type: "current-working-dir", Color: "blue", RawValue: true},
 			},
 		},
 	}

@@ -33,11 +33,67 @@ type Widget interface {
 }
 
 var registry = map[string]Widget{
-	"model":       &ModelWidget{},
-	"version":     &VersionWidget{},
+	// Model and session
+	"model":         &ModelWidget{},
+	"version":       &VersionWidget{},
+	"session-cost":  &SessionCostWidget{},
+	"session-clock": &SessionClockWidget{},
+
+	// Git
 	"git-branch":  &GitBranchWidget{},
+	"git-changes": &GitChangesWidget{},
+
+	// Token metrics
+	"tokens-input": &tokenWidget{
+		extract: extractInputTokens, displayName: "Input Tokens", description: "Total input token count",
+	},
+	"tokens-output": &tokenWidget{
+		extract: extractOutputTokens, displayName: "Output Tokens", description: "Total output token count",
+	},
+	"tokens-cached": &tokenWidget{
+		extract: extractCachedTokens, displayName: "Cached Tokens", description: "Cached token count",
+	},
+	"tokens-total": &tokenWidget{
+		extract: extractTotalTokens, displayName: "Total Tokens", description: "Total token count (input + output)",
+	},
+
+	"current-usage-input": &tokenWidget{
+		extract: extractCurrentInputTokens, displayName: "Current Input Tokens", description: "Current round input token count",
+	},
+	"current-usage-output": &tokenWidget{
+		extract: extractCurrentOutputTokens, displayName: "Current Output Tokens", description: "Current round output token count",
+	},
+	"cache-creation": &tokenWidget{
+		extract: extractCacheCreationTokens, displayName: "Cache Creation Tokens", description: "Cache creation input token count",
+	},
+
+	// Context window
+	"context-length": &ContextLengthWidget{},
+	"context-percentage": &percentageWidget{
+		extract: status.GetContextPercentage, displayName: "Context %", description: "Context usage as percentage of max window",
+	},
+	"context-percentage-usable": &ContextPercentageUsableWidget{},
+	"remaining-percentage": &percentageWidget{
+		extract: status.GetRemainingPercentage, displayName: "Remaining %", description: "Remaining context window percentage",
+	},
+
+	// Environment
+	"current-working-dir": &CurrentDirWidget{},
+	"project-dir":         &ProjectDirWidget{},
+	"transcript-path":     &TranscriptPathWidget{},
+	"lines-changed":       &LinesChangedWidget{},
+	"lines-added":         &LinesAddedWidget{},
+	"lines-removed":       &LinesRemovedWidget{},
+
+	// Cost and duration
+	"api-duration": &APIDurationWidget{},
+
+	// User-defined
 	"custom-text": &CustomTextWidget{},
-	"separator":   &SeparatorWidget{},
+
+	// Layout
+	"separator":      &SeparatorWidget{},
+	"flex-separator": &FlexSeparatorWidget{},
 }
 
 // Get returns the widget for the given type string, or nil if unknown.

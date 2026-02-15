@@ -11,6 +11,8 @@ import (
 	"github.com/moond4rk/ccstatus/internal/widget"
 )
 
+func intPtr(v int) *int { return &v }
+
 func TestRenderLine(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -131,6 +133,56 @@ func TestRenderLine(t *testing.T) {
 				assert.Contains(t, result, "...")
 			},
 		},
+		{
+			name: "token widgets render formatted values",
+			items: []config.WidgetItem{
+				{ID: "1", Type: "tokens-input"},
+				{ID: "2", Type: "separator"},
+				{ID: "3", Type: "context-percentage"},
+			},
+			settings: config.Settings{ColorLevel: 0, DefaultSeparator: "|", DefaultPadding: " "},
+			data: &status.StatusJSON{
+				ContextWindow: &status.ContextWindow{
+					TotalInputTokens: intPtr(50_000),
+					UsedPercentage:   func() *float64 { v := 25.0; return &v }(),
+				},
+			},
+			check: func(t *testing.T, result string) {
+				t.Helper()
+				assert.Equal(t, "50.0k | 25%", result)
+			},
+		},
+		{
+			name: "flex separator expands to fill width",
+			items: []config.WidgetItem{
+				{ID: "1", Type: "custom-text", CustomText: "L"},
+				{ID: "2", Type: "flex-separator"},
+				{ID: "3", Type: "custom-text", CustomText: "R"},
+			},
+			settings:      config.Settings{ColorLevel: 0, DefaultPadding: " "},
+			data:          &status.StatusJSON{},
+			terminalWidth: 20,
+			check: func(t *testing.T, result string) {
+				t.Helper()
+				assert.Equal(t, 20, color.VisibleWidth(result))
+				assert.Equal(t, byte('L'), result[0])
+				assert.Equal(t, byte('R'), result[len(result)-1])
+			},
+		},
+		{
+			name: "flex separator without terminal width uses single space",
+			items: []config.WidgetItem{
+				{ID: "1", Type: "custom-text", CustomText: "L"},
+				{ID: "2", Type: "flex-separator"},
+				{ID: "3", Type: "custom-text", CustomText: "R"},
+			},
+			settings: config.Settings{ColorLevel: 0, DefaultPadding: " "},
+			data:     &status.StatusJSON{},
+			check: func(t *testing.T, result string) {
+				t.Helper()
+				assert.Equal(t, "L R", result)
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -182,6 +234,7 @@ func TestCleanSeparators(t *testing.T) {
 	w1 := segment{text: "A", item: &config.WidgetItem{Type: "model"}, isSep: false}
 	w2 := segment{text: "B", item: &config.WidgetItem{Type: "version"}, isSep: false}
 	empty := segment{text: "", item: &config.WidgetItem{Type: "version"}, isSep: false}
+	flex := segment{text: "flex-separator", item: &config.WidgetItem{Type: "flex-separator"}, isSep: false}
 
 	tests := []struct {
 		name     string
@@ -218,6 +271,16 @@ func TestCleanSeparators(t *testing.T) {
 			input:    []segment{w1, sep, sep, sep, w2},
 			wantText: []string{"A", "|", "B"},
 		},
+		{
+			name:     "flex separator preserved",
+			input:    []segment{w1, flex, w2},
+			wantText: []string{"A", "flex-separator", "B"},
+		},
+		{
+			name:     "empty widgets around flex are cleaned",
+			input:    []segment{w1, flex, empty},
+			wantText: []string{"A", "flex-separator"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -228,6 +291,31 @@ func TestCleanSeparators(t *testing.T) {
 				texts = append(texts, s.text)
 			}
 			assert.Equal(t, tt.wantText, texts)
+		})
+	}
+}
+
+func TestCalculateFlexWidth(t *testing.T) {
+	tests := []struct {
+		name             string
+		detected         int
+		flexMode         string
+		compactThreshold int
+		contextPct       float64
+		want             int
+	}{
+		{"full mode", 100, "full", 60, 0, 94},
+		{"full-minus-40 mode", 100, "full-minus-40", 60, 0, 60},
+		{"full-until-compact below threshold", 100, "full-until-compact", 60, 30, 94},
+		{"full-until-compact at threshold", 100, "full-until-compact", 60, 60, 60},
+		{"full-until-compact above threshold", 100, "full-until-compact", 60, 80, 60},
+		{"unknown mode returns detected", 100, "unknown", 60, 0, 100},
+		{"empty mode returns detected", 100, "", 60, 0, 100},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, CalculateFlexWidth(tt.detected, tt.flexMode, tt.compactThreshold, tt.contextPct))
 		})
 	}
 }

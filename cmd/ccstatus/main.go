@@ -27,38 +27,27 @@ func main() {
 
 func newRootCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:           "ccstatus",
-		Short:         "Customizable status line for Claude Code",
-		Long:          "A Go implementation of a customizable status line formatter for Claude Code CLI.",
-		RunE:          runRoot,
+		Use:   "ccstatus",
+		Short: "Customizable status line for Claude Code",
+		Long: "A customizable status line formatter for Claude Code CLI.\n\n" +
+			"When run without a subcommand, reads JSON from stdin and renders the status line.",
+		RunE:          runStatusLine,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
-	cmd.Flags().Bool("init", false, "Generate default settings.json")
-	cmd.Flags().Bool("validate", false, "Validate settings.json")
-	cmd.Flags().Bool("install", false, "Register in Claude Code settings.json")
-	cmd.Flags().Bool("uninstall", false, "Remove from Claude Code settings.json")
 	cmd.Version = version
+	cmd.AddCommand(
+		newInitCmd(),
+		newValidateCmd(),
+		newInstallCmd(),
+		newUninstallCmd(),
+		newDumpCmd(),
+		newWidgetsCmd(),
+	)
 	return cmd
 }
 
-func runRoot(cmd *cobra.Command, _ []string) error {
-	if v, _ := cmd.Flags().GetBool("init"); v {
-		return runInit()
-	}
-	if v, _ := cmd.Flags().GetBool("validate"); v {
-		return runValidate()
-	}
-	if v, _ := cmd.Flags().GetBool("install"); v {
-		return runInstall()
-	}
-	if v, _ := cmd.Flags().GetBool("uninstall"); v {
-		return runUninstall()
-	}
-	return runStatusLine()
-}
-
-func runStatusLine() error {
+func runStatusLine(_ *cobra.Command, _ []string) error {
 	data, err := io.ReadAll(os.Stdin)
 	if err != nil {
 		return fmt.Errorf("reading stdin: %w", err)
@@ -86,33 +75,5 @@ func runStatusLine() error {
 			fmt.Println(output)
 		}
 	}
-	return nil
-}
-
-func runInit() error {
-	settings := config.DefaultSettings()
-	if err := config.Save(&settings); err != nil {
-		return fmt.Errorf("saving settings: %w", err)
-	}
-	fmt.Fprintf(os.Stderr, "Created %s\n", config.ConfigPath())
-	return nil
-}
-
-func runValidate() error {
-	_, err := config.Load()
-	if err != nil {
-		return fmt.Errorf("invalid settings: %w", err)
-	}
-	fmt.Fprintln(os.Stderr, "Settings are valid")
-	return nil
-}
-
-func runInstall() error {
-	fmt.Fprintln(os.Stderr, "Install not yet implemented")
-	return nil
-}
-
-func runUninstall() error {
-	fmt.Fprintln(os.Stderr, "Uninstall not yet implemented")
 	return nil
 }
