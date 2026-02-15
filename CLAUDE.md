@@ -57,7 +57,7 @@ echo '{"model":{"id":"claude-sonnet-4-5","display_name":"Sonnet"},"context_windo
 | `internal/widget/` | Widget interface, registry, all widget implementations |
 | `internal/status/` | StatusJSON input struct parsing (official Claude Code JSON schema) |
 | `internal/jsonl/` | JSONL transcript parsing (block-timer widget only) |
-| `internal/color/` | ANSI color codes, color names, color levels |
+| `internal/color/` | ANSI color output via fatih/color, standard 16 named colors |
 | `internal/jsonl/` | JSONL transcript parsing (block-timer widget) |
 | `internal/git/` | Git branch, changes, worktree detection |
 | `internal/claude/` | Claude Code settings.json integration |
