@@ -4,28 +4,19 @@ import (
 	"fmt"
 
 	"github.com/moond4rk/ccstatus/internal/config"
+	"github.com/moond4rk/ccstatus/internal/git"
 )
 
-// LinesChangedWidget displays the total lines added and removed in the session.
+// LinesChangedWidget displays git diff line additions and deletions.
 type LinesChangedWidget struct{}
 
-// Render returns a "+N/-M" format of lines changed, or empty if no data.
-func (w *LinesChangedWidget) Render(_ *config.WidgetItem, ctx RenderContext, _ *config.Settings) string {
-	if ctx.Data.Cost == nil {
+// Render returns a "+N/-M" format from git diff --shortstat, or empty if clean.
+func (w *LinesChangedWidget) Render(_ *config.WidgetItem, _ RenderContext, _ *config.Settings) string {
+	stat := git.GetDiffStat()
+	if stat.Added == 0 && stat.Removed == 0 {
 		return ""
 	}
-	added := 0
-	removed := 0
-	if ctx.Data.Cost.TotalLinesAdded != nil {
-		added = *ctx.Data.Cost.TotalLinesAdded
-	}
-	if ctx.Data.Cost.TotalLinesRemoved != nil {
-		removed = *ctx.Data.Cost.TotalLinesRemoved
-	}
-	if added == 0 && removed == 0 {
-		return ""
-	}
-	return fmt.Sprintf("+%d/-%d", added, removed)
+	return fmt.Sprintf("+%d/-%d", stat.Added, stat.Removed)
 }
 
 // DefaultColor returns the default foreground color.
@@ -35,24 +26,23 @@ func (w *LinesChangedWidget) DefaultColor() string { return defaultGreenColor }
 func (w *LinesChangedWidget) DisplayName() string { return "Lines Changed" }
 
 // Description returns what this widget shows.
-func (w *LinesChangedWidget) Description() string { return "Lines added and removed in session" }
+func (w *LinesChangedWidget) Description() string {
+	return "Uncommitted lines added and removed (git diff)"
+}
 
 // SupportsRawValue returns false.
 func (w *LinesChangedWidget) SupportsRawValue() bool { return false }
 
-// LinesAddedWidget displays only the lines added count.
+// LinesAddedWidget displays only the git diff lines added count.
 type LinesAddedWidget struct{}
 
-// Render returns "+N" format, or empty if zero.
-func (w *LinesAddedWidget) Render(_ *config.WidgetItem, ctx RenderContext, _ *config.Settings) string {
-	if ctx.Data.Cost == nil || ctx.Data.Cost.TotalLinesAdded == nil {
+// Render returns "+N" from git diff, or empty if zero.
+func (w *LinesAddedWidget) Render(_ *config.WidgetItem, _ RenderContext, _ *config.Settings) string {
+	stat := git.GetDiffStat()
+	if stat.Added == 0 {
 		return ""
 	}
-	n := *ctx.Data.Cost.TotalLinesAdded
-	if n == 0 {
-		return ""
-	}
-	return fmt.Sprintf("+%d", n)
+	return fmt.Sprintf("+%d", stat.Added)
 }
 
 // DefaultColor returns the default foreground color.
@@ -62,24 +52,21 @@ func (w *LinesAddedWidget) DefaultColor() string { return defaultGreenColor }
 func (w *LinesAddedWidget) DisplayName() string { return "Lines Added" }
 
 // Description returns what this widget shows.
-func (w *LinesAddedWidget) Description() string { return "Lines added in session" }
+func (w *LinesAddedWidget) Description() string { return "Uncommitted lines added (git diff)" }
 
 // SupportsRawValue returns false.
 func (w *LinesAddedWidget) SupportsRawValue() bool { return false }
 
-// LinesRemovedWidget displays only the lines removed count.
+// LinesRemovedWidget displays only the git diff lines removed count.
 type LinesRemovedWidget struct{}
 
-// Render returns "-N" format, or empty if zero.
-func (w *LinesRemovedWidget) Render(_ *config.WidgetItem, ctx RenderContext, _ *config.Settings) string {
-	if ctx.Data.Cost == nil || ctx.Data.Cost.TotalLinesRemoved == nil {
+// Render returns "-N" from git diff, or empty if zero.
+func (w *LinesRemovedWidget) Render(_ *config.WidgetItem, _ RenderContext, _ *config.Settings) string {
+	stat := git.GetDiffStat()
+	if stat.Removed == 0 {
 		return ""
 	}
-	n := *ctx.Data.Cost.TotalLinesRemoved
-	if n == 0 {
-		return ""
-	}
-	return fmt.Sprintf("-%d", n)
+	return fmt.Sprintf("-%d", stat.Removed)
 }
 
 // DefaultColor returns the default foreground color.
@@ -89,7 +76,7 @@ func (w *LinesRemovedWidget) DefaultColor() string { return "red" }
 func (w *LinesRemovedWidget) DisplayName() string { return "Lines Removed" }
 
 // Description returns what this widget shows.
-func (w *LinesRemovedWidget) Description() string { return "Lines removed in session" }
+func (w *LinesRemovedWidget) Description() string { return "Uncommitted lines removed (git diff)" }
 
 // SupportsRawValue returns false.
 func (w *LinesRemovedWidget) SupportsRawValue() bool { return false }

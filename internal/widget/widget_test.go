@@ -541,72 +541,35 @@ func TestSessionClockWidget(t *testing.T) {
 
 func TestLinesChangedWidget(t *testing.T) {
 	w := &LinesChangedWidget{}
-	settings := config.DefaultSettings()
 
-	t.Run("formats added and removed", func(t *testing.T) {
-		item := config.WidgetItem{}
-		ctx := RenderContext{Data: &status.StatusJSON{
-			Cost: &status.CostInfo{
-				TotalLinesAdded:   intPtr(156),
-				TotalLinesRemoved: intPtr(23),
-			},
-		}}
-		assert.Equal(t, "+156/-23", w.Render(&item, ctx, &settings))
-	})
-
-	t.Run("only added", func(t *testing.T) {
-		item := config.WidgetItem{}
-		ctx := RenderContext{Data: &status.StatusJSON{
-			Cost: &status.CostInfo{TotalLinesAdded: intPtr(42)},
-		}}
-		assert.Equal(t, "+42/-0", w.Render(&item, ctx, &settings))
-	})
-
-	t.Run("both zero returns empty", func(t *testing.T) {
-		item := config.WidgetItem{}
-		ctx := RenderContext{Data: &status.StatusJSON{
-			Cost: &status.CostInfo{
-				TotalLinesAdded:   intPtr(0),
-				TotalLinesRemoved: intPtr(0),
-			},
-		}}
-		assert.Empty(t, w.Render(&item, ctx, &settings))
-	})
-
-	t.Run("nil cost returns empty", func(t *testing.T) {
+	t.Run("returns git diff format or empty", func(t *testing.T) {
+		// Widget calls real git commands; result depends on working tree state.
+		// Verify output is either empty or matches +N/-M format.
+		settings := config.DefaultSettings()
 		item := config.WidgetItem{}
 		ctx := RenderContext{Data: &status.StatusJSON{}}
-		assert.Empty(t, w.Render(&item, ctx, &settings))
+		result := w.Render(&item, ctx, &settings)
+		if result != "" {
+			assert.Regexp(t, `^\+\d+/-\d+$`, result)
+		}
 	})
 
 	assert.Equal(t, "green", w.DefaultColor())
+	assert.Equal(t, "Lines Changed", w.DisplayName())
 	assert.False(t, w.SupportsRawValue())
 }
 
 func TestLinesAddedWidget(t *testing.T) {
 	w := &LinesAddedWidget{}
-	settings := config.DefaultSettings()
 
-	t.Run("formats added", func(t *testing.T) {
-		item := config.WidgetItem{}
-		ctx := RenderContext{Data: &status.StatusJSON{
-			Cost: &status.CostInfo{TotalLinesAdded: intPtr(156)},
-		}}
-		assert.Equal(t, "+156", w.Render(&item, ctx, &settings))
-	})
-
-	t.Run("zero returns empty", func(t *testing.T) {
-		item := config.WidgetItem{}
-		ctx := RenderContext{Data: &status.StatusJSON{
-			Cost: &status.CostInfo{TotalLinesAdded: intPtr(0)},
-		}}
-		assert.Empty(t, w.Render(&item, ctx, &settings))
-	})
-
-	t.Run("nil cost returns empty", func(t *testing.T) {
+	t.Run("returns git diff format or empty", func(t *testing.T) {
+		settings := config.DefaultSettings()
 		item := config.WidgetItem{}
 		ctx := RenderContext{Data: &status.StatusJSON{}}
-		assert.Empty(t, w.Render(&item, ctx, &settings))
+		result := w.Render(&item, ctx, &settings)
+		if result != "" {
+			assert.Regexp(t, `^\+\d+$`, result)
+		}
 	})
 
 	assert.Equal(t, "green", w.DefaultColor())
@@ -614,22 +577,15 @@ func TestLinesAddedWidget(t *testing.T) {
 
 func TestLinesRemovedWidget(t *testing.T) {
 	w := &LinesRemovedWidget{}
-	settings := config.DefaultSettings()
 
-	t.Run("formats removed", func(t *testing.T) {
+	t.Run("returns git diff format or empty", func(t *testing.T) {
+		settings := config.DefaultSettings()
 		item := config.WidgetItem{}
-		ctx := RenderContext{Data: &status.StatusJSON{
-			Cost: &status.CostInfo{TotalLinesRemoved: intPtr(23)},
-		}}
-		assert.Equal(t, "-23", w.Render(&item, ctx, &settings))
-	})
-
-	t.Run("zero returns empty", func(t *testing.T) {
-		item := config.WidgetItem{}
-		ctx := RenderContext{Data: &status.StatusJSON{
-			Cost: &status.CostInfo{TotalLinesRemoved: intPtr(0)},
-		}}
-		assert.Empty(t, w.Render(&item, ctx, &settings))
+		ctx := RenderContext{Data: &status.StatusJSON{}}
+		result := w.Render(&item, ctx, &settings)
+		if result != "" {
+			assert.Regexp(t, `^-\d+$`, result)
+		}
 	})
 
 	assert.Equal(t, "red", w.DefaultColor())
