@@ -1,16 +1,14 @@
 # RFC 003: Remaining Widget Implementation
 
-Status: Draft
+Status: Completed
 Author: @moond4rk
 Date: 2026-02-15
 
 ## Summary
 
-This RFC tracks the remaining widgets to implement for feature parity with the TypeScript ccstatusline project, plus ccstatus-exclusive widgets from the Claude Code JSON API.
+This RFC tracked the remaining widgets to implement for feature parity with the TypeScript ccstatusline project, plus ccstatus-exclusive widgets from the Claude Code JSON API.
 
-## Current State
-
-ccstatus has 27 registered widgets. The TypeScript ccstatusline has 21 widgets. There is significant overlap but each project has unique widgets the other lacks.
+All widgets are now implemented. ccstatus has 36 registered widgets, achieving 100% coverage of the official Claude Code JSON schema.
 
 ## Comparison Matrix
 
@@ -18,11 +16,11 @@ ccstatus has 27 registered widgets. The TypeScript ccstatusline has 21 widgets. 
 |--------|:---:|:---:|--------|
 | model | Y | Y | Done |
 | version | Y | Y | Done |
-| output-style | - | Y | **TODO** |
-| session-id | - | Y (claude-session-id) | **TODO** |
+| output-style | Y | Y | Done |
+| session-id | Y | Y (claude-session-id) | Done |
 | git-branch | Y | Y | Done |
 | git-changes | Y | Y | Done (different format) |
-| git-worktree | - | Y | **TODO** |
+| git-worktree | Y | Y | Done |
 | tokens-input | Y | Y | Done |
 | tokens-output | Y | Y | Done |
 | tokens-cached | Y | Y | Done |
@@ -34,19 +32,19 @@ ccstatus has 27 registered widgets. The TypeScript ccstatusline has 21 widgets. 
 | context-percentage | Y | Y | Done |
 | context-percentage-usable | Y | Y | Done |
 | remaining-percentage | Y | - | Done (Go exclusive) |
-| block-timer | - | Y | **TODO** (high effort) |
+| block-timer | Y | Y | Done |
 | session-clock | Y | Y | Done |
 | session-cost | Y | Y | Done |
 | api-duration | Y | - | Done (Go exclusive) |
 | current-working-dir | Y | Y | Done |
 | project-dir | Y | - | Done (Go exclusive) |
 | transcript-path | Y | - | Done (Go exclusive) |
-| terminal-width | - | Y | **TODO** |
+| terminal-width | Y | Y | Done |
 | custom-text | Y | Y | Done |
-| custom-command | - | Y | **TODO** (high value) |
-| vim-mode | - | - | **TODO** (both planned) |
-| agent-name | - | - | **TODO** (both planned) |
-| exceeds-200k | - | - | **TODO** (both planned) |
+| custom-command | Y | Y | Done |
+| vim-mode | Y | - | Done (Go exclusive) |
+| agent-name | Y | - | Done (Go exclusive) |
+| exceeds-200k | Y | - | Done (Go exclusive) |
 | lines-changed | Y | - | Done (Go exclusive) |
 | lines-added | Y | - | Done (Go exclusive) |
 | lines-removed | Y | - | Done (Go exclusive) |
@@ -55,107 +53,34 @@ ccstatus has 27 registered widgets. The TypeScript ccstatusline has 21 widgets. 
 
 ### Summary
 
-- **ccstatus-exclusive widgets (9)**: current-usage-input, current-usage-output, cache-creation, remaining-percentage, api-duration, project-dir, transcript-path, lines-changed/added/removed
-- **ccstatusline-exclusive widgets (6)**: output-style, session-id, git-worktree, block-timer, terminal-width, custom-command
-- **Both planned but neither implemented (3)**: vim-mode, agent-name, exceeds-200k
+- **Total widgets**: 36 registered
+- **ccstatus-exclusive widgets (15)**: current-usage-input, current-usage-output, cache-creation, remaining-percentage, api-duration, project-dir, transcript-path, lines-changed/added/removed, vim-mode, agent-name, exceeds-200k
+- **Shared with ccstatusline (21)**: model, version, output-style, session-id, git-branch, git-changes, git-worktree, tokens-input/output/cached/total, context-length, context-percentage, context-percentage-usable, block-timer, session-clock, session-cost, current-working-dir, terminal-width, custom-text, custom-command, separator, flex-separator
 
-## Widgets to Implement
+## Implementation Notes
 
-### Priority 1 - High Value
+### Generic Widget Patterns
 
-#### 1. `custom-command`
+To avoid code duplication flagged by the `dupl` linter, several generic widget types were created:
 
-Execute arbitrary shell commands and display output. Core extensibility widget.
+- **`tokenWidget`** - Parameterized by extractor function. Used for 7 token widgets.
+- **`percentageWidget`** - Parameterized by extractor function. Used for context-percentage and remaining-percentage.
+- **`stringFieldWidget`** - Parameterized by extractor, color, name, description. Used for output-style, vim-mode, and agent-name.
 
-- **Source**: Shell command execution
-- **Config fields**: `customCommand` (string), `timeout` (ms), `maxWidth` (int)
-- **Format**: stdout of the command (first line, trimmed)
-- **Complexity**: Medium - need subprocess execution with timeout, security considerations
-- **TS reference**: Passes JSON input via stdin to the command, supports `preserveColors` metadata
+### block-timer
 
-#### 2. `output-style`
+Uses `cost.total_duration_ms` as primary data source (available from Claude Code JSON). Falls back to JSONL transcript parsing (`internal/jsonl/`) when duration data is unavailable. Supports three display modes via `metadata["display"]`:
+- `"time"` (default): `2h15m/5h`
+- `"progress"`: `[=====>    ] 50%`
+- `"percentage"`: `50%`
 
-Display the currently configured output style.
+### custom-command
 
-- **Source**: `StatusJSON.OutputStyle.Name`
-- **Format**: `text` / `json` / `stream-json`
-- **Default color**: `brightBlack`
-- **Complexity**: Low - single field read
-- **Supports rawValue**: no
+Executes shell commands via `sh -c` with configurable timeout (default 3s). Pipes full JSON session data to stdin. Supports `preserveColors` to retain ANSI escape sequences, `maxWidth` to truncate output.
 
-#### 3. `session-id`
+### git-worktree
 
-Display the Claude Code session ID.
-
-- **Source**: `StatusJSON.SessionID`
-- **Format**: Full UUID (rawValue) or truncated (normal)
-- **Default color**: `brightBlack`
-- **Complexity**: Low - single field read
-- **Supports rawValue**: yes (full vs truncated)
-
-### Priority 2 - Useful
-
-#### 4. `git-worktree`
-
-Display the current git worktree name.
-
-- **Source**: Git command (`git rev-parse --git-dir`)
-- **Format**: Worktree name or empty
-- **Default color**: `magenta`
-- **Complexity**: Medium - need to detect worktree vs main repo
-- **TS reference**: Has `hideNoGit` metadata option
-
-#### 5. `terminal-width`
-
-Display the current terminal width in columns. Primarily for debugging.
-
-- **Source**: `RenderContext.TerminalWidth` (already available)
-- **Format**: `120` (columns)
-- **Default color**: `brightBlack`
-- **Complexity**: Very low - data already in RenderContext
-- **Supports rawValue**: no
-
-#### 6. `block-timer`
-
-Display time elapsed in current 5-hour Claude Code session block.
-
-- **Source**: JSONL transcript file (parsed via `internal/jsonl/`)
-- **Format**: Three display modes - time (`2h15m`), progress bar (`[=====>    ]`), progress-short (`45%`)
-- **Default color**: `brightBlack`
-- **Complexity**: High - requires JSONL parsing, block detection, multiple display modes
-- **TS reference**: 3 modes toggled via metadata `display` field
-
-### Priority 3 - Narrow Use Case
-
-#### 7. `vim-mode`
-
-Display the current vim mode when vim keybindings are enabled.
-
-- **Source**: `StatusJSON.Vim.Mode`
-- **Format**: `NORMAL` / `INSERT` / `VISUAL`
-- **Default color**: `yellow`
-- **Complexity**: Low - single field, only renders when vim is enabled
-- **Note**: Field exists in StatusJSON but no widget yet in either project
-
-#### 8. `agent-name`
-
-Display the agent name when running with `--agent` flag.
-
-- **Source**: `StatusJSON.Agent.Name`
-- **Format**: Agent name string
-- **Default color**: `cyan`
-- **Complexity**: Low - single field, only renders in agent mode
-- **Note**: Field exists in StatusJSON but no widget yet in either project
-
-#### 9. `exceeds-200k`
-
-Warning indicator when token count exceeds 200k threshold.
-
-- **Source**: `StatusJSON.Exceeds200K`
-- **Format**: Warning text (e.g., `>200k`) or empty
-- **Default color**: `red`
-- **Complexity**: Low - boolean field check
-- **Note**: Field exists in StatusJSON but no widget yet in either project
+Detects linked worktrees by checking if `git rev-parse --git-dir` returns a path containing `/worktrees/`. Returns the worktree name or empty string for main working tree.
 
 ## Notable Feature Differences
 
@@ -168,22 +93,10 @@ Warning indicator when token count exceeds 200k threshold.
 
 ### ccstatus (Go) has but ccstatusline (TS) does not
 
-1. **lines-changed/added/removed**: Session-level code change metrics from Claude Code cost data
+1. **lines-changed/added/removed**: Real git diff stats (uncommitted changes)
 2. **current-usage-input/output**: Per-round token metrics
 3. **cache-creation**: Cache creation token visibility
 4. **remaining-percentage**: Explicit remaining context percentage
 5. **api-duration**: API response time widget
 6. **project-dir / transcript-path**: Additional environment info
-
-## Implementation Order
-
-Suggested implementation sequence:
-
-1. `output-style` + `session-id` (trivial, same session)
-2. `terminal-width` (trivial, data already available)
-3. `vim-mode` + `agent-name` + `exceeds-200k` (low effort, complete JSON coverage)
-4. `custom-command` (medium effort, high user value)
-5. `git-worktree` (medium effort, requires git integration)
-6. `block-timer` (high effort, requires JSONL parsing infrastructure)
-
-After all widgets: 36 total registered widgets.
+7. **vim-mode / agent-name / exceeds-200k**: From official Claude Code JSON fields

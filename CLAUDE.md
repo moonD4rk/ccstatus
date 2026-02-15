@@ -58,6 +58,7 @@ echo '{"model":{"id":"claude-sonnet-4-5","display_name":"Sonnet"},"context_windo
 | `internal/status/` | StatusJSON input struct parsing (official Claude Code JSON schema) |
 | `internal/jsonl/` | JSONL transcript parsing (block-timer widget only) |
 | `internal/color/` | ANSI color codes, color names, color levels |
+| `internal/jsonl/` | JSONL transcript parsing (block-timer widget) |
 | `internal/git/` | Git branch, changes, worktree detection |
 | `internal/claude/` | Claude Code settings.json integration |
 | `internal/terminal/` | Terminal width detection |
@@ -78,7 +79,7 @@ type Widget interface {
 
 Widgets are registered in a map-based registry keyed by type string.
 
-### Available Widgets (27 registered, 32 planned)
+### Available Widgets (36 registered)
 
 Data source: (J) = from Claude Code JSON input, (G) = from git commands, (T) = from JSONL transcript, (S) = from system
 
@@ -100,7 +101,7 @@ Data source: (J) = from Claude Code JSON input, (G) = from git commands, (T) = f
 - **context-percentage** (J) - Context usage as percentage (from context_window.used_percentage)
 - **context-percentage-usable** (J) - Usable context percentage (80% of max)
 - **remaining-percentage** (J) - Remaining context window percentage (from context_window.remaining_percentage)
-- **block-timer** (T) - 5-hour session block timer (requires JSONL parsing)
+- **block-timer** (J/T) - 5-hour session block timer (from cost.total_duration_ms, JSONL fallback)
 - **session-clock** (J) - Session duration (from cost.total_duration_ms)
 - **session-cost** (J) - Session cost in USD (from cost.total_cost_usd)
 - **api-duration** (J) - API response time (from cost.total_api_duration_ms)

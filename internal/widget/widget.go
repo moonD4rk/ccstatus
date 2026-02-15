@@ -40,8 +40,9 @@ var registry = map[string]Widget{
 	"session-clock": &SessionClockWidget{},
 
 	// Git
-	"git-branch":  &GitBranchWidget{},
-	"git-changes": &GitChangesWidget{},
+	"git-branch":   &GitBranchWidget{},
+	"git-changes":  &GitChangesWidget{},
+	"git-worktree": &GitWorktreeWidget{},
 
 	// Token metrics
 	"tokens-input": &tokenWidget{
@@ -87,9 +88,49 @@ var registry = map[string]Widget{
 
 	// Cost and duration
 	"api-duration": &APIDurationWidget{},
+	"block-timer":  &BlockTimerWidget{},
+
+	// Session info
+	"session-id": &SessionIDWidget{},
+	"output-style": &stringFieldWidget{
+		extract: func(data *status.StatusJSON) string {
+			if data.OutputStyle == nil {
+				return ""
+			}
+			return data.OutputStyle.Name
+		},
+		defaultColor: defaultDimColor,
+		displayName:  "Output Style",
+		description:  "Current output style name",
+	},
+	"vim-mode": &stringFieldWidget{
+		extract: func(data *status.StatusJSON) string {
+			if data.Vim == nil {
+				return ""
+			}
+			return data.Vim.Mode
+		},
+		defaultColor: "yellow",
+		displayName:  "Vim Mode",
+		description:  "Current vim mode indicator",
+	},
+	"agent-name": &stringFieldWidget{
+		extract: func(data *status.StatusJSON) string {
+			if data.Agent == nil {
+				return ""
+			}
+			return data.Agent.Name
+		},
+		defaultColor: "cyan",
+		displayName:  "Agent Name",
+		description:  "Agent name when using --agent flag",
+	},
+	"exceeds-200k":   &Exceeds200KWidget{},
+	"terminal-width": &TerminalWidthWidget{},
 
 	// User-defined
-	"custom-text": &CustomTextWidget{},
+	"custom-text":    &CustomTextWidget{},
+	"custom-command": &CustomCommandWidget{},
 
 	// Layout
 	"separator":      &SeparatorWidget{},

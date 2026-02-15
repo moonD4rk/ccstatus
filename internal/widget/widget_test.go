@@ -3,6 +3,7 @@ package widget
 import (
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -46,6 +47,15 @@ func TestGet(t *testing.T) {
 		{"current-usage-input", false},
 		{"current-usage-output", false},
 		{"cache-creation", false},
+		{"output-style", false},
+		{"session-id", false},
+		{"terminal-width", false},
+		{"vim-mode", false},
+		{"agent-name", false},
+		{"exceeds-200k", false},
+		{"custom-command", false},
+		{"git-worktree", false},
+		{"block-timer", false},
 		{"nonexistent", true},
 	}
 
@@ -613,6 +623,15 @@ func TestTypes(t *testing.T) {
 	assert.Contains(t, types, "current-usage-input")
 	assert.Contains(t, types, "current-usage-output")
 	assert.Contains(t, types, "cache-creation")
+	assert.Contains(t, types, "output-style")
+	assert.Contains(t, types, "session-id")
+	assert.Contains(t, types, "terminal-width")
+	assert.Contains(t, types, "vim-mode")
+	assert.Contains(t, types, "agent-name")
+	assert.Contains(t, types, "exceeds-200k")
+	assert.Contains(t, types, "custom-command")
+	assert.Contains(t, types, "git-worktree")
+	assert.Contains(t, types, "block-timer")
 }
 
 func TestRemainingPercentageWidget(t *testing.T) {
@@ -885,4 +904,377 @@ func TestRegister(t *testing.T) {
 	assert.Nil(t, Get("test-widget"))
 	Register("test-widget", &CustomTextWidget{})
 	assert.NotNil(t, Get("test-widget"))
+}
+
+func boolPtr(v bool) *bool { return &v }
+
+func TestOutputStyleWidget(t *testing.T) {
+	w := Get("output-style")
+	settings := config.DefaultSettings()
+
+	t.Run("returns style name", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.StatusJSON{
+			OutputStyle: &status.OutputStyle{Name: "text"},
+		}}
+		assert.Equal(t, "text", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("stream-json style", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.StatusJSON{
+			OutputStyle: &status.OutputStyle{Name: "stream-json"},
+		}}
+		assert.Equal(t, "stream-json", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("nil output style returns empty", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.StatusJSON{}}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("nil data returns empty", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: nil}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	assert.Equal(t, defaultDimColor, w.DefaultColor())
+	assert.False(t, w.SupportsRawValue())
+}
+
+func TestSessionIDWidget(t *testing.T) {
+	w := &SessionIDWidget{}
+	settings := config.DefaultSettings()
+
+	t.Run("truncated by default", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.StatusJSON{
+			SessionID: "abc12345-6789-0abc-def0-123456789abc",
+		}}
+		assert.Equal(t, "abc12345", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("raw value returns full UUID", func(t *testing.T) {
+		item := config.WidgetItem{RawValue: true}
+		ctx := RenderContext{Data: &status.StatusJSON{
+			SessionID: "abc12345-6789-0abc-def0-123456789abc",
+		}}
+		assert.Equal(t, "abc12345-6789-0abc-def0-123456789abc", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("short ID not truncated", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.StatusJSON{
+			SessionID: "abc",
+		}}
+		assert.Equal(t, "abc", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("empty session ID returns empty", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.StatusJSON{}}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("nil data returns empty", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: nil}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	assert.Equal(t, defaultDimColor, w.DefaultColor())
+	assert.True(t, w.SupportsRawValue())
+}
+
+func TestTerminalWidthWidget(t *testing.T) {
+	w := &TerminalWidthWidget{}
+	settings := config.DefaultSettings()
+	item := config.WidgetItem{}
+
+	t.Run("returns width as string", func(t *testing.T) {
+		ctx := RenderContext{TerminalWidth: 120}
+		assert.Equal(t, "120", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("zero width returns empty", func(t *testing.T) {
+		ctx := RenderContext{TerminalWidth: 0}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("negative width returns empty", func(t *testing.T) {
+		ctx := RenderContext{TerminalWidth: -1}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	assert.Equal(t, defaultDimColor, w.DefaultColor())
+	assert.False(t, w.SupportsRawValue())
+}
+
+func TestVimModeWidget(t *testing.T) {
+	w := Get("vim-mode")
+	settings := config.DefaultSettings()
+	item := config.WidgetItem{}
+
+	t.Run("returns NORMAL mode", func(t *testing.T) {
+		ctx := RenderContext{Data: &status.StatusJSON{
+			Vim: &status.VimInfo{Mode: "NORMAL"},
+		}}
+		assert.Equal(t, "NORMAL", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("returns INSERT mode", func(t *testing.T) {
+		ctx := RenderContext{Data: &status.StatusJSON{
+			Vim: &status.VimInfo{Mode: "INSERT"},
+		}}
+		assert.Equal(t, "INSERT", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("nil vim returns empty", func(t *testing.T) {
+		ctx := RenderContext{Data: &status.StatusJSON{}}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("nil data returns empty", func(t *testing.T) {
+		ctx := RenderContext{Data: nil}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	assert.Equal(t, "yellow", w.DefaultColor())
+	assert.False(t, w.SupportsRawValue())
+}
+
+func TestAgentNameWidget(t *testing.T) {
+	w := Get("agent-name")
+	settings := config.DefaultSettings()
+	item := config.WidgetItem{}
+
+	t.Run("returns agent name", func(t *testing.T) {
+		ctx := RenderContext{Data: &status.StatusJSON{
+			Agent: &status.AgentInfo{Name: "security-reviewer"},
+		}}
+		assert.Equal(t, "security-reviewer", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("nil agent returns empty", func(t *testing.T) {
+		ctx := RenderContext{Data: &status.StatusJSON{}}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("nil data returns empty", func(t *testing.T) {
+		ctx := RenderContext{Data: nil}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	assert.Equal(t, "cyan", w.DefaultColor())
+	assert.False(t, w.SupportsRawValue())
+}
+
+func TestExceeds200KWidget(t *testing.T) {
+	w := &Exceeds200KWidget{}
+	settings := config.DefaultSettings()
+	item := config.WidgetItem{}
+
+	t.Run("true returns warning", func(t *testing.T) {
+		ctx := RenderContext{Data: &status.StatusJSON{
+			Exceeds200K: boolPtr(true),
+		}}
+		assert.Equal(t, ">200k", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("false returns empty", func(t *testing.T) {
+		ctx := RenderContext{Data: &status.StatusJSON{
+			Exceeds200K: boolPtr(false),
+		}}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("nil returns empty", func(t *testing.T) {
+		ctx := RenderContext{Data: &status.StatusJSON{}}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("nil data returns empty", func(t *testing.T) {
+		ctx := RenderContext{Data: nil}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	assert.Equal(t, "red", w.DefaultColor())
+	assert.False(t, w.SupportsRawValue())
+}
+
+func TestCustomCommandWidget(t *testing.T) {
+	w := &CustomCommandWidget{}
+	settings := config.DefaultSettings()
+
+	t.Run("executes echo command", func(t *testing.T) {
+		item := config.WidgetItem{CommandPath: "echo hello"}
+		ctx := RenderContext{Data: &status.StatusJSON{}}
+		assert.Equal(t, "hello", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("takes first line only", func(t *testing.T) {
+		item := config.WidgetItem{CommandPath: "printf 'line1\nline2'"}
+		ctx := RenderContext{Data: &status.StatusJSON{}}
+		assert.Equal(t, "line1", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("applies maxWidth", func(t *testing.T) {
+		item := config.WidgetItem{CommandPath: "echo longstring", MaxWidth: 4}
+		ctx := RenderContext{Data: &status.StatusJSON{}}
+		assert.Equal(t, "long", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("strips ANSI by default", func(t *testing.T) {
+		item := config.WidgetItem{CommandPath: `printf '\033[32mgreen\033[0m'`}
+		ctx := RenderContext{Data: &status.StatusJSON{}}
+		assert.Equal(t, "green", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("preserves ANSI when configured", func(t *testing.T) {
+		item := config.WidgetItem{
+			CommandPath:    `printf '\033[32mgreen\033[0m'`,
+			PreserveColors: true,
+		}
+		ctx := RenderContext{Data: &status.StatusJSON{}}
+		assert.Contains(t, w.Render(&item, ctx, &settings), "green")
+	})
+
+	t.Run("empty commandPath returns empty", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.StatusJSON{}}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("failing command returns empty", func(t *testing.T) {
+		item := config.WidgetItem{CommandPath: "false"}
+		ctx := RenderContext{Data: &status.StatusJSON{}}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("pipes JSON to stdin", func(t *testing.T) {
+		item := config.WidgetItem{CommandPath: "cat | jq -r .version 2>/dev/null || echo fallback"}
+		ctx := RenderContext{Data: &status.StatusJSON{Version: "1.0.80"}}
+		result := w.Render(&item, ctx, &settings)
+		// jq may not be installed; accept either the parsed value or fallback.
+		assert.True(t, result == "1.0.80" || result == "fallback",
+			"expected '1.0.80' or 'fallback', got %q", result)
+	})
+
+	assert.Equal(t, "white", w.DefaultColor())
+	assert.False(t, w.SupportsRawValue())
+}
+
+func TestBlockTimerWidget(t *testing.T) {
+	w := &BlockTimerWidget{}
+	settings := config.DefaultSettings()
+
+	t.Run("time mode from duration_ms", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.StatusJSON{
+			Cost: &status.CostInfo{TotalDurationMS: floatPtr(5_400_000)}, // 1h30m
+		}}
+		assert.Equal(t, "1h30m/5h", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("time mode less than a minute", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.StatusJSON{
+			Cost: &status.CostInfo{TotalDurationMS: floatPtr(30_000)},
+		}}
+		assert.Equal(t, "<1m/5h", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("time mode hours only", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.StatusJSON{
+			Cost: &status.CostInfo{TotalDurationMS: floatPtr(7_200_000)}, // 2h
+		}}
+		assert.Equal(t, "2h/5h", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("clamped at 5h", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.StatusJSON{
+			Cost: &status.CostInfo{TotalDurationMS: floatPtr(20_000_000)}, // >5h
+		}}
+		assert.Equal(t, "5h/5h", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("percentage mode", func(t *testing.T) {
+		item := config.WidgetItem{Metadata: map[string]string{"display": "percentage"}}
+		ctx := RenderContext{Data: &status.StatusJSON{
+			Cost: &status.CostInfo{TotalDurationMS: floatPtr(9_000_000)}, // 2.5h = 50%
+		}}
+		assert.Equal(t, "50%", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("progress mode", func(t *testing.T) {
+		item := config.WidgetItem{Metadata: map[string]string{"display": "progress"}}
+		ctx := RenderContext{Data: &status.StatusJSON{
+			Cost: &status.CostInfo{TotalDurationMS: floatPtr(9_000_000)}, // 50%
+		}}
+		result := w.Render(&item, ctx, &settings)
+		assert.Contains(t, result, "[")
+		assert.Contains(t, result, "]")
+		assert.Contains(t, result, "50%")
+	})
+
+	t.Run("nil cost returns empty", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.StatusJSON{}}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("nil data returns empty", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: nil}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("transcript fallback with temp file", func(t *testing.T) {
+		// Create a temp JSONL file with a timestamp.
+		tmpFile, err := os.CreateTemp("", "transcript-*.jsonl")
+		require.NoError(t, err)
+		defer os.Remove(tmpFile.Name())
+
+		// Write a JSONL entry with a timestamp 1 hour ago.
+		ts := time.Now().Add(-1 * time.Hour).Format(time.RFC3339)
+		_, err = tmpFile.WriteString(`{"timestamp":"` + ts + `","type":"start"}` + "\n")
+		require.NoError(t, err)
+		tmpFile.Close()
+
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.StatusJSON{
+			TranscriptPath: tmpFile.Name(),
+		}}
+		result := w.Render(&item, ctx, &settings)
+		// Should show approximately 1h/5h (could be 59m or 1h depending on timing).
+		assert.NotEmpty(t, result)
+		assert.Contains(t, result, "/5h")
+	})
+
+	assert.Equal(t, defaultDimColor, w.DefaultColor())
+	assert.False(t, w.SupportsRawValue())
+}
+
+func TestStripANSI(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"no ANSI", "hello", "hello"},
+		{"color code", "\033[32mgreen\033[0m", "green"},
+		{"bold", "\033[1mbold\033[0m", "bold"},
+		{"multiple codes", "\033[1;32mbold green\033[0m", "bold green"},
+		{"empty string", "", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, stripANSI(tt.input))
+		})
+	}
 }
