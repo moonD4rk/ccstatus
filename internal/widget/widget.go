@@ -33,11 +33,15 @@ type Widget interface {
 }
 
 var registry = map[string]Widget{
-	"model":       &ModelWidget{},
-	"version":     &VersionWidget{},
+	// Model and session
+	"model":         &ModelWidget{},
+	"version":       &VersionWidget{},
+	"session-cost":  &SessionCostWidget{},
+	"session-clock": &SessionClockWidget{},
+
+	// Git
 	"git-branch":  &GitBranchWidget{},
-	"custom-text": &CustomTextWidget{},
-	"separator":   &SeparatorWidget{},
+	"git-changes": &GitChangesWidget{},
 
 	// Token metrics
 	"tokens-input": &tokenWidget{
@@ -58,7 +62,15 @@ var registry = map[string]Widget{
 	"context-percentage":        &ContextPercentageWidget{},
 	"context-percentage-usable": &ContextPercentageUsableWidget{},
 
+	// Environment
+	"current-working-dir": &CurrentDirWidget{},
+	"lines-changed":       &LinesChangedWidget{},
+
+	// User-defined
+	"custom-text": &CustomTextWidget{},
+
 	// Layout
+	"separator":      &SeparatorWidget{},
 	"flex-separator": &FlexSeparatorWidget{},
 }
 

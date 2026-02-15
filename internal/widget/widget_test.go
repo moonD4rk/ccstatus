@@ -31,6 +31,11 @@ func TestGet(t *testing.T) {
 		{"context-percentage", false},
 		{"context-percentage-usable", false},
 		{"flex-separator", false},
+		{"git-changes", false},
+		{"current-working-dir", false},
+		{"session-cost", false},
+		{"session-clock", false},
+		{"lines-changed", false},
 		{"nonexistent", true},
 	}
 
@@ -398,6 +403,167 @@ func TestFlexSeparatorWidget(t *testing.T) {
 	assert.False(t, w.SupportsRawValue())
 }
 
+func TestCurrentDirWidget(t *testing.T) {
+	w := &CurrentDirWidget{}
+	settings := config.DefaultSettings()
+
+	t.Run("base dir name", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.StatusJSON{
+			Workspace: &status.Workspace{CurrentDir: "/home/user/projects/myapp"},
+		}}
+		assert.Equal(t, "myapp", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("raw value returns full path", func(t *testing.T) {
+		item := config.WidgetItem{RawValue: true}
+		ctx := RenderContext{Data: &status.StatusJSON{
+			Workspace: &status.Workspace{CurrentDir: "/home/user/projects/myapp"},
+		}}
+		assert.Equal(t, "/home/user/projects/myapp", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("falls back to cwd", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.StatusJSON{Cwd: "/tmp/test"}}
+		assert.Equal(t, "test", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("nil data returns empty", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.StatusJSON{}}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	assert.Equal(t, "blue", w.DefaultColor())
+	assert.True(t, w.SupportsRawValue())
+}
+
+func TestSessionCostWidget(t *testing.T) {
+	w := &SessionCostWidget{}
+	settings := config.DefaultSettings()
+
+	t.Run("formats cost with dollar sign", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.StatusJSON{
+			Cost: &status.CostInfo{TotalCostUSD: floatPtr(1.23)},
+		}}
+		assert.Equal(t, "$1.23", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("small cost uses 4 decimals", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.StatusJSON{
+			Cost: &status.CostInfo{TotalCostUSD: floatPtr(0.0012)},
+		}}
+		assert.Equal(t, "$0.0012", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("raw value omits dollar sign", func(t *testing.T) {
+		item := config.WidgetItem{RawValue: true}
+		ctx := RenderContext{Data: &status.StatusJSON{
+			Cost: &status.CostInfo{TotalCostUSD: floatPtr(1.23)},
+		}}
+		assert.Equal(t, "1.2300", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("nil cost returns empty", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.StatusJSON{}}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	assert.Equal(t, "green", w.DefaultColor())
+	assert.True(t, w.SupportsRawValue())
+}
+
+func TestSessionClockWidget(t *testing.T) {
+	w := &SessionClockWidget{}
+	settings := config.DefaultSettings()
+
+	tests := []struct {
+		name     string
+		ms       float64
+		expected string
+	}{
+		{"less than a minute", 30_000, "<1m"},
+		{"minutes only", 300_000, "5m"},
+		{"hours and minutes", 5_460_000, "1h31m"},
+		{"hours only", 3_600_000, "1h"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			item := config.WidgetItem{}
+			ctx := RenderContext{Data: &status.StatusJSON{
+				Cost: &status.CostInfo{TotalDurationMS: floatPtr(tt.ms)},
+			}}
+			assert.Equal(t, tt.expected, w.Render(&item, ctx, &settings))
+		})
+	}
+
+	t.Run("nil cost returns empty", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.StatusJSON{}}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("raw value returns ms", func(t *testing.T) {
+		item := config.WidgetItem{RawValue: true}
+		ctx := RenderContext{Data: &status.StatusJSON{
+			Cost: &status.CostInfo{TotalDurationMS: floatPtr(300_000)},
+		}}
+		assert.Equal(t, "300000", w.Render(&item, ctx, &settings))
+	})
+
+	assert.Equal(t, defaultDimColor, w.DefaultColor())
+	assert.True(t, w.SupportsRawValue())
+}
+
+func TestLinesChangedWidget(t *testing.T) {
+	w := &LinesChangedWidget{}
+	settings := config.DefaultSettings()
+
+	t.Run("formats added and removed", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.StatusJSON{
+			Cost: &status.CostInfo{
+				TotalLinesAdded:   intPtr(156),
+				TotalLinesRemoved: intPtr(23),
+			},
+		}}
+		assert.Equal(t, "+156/-23", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("only added", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.StatusJSON{
+			Cost: &status.CostInfo{TotalLinesAdded: intPtr(42)},
+		}}
+		assert.Equal(t, "+42/-0", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("both zero returns empty", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.StatusJSON{
+			Cost: &status.CostInfo{
+				TotalLinesAdded:   intPtr(0),
+				TotalLinesRemoved: intPtr(0),
+			},
+		}}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("nil cost returns empty", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.StatusJSON{}}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	assert.Equal(t, "green", w.DefaultColor())
+	assert.False(t, w.SupportsRawValue())
+}
+
 func TestTypes(t *testing.T) {
 	types := Types()
 	require.NotEmpty(t, types)
@@ -406,6 +572,11 @@ func TestTypes(t *testing.T) {
 	assert.Contains(t, types, "tokens-input")
 	assert.Contains(t, types, "context-percentage")
 	assert.Contains(t, types, "flex-separator")
+	assert.Contains(t, types, "git-changes")
+	assert.Contains(t, types, "current-working-dir")
+	assert.Contains(t, types, "session-cost")
+	assert.Contains(t, types, "session-clock")
+	assert.Contains(t, types, "lines-changed")
 }
 
 func TestRegister(t *testing.T) {
