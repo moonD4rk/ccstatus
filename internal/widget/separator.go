@@ -17,7 +17,7 @@ func (w *SeparatorWidget) Render(item *config.WidgetItem, _ RenderContext, setti
 }
 
 // DefaultColor returns the default foreground color.
-func (w *SeparatorWidget) DefaultColor() string { return "brightBlack" }
+func (w *SeparatorWidget) DefaultColor() string { return defaultDimColor }
 
 // DisplayName returns the human-readable name.
 func (w *SeparatorWidget) DisplayName() string { return "Separator" }

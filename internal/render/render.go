@@ -9,7 +9,15 @@ import (
 	"github.com/moond4rk/ccstatus/internal/widget"
 )
 
-const separatorType = "separator"
+const (
+	separatorType     = "separator"
+	flexSeparatorType = "flex-separator"
+
+	// flexFullPadding is the padding subtracted in "full" and "full-until-compact" flex modes.
+	flexFullPadding = 6
+	// flexCompactPadding is the padding subtracted in "full-minus-40" mode and compact state.
+	flexCompactPadding = 40
+)
 
 // segment holds a rendered widget's text and metadata for the pipeline.
 type segment struct {
@@ -27,7 +35,7 @@ func RenderLine(items []config.WidgetItem, settings *config.Settings, ctx widget
 	}
 
 	colored := applyColors(segments, settings)
-	line := strings.Join(colored, settings.DefaultPadding)
+	line := joinWithFlex(colored, segments, settings, ctx)
 
 	if ctx.TerminalWidth > 0 {
 		line = Truncate(line, ctx.TerminalWidth)
@@ -49,6 +57,67 @@ func PostProcess(line string) string {
 	return line
 }
 
+// CalculateFlexWidth resolves the available terminal width based on flex mode.
+func CalculateFlexWidth(detected int, flexMode string, compactThreshold int, contextPct float64) int {
+	switch flexMode {
+	case "full":
+		return detected - flexFullPadding
+	case "full-minus-40":
+		return detected - flexCompactPadding
+	case "full-until-compact":
+		if contextPct >= float64(compactThreshold) {
+			return detected - flexCompactPadding
+		}
+		return detected - flexFullPadding
+	}
+	return detected
+}
+
+// joinWithFlex joins colored segments with padding, expanding flex separators.
+func joinWithFlex(colored []string, segments []segment, settings *config.Settings, ctx widget.RenderContext) string {
+	flexIdx := -1
+	for i, seg := range segments {
+		if seg.item.Type == flexSeparatorType {
+			flexIdx = i
+			break
+		}
+	}
+
+	if flexIdx < 0 {
+		return strings.Join(colored, settings.DefaultPadding)
+	}
+
+	// Build left and right parts around the flex separator
+	left := strings.Join(colored[:flexIdx], settings.DefaultPadding)
+	right := ""
+	if flexIdx+1 < len(colored) {
+		right = strings.Join(colored[flexIdx+1:], settings.DefaultPadding)
+	}
+
+	totalWidth := ctx.TerminalWidth
+	if totalWidth <= 0 {
+		// No terminal width: fall back to single space
+		return joinParts(left, right, " ")
+	}
+
+	usedWidth := color.VisibleWidth(left) + color.VisibleWidth(right)
+	flexWidth := totalWidth - usedWidth
+	if flexWidth <= 0 {
+		return joinParts(left, right, "")
+	}
+
+	return joinParts(left, right, strings.Repeat(" ", flexWidth))
+}
+
+// joinParts concatenates left, filler, and right, omitting empty parts.
+func joinParts(left, right, filler string) string {
+	var b strings.Builder
+	b.WriteString(left)
+	b.WriteString(filler)
+	b.WriteString(right)
+	return b.String()
+}
+
 // renderWidgets renders each widget item and collects segments.
 func renderWidgets(items []config.WidgetItem, ctx widget.RenderContext, settings *config.Settings) []segment {
 	var segments []segment
@@ -68,11 +137,12 @@ func renderWidgets(items []config.WidgetItem, ctx widget.RenderContext, settings
 }
 
 // cleanSeparators removes empty non-separator widgets and trims edge/consecutive separators.
+// Flex separators are preserved and not treated as regular separators.
 func cleanSeparators(segments []segment) []segment {
-	// Remove empty non-separator widgets
+	// Remove empty non-separator widgets (but keep flex separators)
 	var filtered []segment
 	for _, seg := range segments {
-		if seg.text == "" && !seg.isSep {
+		if seg.text == "" && !seg.isSep && seg.item.Type != flexSeparatorType {
 			continue
 		}
 		filtered = append(filtered, seg)
@@ -99,9 +169,15 @@ func cleanSeparators(segments []segment) []segment {
 }
 
 // applyColors wraps each segment text with ANSI color codes.
+// Flex separators are not colored (they are invisible spacing).
 func applyColors(segments []segment, settings *config.Settings) []string {
 	result := make([]string, 0, len(segments))
 	for i, seg := range segments {
+		if seg.item.Type == flexSeparatorType {
+			result = append(result, "")
+			continue
+		}
+
 		fg := resolveColor(seg, segments, i, settings)
 		bg := seg.item.BackgroundColor
 		bold := seg.item.Bold || settings.GlobalBold

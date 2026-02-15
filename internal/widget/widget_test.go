@@ -10,6 +10,9 @@ import (
 	"github.com/moond4rk/ccstatus/internal/status"
 )
 
+func intPtr(v int) *int           { return &v }
+func floatPtr(v float64) *float64 { return &v }
+
 func TestGet(t *testing.T) {
 	tests := []struct {
 		widgetType string
@@ -20,6 +23,14 @@ func TestGet(t *testing.T) {
 		{"git-branch", false},
 		{"custom-text", false},
 		{"separator", false},
+		{"tokens-input", false},
+		{"tokens-output", false},
+		{"tokens-cached", false},
+		{"tokens-total", false},
+		{"context-length", false},
+		{"context-percentage", false},
+		{"context-percentage-usable", false},
+		{"flex-separator", false},
 		{"nonexistent", true},
 	}
 
@@ -158,11 +169,243 @@ func TestSeparatorWidget(t *testing.T) {
 	}
 }
 
+func TestTokenWidgets(t *testing.T) {
+	settings := config.DefaultSettings()
+	item := config.WidgetItem{}
+
+	t.Run("tokens-input formats input tokens", func(t *testing.T) {
+		w := Get("tokens-input")
+		ctx := RenderContext{Data: &status.StatusJSON{
+			ContextWindow: &status.ContextWindow{TotalInputTokens: intPtr(50_000)},
+		}}
+		assert.Equal(t, "50.0k", w.Render(&item, ctx, &settings))
+		assert.Equal(t, defaultDimColor, w.DefaultColor())
+	})
+
+	t.Run("tokens-input nil context window", func(t *testing.T) {
+		w := Get("tokens-input")
+		ctx := RenderContext{Data: &status.StatusJSON{}}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("tokens-input nil data", func(t *testing.T) {
+		w := Get("tokens-input")
+		ctx := RenderContext{Data: nil}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("tokens-output formats output tokens", func(t *testing.T) {
+		w := Get("tokens-output")
+		ctx := RenderContext{Data: &status.StatusJSON{
+			ContextWindow: &status.ContextWindow{TotalOutputTokens: intPtr(1_200_000)},
+		}}
+		assert.Equal(t, "1.2M", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("tokens-output nil returns empty", func(t *testing.T) {
+		w := Get("tokens-output")
+		ctx := RenderContext{Data: &status.StatusJSON{}}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("tokens-cached formats cached tokens", func(t *testing.T) {
+		w := Get("tokens-cached")
+		ctx := RenderContext{Data: &status.StatusJSON{
+			ContextWindow: &status.ContextWindow{
+				CurrentUsage: &status.CurrentUsage{CacheReadInputTokens: 8000},
+			},
+		}}
+		assert.Equal(t, "8.0k", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("tokens-cached zero returns empty", func(t *testing.T) {
+		w := Get("tokens-cached")
+		ctx := RenderContext{Data: &status.StatusJSON{
+			ContextWindow: &status.ContextWindow{
+				CurrentUsage: &status.CurrentUsage{CacheReadInputTokens: 0},
+			},
+		}}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("tokens-cached nil current usage", func(t *testing.T) {
+		w := Get("tokens-cached")
+		ctx := RenderContext{Data: &status.StatusJSON{
+			ContextWindow: &status.ContextWindow{},
+		}}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("tokens-total sums input and output", func(t *testing.T) {
+		w := Get("tokens-total")
+		ctx := RenderContext{Data: &status.StatusJSON{
+			ContextWindow: &status.ContextWindow{
+				TotalInputTokens:  intPtr(30_000),
+				TotalOutputTokens: intPtr(20_000),
+			},
+		}}
+		assert.Equal(t, "50.0k", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("tokens-total input only", func(t *testing.T) {
+		w := Get("tokens-total")
+		ctx := RenderContext{Data: &status.StatusJSON{
+			ContextWindow: &status.ContextWindow{
+				TotalInputTokens: intPtr(500),
+			},
+		}}
+		assert.Equal(t, "500", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("tokens-total both zero returns empty", func(t *testing.T) {
+		w := Get("tokens-total")
+		ctx := RenderContext{Data: &status.StatusJSON{
+			ContextWindow: &status.ContextWindow{
+				TotalInputTokens:  intPtr(0),
+				TotalOutputTokens: intPtr(0),
+			},
+		}}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+}
+
+func TestContextLengthWidget(t *testing.T) {
+	w := &ContextLengthWidget{}
+	settings := config.DefaultSettings()
+	item := config.WidgetItem{}
+
+	t.Run("formats context length", func(t *testing.T) {
+		ctx := RenderContext{Data: &status.StatusJSON{
+			ContextWindow: &status.ContextWindow{
+				CurrentUsage: &status.CurrentUsage{
+					InputTokens:              40_000,
+					CacheCreationInputTokens: 5000,
+					CacheReadInputTokens:     5000,
+				},
+			},
+		}}
+		assert.Equal(t, "50.0k", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("zero returns empty", func(t *testing.T) {
+		ctx := RenderContext{Data: &status.StatusJSON{
+			ContextWindow: &status.ContextWindow{
+				CurrentUsage: &status.CurrentUsage{},
+			},
+		}}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("nil data returns empty", func(t *testing.T) {
+		ctx := RenderContext{Data: nil}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	assert.Equal(t, "brightBlack", w.DefaultColor())
+}
+
+func TestContextPercentageWidget(t *testing.T) {
+	w := &ContextPercentageWidget{}
+	settings := config.DefaultSettings()
+
+	t.Run("formatted percentage", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.StatusJSON{
+			ContextWindow: &status.ContextWindow{UsedPercentage: floatPtr(25.7)},
+		}}
+		assert.Equal(t, "26%", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("raw value omits percent sign", func(t *testing.T) {
+		item := config.WidgetItem{RawValue: true}
+		ctx := RenderContext{Data: &status.StatusJSON{
+			ContextWindow: &status.ContextWindow{UsedPercentage: floatPtr(25.7)},
+		}}
+		assert.Equal(t, "25.7", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("zero returns empty", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.StatusJSON{}}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	assert.True(t, w.SupportsRawValue())
+}
+
+func TestContextPercentageUsableWidget(t *testing.T) {
+	w := &ContextPercentageUsableWidget{}
+	settings := config.DefaultSettings()
+
+	t.Run("percentage of usable window", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.StatusJSON{
+			ContextWindow: &status.ContextWindow{
+				ContextWindowSize: intPtr(200_000),
+				CurrentUsage: &status.CurrentUsage{
+					InputTokens: 80_000,
+				},
+			},
+		}}
+		// usable = 160_000, pct = 80000/160000*100 = 50%
+		assert.Equal(t, "50%", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("raw value", func(t *testing.T) {
+		item := config.WidgetItem{RawValue: true}
+		ctx := RenderContext{Data: &status.StatusJSON{
+			ContextWindow: &status.ContextWindow{
+				ContextWindowSize: intPtr(200_000),
+				CurrentUsage: &status.CurrentUsage{
+					InputTokens: 80_000,
+				},
+			},
+		}}
+		assert.Equal(t, "50.0", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("capped at 100", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.StatusJSON{
+			ContextWindow: &status.ContextWindow{
+				ContextWindowSize: intPtr(200_000),
+				CurrentUsage: &status.CurrentUsage{
+					InputTokens: 200_000,
+				},
+			},
+		}}
+		// usable = 160_000, pct = 200000/160000*100 = 125% -> capped to 100
+		assert.Equal(t, "100%", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("nil data returns empty", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: nil}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	assert.True(t, w.SupportsRawValue())
+}
+
+func TestFlexSeparatorWidget(t *testing.T) {
+	w := &FlexSeparatorWidget{}
+	settings := config.DefaultSettings()
+	item := config.WidgetItem{Type: "flex-separator"}
+	ctx := RenderContext{}
+
+	assert.Equal(t, "flex-separator", w.Render(&item, ctx, &settings))
+	assert.Empty(t, w.DefaultColor())
+	assert.False(t, w.SupportsRawValue())
+}
+
 func TestTypes(t *testing.T) {
 	types := Types()
 	require.NotEmpty(t, types)
 	assert.Contains(t, types, "model")
 	assert.Contains(t, types, "separator")
+	assert.Contains(t, types, "tokens-input")
+	assert.Contains(t, types, "context-percentage")
+	assert.Contains(t, types, "flex-separator")
 }
 
 func TestRegister(t *testing.T) {

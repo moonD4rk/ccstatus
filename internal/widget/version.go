@@ -14,7 +14,7 @@ func (w *VersionWidget) Render(_ *config.WidgetItem, ctx RenderContext, _ *confi
 }
 
 // DefaultColor returns the default foreground color.
-func (w *VersionWidget) DefaultColor() string { return "brightBlack" }
+func (w *VersionWidget) DefaultColor() string { return defaultDimColor }
 
 // DisplayName returns the human-readable name.
 func (w *VersionWidget) DisplayName() string { return "Version" }

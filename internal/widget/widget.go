@@ -38,6 +38,28 @@ var registry = map[string]Widget{
 	"git-branch":  &GitBranchWidget{},
 	"custom-text": &CustomTextWidget{},
 	"separator":   &SeparatorWidget{},
+
+	// Token metrics
+	"tokens-input": &tokenWidget{
+		extract: extractInputTokens, displayName: "Input Tokens", description: "Total input token count",
+	},
+	"tokens-output": &tokenWidget{
+		extract: extractOutputTokens, displayName: "Output Tokens", description: "Total output token count",
+	},
+	"tokens-cached": &tokenWidget{
+		extract: extractCachedTokens, displayName: "Cached Tokens", description: "Cached token count",
+	},
+	"tokens-total": &tokenWidget{
+		extract: extractTotalTokens, displayName: "Total Tokens", description: "Total token count (input + output)",
+	},
+
+	// Context window
+	"context-length":            &ContextLengthWidget{},
+	"context-percentage":        &ContextPercentageWidget{},
+	"context-percentage-usable": &ContextPercentageUsableWidget{},
+
+	// Layout
+	"flex-separator": &FlexSeparatorWidget{},
 }
 
 // Get returns the widget for the given type string, or nil if unknown.
