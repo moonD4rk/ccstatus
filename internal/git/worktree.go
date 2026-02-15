@@ -7,9 +7,9 @@ import (
 	"strings"
 )
 
-// GetWorktree returns the worktree name if the current directory is a git worktree.
+// Worktree returns the worktree name if the current directory is a git worktree.
 // Returns empty string if in the main working tree or not in a git repository.
-func GetWorktree() string {
+func Worktree() string {
 	ctx, cancel := context.WithTimeout(context.Background(), gitTimeout)
 	defer cancel()
 

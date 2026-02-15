@@ -12,8 +12,8 @@ const (
 	defaultGreenColor = "green"
 )
 
-// tokenExtractor is a function that extracts a token count from StatusJSON.
-type tokenExtractor func(data *status.StatusJSON) (int, bool)
+// tokenExtractor is a function that extracts a token count from status Data.
+type tokenExtractor func(data *status.Session) (int, bool)
 
 // tokenWidget is a generic widget that displays a formatted token count.
 type tokenWidget struct {
@@ -38,49 +38,49 @@ func (w *tokenWidget) DisplayName() string    { return w.displayName }
 func (w *tokenWidget) Description() string    { return w.description }
 func (w *tokenWidget) SupportsRawValue() bool { return false }
 
-func extractInputTokens(data *status.StatusJSON) (int, bool) {
+func extractInputTokens(data *status.Session) (int, bool) {
 	if data.ContextWindow == nil || data.ContextWindow.TotalInputTokens == nil {
 		return 0, false
 	}
 	return *data.ContextWindow.TotalInputTokens, true
 }
 
-func extractOutputTokens(data *status.StatusJSON) (int, bool) {
+func extractOutputTokens(data *status.Session) (int, bool) {
 	if data.ContextWindow == nil || data.ContextWindow.TotalOutputTokens == nil {
 		return 0, false
 	}
 	return *data.ContextWindow.TotalOutputTokens, true
 }
 
-func extractCachedTokens(data *status.StatusJSON) (int, bool) {
+func extractCachedTokens(data *status.Session) (int, bool) {
 	if data.ContextWindow == nil || data.ContextWindow.CurrentUsage == nil {
 		return 0, false
 	}
 	return data.ContextWindow.CurrentUsage.CacheReadInputTokens, true
 }
 
-func extractCurrentInputTokens(data *status.StatusJSON) (int, bool) {
+func extractCurrentInputTokens(data *status.Session) (int, bool) {
 	if data.ContextWindow == nil || data.ContextWindow.CurrentUsage == nil {
 		return 0, false
 	}
 	return data.ContextWindow.CurrentUsage.InputTokens, true
 }
 
-func extractCurrentOutputTokens(data *status.StatusJSON) (int, bool) {
+func extractCurrentOutputTokens(data *status.Session) (int, bool) {
 	if data.ContextWindow == nil || data.ContextWindow.CurrentUsage == nil {
 		return 0, false
 	}
 	return data.ContextWindow.CurrentUsage.OutputTokens, true
 }
 
-func extractCacheCreationTokens(data *status.StatusJSON) (int, bool) {
+func extractCacheCreationTokens(data *status.Session) (int, bool) {
 	if data.ContextWindow == nil || data.ContextWindow.CurrentUsage == nil {
 		return 0, false
 	}
 	return data.ContextWindow.CurrentUsage.CacheCreationInputTokens, true
 }
 
-func extractTotalTokens(data *status.StatusJSON) (int, bool) {
+func extractTotalTokens(data *status.Session) (int, bool) {
 	if data.ContextWindow == nil {
 		return 0, false
 	}

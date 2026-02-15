@@ -12,13 +12,13 @@ func TestParse(t *testing.T) {
 	tests := []struct {
 		name    string
 		input   string
-		check   func(t *testing.T, s *StatusJSON)
+		check   func(t *testing.T, s *Session)
 		wantErr bool
 	}{
 		{
 			name:  "model as object",
 			input: `{"model":{"id":"claude-sonnet-4-5","display_name":"Sonnet"}}`,
-			check: func(t *testing.T, s *StatusJSON) {
+			check: func(t *testing.T, s *Session) {
 				t.Helper()
 				assert.Equal(t, "claude-sonnet-4-5", s.Model.ID)
 				assert.Equal(t, "Sonnet", s.Model.DisplayName)
@@ -27,7 +27,7 @@ func TestParse(t *testing.T) {
 		{
 			name:  "model as string",
 			input: `{"model":"claude-opus-4-6"}`,
-			check: func(t *testing.T, s *StatusJSON) {
+			check: func(t *testing.T, s *Session) {
 				t.Helper()
 				assert.Equal(t, "claude-opus-4-6", s.Model.ID)
 				assert.Equal(t, "Opus", s.Model.DisplayName)
@@ -36,7 +36,7 @@ func TestParse(t *testing.T) {
 		{
 			name:  "full official schema",
 			input: `{"cwd":"/test","session_id":"abc123","version":"1.0.80","model":{"id":"claude-opus-4-6","display_name":"Opus"},"workspace":{"current_dir":"/test","project_dir":"/project"},"cost":{"total_cost_usd":0.01234,"total_duration_ms":45000},"context_window":{"total_input_tokens":15234,"total_output_tokens":4521,"context_window_size":200000,"used_percentage":8,"remaining_percentage":92,"current_usage":{"input_tokens":8500,"output_tokens":1200,"cache_creation_input_tokens":5000,"cache_read_input_tokens":2000}},"exceeds_200k_tokens":false,"vim":{"mode":"NORMAL"},"agent":{"name":"security-reviewer"}}`,
-			check: func(t *testing.T, s *StatusJSON) {
+			check: func(t *testing.T, s *Session) {
 				t.Helper()
 				assert.Equal(t, "/test", s.Cwd)
 				assert.Equal(t, "abc123", s.SessionID)
@@ -80,7 +80,7 @@ func TestParse(t *testing.T) {
 		{
 			name:  "empty JSON object",
 			input: `{}`,
-			check: func(t *testing.T, s *StatusJSON) {
+			check: func(t *testing.T, s *Session) {
 				t.Helper()
 				assert.Empty(t, s.Model.ID)
 				assert.Nil(t, s.ContextWindow)
@@ -91,7 +91,7 @@ func TestParse(t *testing.T) {
 		{
 			name:  "null context_window.current_usage",
 			input: `{"context_window":{"used_percentage":null,"current_usage":null}}`,
-			check: func(t *testing.T, s *StatusJSON) {
+			check: func(t *testing.T, s *Session) {
 				t.Helper()
 				require.NotNil(t, s.ContextWindow)
 				assert.Nil(t, s.ContextWindow.UsedPercentage)
@@ -123,7 +123,7 @@ func TestParse(t *testing.T) {
 
 func TestModelField_MarshalJSON(t *testing.T) {
 	m := ModelField{ID: "claude-sonnet-4-5", DisplayName: "Sonnet"}
-	data, err := json.Marshal(m)
+	data, err := json.Marshal(&m)
 	require.NoError(t, err)
 
 	var result map[string]string

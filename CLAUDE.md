@@ -55,7 +55,7 @@ echo '{"model":{"id":"claude-sonnet-4-5","display_name":"Sonnet"},"context_windo
 | `internal/config/` | Settings loading, defaults, validation, migration |
 | `internal/render/` | Status line rendering, color application, truncation |
 | `internal/widget/` | Widget interface, registry, all widget implementations |
-| `internal/status/` | StatusJSON input struct parsing (official Claude Code JSON schema) |
+| `internal/status/` | Session input struct parsing (official Claude Code JSON schema) |
 | `internal/jsonl/` | JSONL transcript parsing (block-timer widget only) |
 | `internal/color/` | ANSI color output via fatih/color, standard 16 named colors |
 | `internal/jsonl/` | JSONL transcript parsing (block-timer widget) |

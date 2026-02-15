@@ -22,7 +22,7 @@ func newInitCmd() *cobra.Command {
 
 func runInit(cmd *cobra.Command, _ []string) error {
 	force, _ := cmd.Flags().GetBool("force")
-	path := config.ConfigPath()
+	path := config.Path()
 
 	if !force {
 		if _, err := os.Stat(path); err == nil {

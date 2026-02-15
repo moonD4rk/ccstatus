@@ -7,9 +7,9 @@ import (
 )
 
 // RenderContext carries runtime data available to all widgets during rendering.
-// Most token/context data comes directly from StatusJSON.ContextWindow (official API).
+// Most token/context data comes directly from Data.ContextWindow (official API).
 type RenderContext struct {
-	Data          *status.StatusJSON
+	Data          *status.Session
 	TerminalWidth int
 }
 
@@ -71,11 +71,11 @@ var registry = map[string]Widget{
 	// Context window
 	"context-length": &ContextLengthWidget{},
 	"context-percentage": &percentageWidget{
-		extract: status.GetContextPercentage, displayName: "Context %", description: "Context usage as percentage of max window",
+		extract: status.ContextPercentage, displayName: "Context %", description: "Context usage as percentage of max window",
 	},
 	"context-percentage-usable": &ContextPercentageUsableWidget{},
 	"remaining-percentage": &percentageWidget{
-		extract: status.GetRemainingPercentage, displayName: "Remaining %", description: "Remaining context window percentage",
+		extract: status.RemainingPercentage, displayName: "Remaining %", description: "Remaining context window percentage",
 	},
 
 	// Environment
@@ -93,7 +93,7 @@ var registry = map[string]Widget{
 	// Session info
 	"session-id": &SessionIDWidget{},
 	"output-style": &stringFieldWidget{
-		extract: func(data *status.StatusJSON) string {
+		extract: func(data *status.Session) string {
 			if data.OutputStyle == nil {
 				return ""
 			}
@@ -104,7 +104,7 @@ var registry = map[string]Widget{
 		description:  "Current output style name",
 	},
 	"vim-mode": &stringFieldWidget{
-		extract: func(data *status.StatusJSON) string {
+		extract: func(data *status.Session) string {
 			if data.Vim == nil {
 				return ""
 			}
@@ -115,7 +115,7 @@ var registry = map[string]Widget{
 		description:  "Current vim mode indicator",
 	},
 	"agent-name": &stringFieldWidget{
-		extract: func(data *status.StatusJSON) string {
+		extract: func(data *status.Session) string {
 			if data.Agent == nil {
 				return ""
 			}

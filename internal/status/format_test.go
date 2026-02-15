@@ -28,18 +28,18 @@ func TestFormatTokens(t *testing.T) {
 	}
 }
 
-func TestGetContextConfig(t *testing.T) {
+func TestContextConfig(t *testing.T) {
 	intPtr := func(v int) *int { return &v }
 
 	tests := []struct {
 		name       string
-		data       *StatusJSON
+		data       *Session
 		wantMax    int
 		wantUsable int
 	}{
 		{
 			name: "from context_window_size",
-			data: &StatusJSON{
+			data: &Session{
 				ContextWindow: &ContextWindow{ContextWindowSize: intPtr(200_000)},
 			},
 			wantMax:    200_000,
@@ -47,7 +47,7 @@ func TestGetContextConfig(t *testing.T) {
 		},
 		{
 			name: "1M context window",
-			data: &StatusJSON{
+			data: &Session{
 				ContextWindow: &ContextWindow{ContextWindowSize: intPtr(1_000_000)},
 			},
 			wantMax:    1_000_000,
@@ -55,13 +55,13 @@ func TestGetContextConfig(t *testing.T) {
 		},
 		{
 			name:       "fallback to default",
-			data:       &StatusJSON{Model: ModelField{ID: "claude-sonnet-4-5"}},
+			data:       &Session{Model: ModelField{ID: "claude-sonnet-4-5"}},
 			wantMax:    200_000,
 			wantUsable: 160_000,
 		},
 		{
 			name:       "empty data defaults",
-			data:       &StatusJSON{},
+			data:       &Session{},
 			wantMax:    200_000,
 			wantUsable: 160_000,
 		},
@@ -69,32 +69,32 @@ func TestGetContextConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cfg := GetContextConfig(tt.data)
+			cfg := ContextConfig(tt.data)
 			assert.Equal(t, tt.wantMax, cfg.MaxTokens)
 			assert.Equal(t, tt.wantUsable, cfg.UsableTokens)
 		})
 	}
 }
 
-func TestGetContextPercentage(t *testing.T) {
+func TestContextPercentage(t *testing.T) {
 	floatPtr := func(v float64) *float64 { return &v }
 	intPtr := func(v int) *int { return &v }
 
 	tests := []struct {
 		name string
-		data *StatusJSON
+		data *Session
 		want float64
 	}{
 		{
 			name: "from used_percentage",
-			data: &StatusJSON{
+			data: &Session{
 				ContextWindow: &ContextWindow{UsedPercentage: floatPtr(25.5)},
 			},
 			want: 25.5,
 		},
 		{
 			name: "calculated from current_usage",
-			data: &StatusJSON{
+			data: &Session{
 				ContextWindow: &ContextWindow{
 					ContextWindowSize: intPtr(200_000),
 					CurrentUsage: &CurrentUsage{
@@ -108,7 +108,7 @@ func TestGetContextPercentage(t *testing.T) {
 		},
 		{
 			name: "capped at 100",
-			data: &StatusJSON{
+			data: &Session{
 				ContextWindow: &ContextWindow{
 					ContextWindowSize: intPtr(100),
 					CurrentUsage: &CurrentUsage{
@@ -120,12 +120,12 @@ func TestGetContextPercentage(t *testing.T) {
 		},
 		{
 			name: "nil context window",
-			data: &StatusJSON{},
+			data: &Session{},
 			want: 0,
 		},
 		{
 			name: "no current usage",
-			data: &StatusJSON{
+			data: &Session{
 				ContextWindow: &ContextWindow{},
 			},
 			want: 0,
@@ -134,20 +134,20 @@ func TestGetContextPercentage(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.InDelta(t, tt.want, GetContextPercentage(tt.data), 0.01)
+			assert.InDelta(t, tt.want, ContextPercentage(tt.data), 0.01)
 		})
 	}
 }
 
-func TestGetContextLength(t *testing.T) {
+func TestContextLength(t *testing.T) {
 	tests := []struct {
 		name string
-		data *StatusJSON
+		data *Session
 		want int
 	}{
 		{
 			name: "sums all input tokens",
-			data: &StatusJSON{
+			data: &Session{
 				ContextWindow: &ContextWindow{
 					CurrentUsage: &CurrentUsage{
 						InputTokens:              10_000,
@@ -160,19 +160,19 @@ func TestGetContextLength(t *testing.T) {
 		},
 		{
 			name: "nil context window",
-			data: &StatusJSON{},
+			data: &Session{},
 			want: 0,
 		},
 		{
 			name: "nil current usage",
-			data: &StatusJSON{ContextWindow: &ContextWindow{}},
+			data: &Session{ContextWindow: &ContextWindow{}},
 			want: 0,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, GetContextLength(tt.data))
+			assert.Equal(t, tt.want, ContextLength(tt.data))
 		})
 	}
 }

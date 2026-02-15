@@ -18,7 +18,7 @@ func TestRenderLine(t *testing.T) {
 		name          string
 		items         []config.WidgetItem
 		settings      config.Settings
-		data          *status.StatusJSON
+		data          *status.Session
 		terminalWidth int
 		check         func(t *testing.T, result string)
 	}{
@@ -28,7 +28,7 @@ func TestRenderLine(t *testing.T) {
 				{ID: "1", Type: "model", Color: "cyan"},
 			},
 			settings: config.Settings{ColorLevel: 2, DefaultPadding: " "},
-			data: &status.StatusJSON{
+			data: &status.Session{
 				Model: status.ModelField{ID: "claude-sonnet-4-5", DisplayName: "Sonnet"},
 			},
 			check: func(t *testing.T, result string) {
@@ -45,7 +45,7 @@ func TestRenderLine(t *testing.T) {
 				{ID: "3", Type: "version", Color: "brightBlack"},
 			},
 			settings: config.Settings{ColorLevel: 2, DefaultSeparator: "|", DefaultPadding: " "},
-			data: &status.StatusJSON{
+			data: &status.Session{
 				Model:   status.ModelField{ID: "claude-sonnet-4-5", DisplayName: "Sonnet"},
 				Version: "1.0.80",
 			},
@@ -65,7 +65,7 @@ func TestRenderLine(t *testing.T) {
 				{ID: "5", Type: "custom-text", CustomText: "hello"},
 			},
 			settings: config.Settings{ColorLevel: 2, DefaultSeparator: "|", DefaultPadding: " "},
-			data: &status.StatusJSON{
+			data: &status.Session{
 				Model: status.ModelField{DisplayName: "Sonnet"},
 			},
 			check: func(t *testing.T, result string) {
@@ -82,7 +82,7 @@ func TestRenderLine(t *testing.T) {
 				{ID: "3", Type: "version"},
 			},
 			settings: config.Settings{ColorLevel: 2, DefaultSeparator: "|", DefaultPadding: " "},
-			data:     &status.StatusJSON{},
+			data:     &status.Session{},
 			check: func(t *testing.T, result string) {
 				t.Helper()
 				assert.Empty(t, result)
@@ -94,7 +94,7 @@ func TestRenderLine(t *testing.T) {
 				{ID: "1", Type: "model", Color: "cyan"},
 			},
 			settings: config.Settings{ColorLevel: 0, DefaultPadding: " "},
-			data: &status.StatusJSON{
+			data: &status.Session{
 				Model: status.ModelField{DisplayName: "Sonnet"},
 			},
 			check: func(t *testing.T, result string) {
@@ -110,7 +110,7 @@ func TestRenderLine(t *testing.T) {
 				{ID: "3", Type: "nonexistent-widget"},
 			},
 			settings: config.Settings{ColorLevel: 2, DefaultSeparator: "|", DefaultPadding: " "},
-			data: &status.StatusJSON{
+			data: &status.Session{
 				Model: status.ModelField{DisplayName: "Sonnet"},
 			},
 			check: func(t *testing.T, result string) {
@@ -125,7 +125,7 @@ func TestRenderLine(t *testing.T) {
 				{ID: "1", Type: "custom-text", CustomText: "This is a very long status line text"},
 			},
 			settings:      config.Settings{ColorLevel: 0, DefaultPadding: " "},
-			data:          &status.StatusJSON{},
+			data:          &status.Session{},
 			terminalWidth: 10,
 			check: func(t *testing.T, result string) {
 				t.Helper()
@@ -141,7 +141,7 @@ func TestRenderLine(t *testing.T) {
 				{ID: "3", Type: "context-percentage"},
 			},
 			settings: config.Settings{ColorLevel: 0, DefaultSeparator: "|", DefaultPadding: " "},
-			data: &status.StatusJSON{
+			data: &status.Session{
 				ContextWindow: &status.ContextWindow{
 					TotalInputTokens: intPtr(50_000),
 					UsedPercentage:   func() *float64 { v := 25.0; return &v }(),
@@ -160,7 +160,7 @@ func TestRenderLine(t *testing.T) {
 				{ID: "3", Type: "custom-text", CustomText: "R"},
 			},
 			settings:      config.Settings{ColorLevel: 0, DefaultPadding: " "},
-			data:          &status.StatusJSON{},
+			data:          &status.Session{},
 			terminalWidth: 20,
 			check: func(t *testing.T, result string) {
 				t.Helper()
@@ -177,7 +177,7 @@ func TestRenderLine(t *testing.T) {
 				{ID: "3", Type: "custom-text", CustomText: "R"},
 			},
 			settings: config.Settings{ColorLevel: 0, DefaultPadding: " "},
-			data:     &status.StatusJSON{},
+			data:     &status.Session{},
 			check: func(t *testing.T, result string) {
 				t.Helper()
 				assert.Equal(t, "L R", result)

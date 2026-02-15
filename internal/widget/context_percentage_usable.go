@@ -15,11 +15,11 @@ func (w *ContextPercentageUsableWidget) Render(item *config.WidgetItem, ctx Rend
 	if ctx.Data == nil {
 		return ""
 	}
-	length := status.GetContextLength(ctx.Data)
+	length := status.ContextLength(ctx.Data)
 	if length == 0 {
 		return ""
 	}
-	cfg := status.GetContextConfig(ctx.Data)
+	cfg := status.ContextConfig(ctx.Data)
 	if cfg.UsableTokens == 0 {
 		return ""
 	}

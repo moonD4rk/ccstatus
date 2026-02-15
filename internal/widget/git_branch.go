@@ -10,7 +10,7 @@ type GitBranchWidget struct{}
 
 // Render returns the current git branch, optionally prefixed with a character.
 func (w *GitBranchWidget) Render(item *config.WidgetItem, _ RenderContext, _ *config.Settings) string {
-	branch := git.GetBranch()
+	branch := git.Branch()
 	if branch == "" {
 		return ""
 	}

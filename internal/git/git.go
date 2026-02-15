@@ -10,8 +10,8 @@ import (
 
 const gitTimeout = 5 * time.Second
 
-// GetBranch returns the current git branch name, or empty string if not in a git repository.
-func GetBranch() string {
+// Branch returns the current git branch name, or empty string if not in a git repository.
+func Branch() string {
 	ctx, cancel := context.WithTimeout(context.Background(), gitTimeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "git", "rev-parse", "--abbrev-ref", "HEAD")

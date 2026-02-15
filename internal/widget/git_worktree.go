@@ -10,7 +10,7 @@ type GitWorktreeWidget struct{}
 
 // Render returns the worktree name if in a linked worktree, empty otherwise.
 func (w *GitWorktreeWidget) Render(_ *config.WidgetItem, _ RenderContext, _ *config.Settings) string {
-	return git.GetWorktree()
+	return git.Worktree()
 }
 
 // DefaultColor returns the default foreground color.

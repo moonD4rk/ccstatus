@@ -70,7 +70,7 @@ func (w *BlockTimerWidget) getElapsed(ctx RenderContext) time.Duration {
 
 	// Fallback: parse JSONL transcript for session start time.
 	if ctx.Data.TranscriptPath != "" {
-		start := jsonl.GetSessionStart(ctx.Data.TranscriptPath)
+		start := jsonl.SessionStart(ctx.Data.TranscriptPath)
 		if !start.IsZero() {
 			return time.Since(start)
 		}

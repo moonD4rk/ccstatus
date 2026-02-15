@@ -5,8 +5,8 @@ import (
 	"github.com/moond4rk/ccstatus/internal/status"
 )
 
-// stringFieldExtractor extracts a string value from StatusJSON.
-type stringFieldExtractor func(data *status.StatusJSON) string
+// stringFieldExtractor extracts a string value from status Data.
+type stringFieldExtractor func(data *status.Session) string
 
 // stringFieldWidget is a generic widget that displays a single string field.
 type stringFieldWidget struct {

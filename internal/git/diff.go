@@ -13,10 +13,10 @@ type DiffStat struct {
 	Removed int
 }
 
-// GetDiffStat returns the number of lines added and removed in the working tree
+// Diff returns the number of lines added and removed in the working tree
 // (staged + unstaged) compared to HEAD. Returns zero values if not in a git
 // repository or on error.
-func GetDiffStat() DiffStat {
+func Diff() DiffStat {
 	// Staged changes (index vs HEAD)
 	staged := diffShortStat("--cached")
 	// Unstaged changes (working tree vs index)

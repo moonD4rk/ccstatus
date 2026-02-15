@@ -12,7 +12,7 @@ type GitChangesWidget struct{}
 
 // Render returns the uncommitted change count, or empty if there are none.
 func (w *GitChangesWidget) Render(_ *config.WidgetItem, _ RenderContext, _ *config.Settings) string {
-	n := git.GetChanges()
+	n := git.Changes()
 	if n == 0 {
 		return ""
 	}

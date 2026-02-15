@@ -13,7 +13,7 @@ func (w *ContextLengthWidget) Render(_ *config.WidgetItem, ctx RenderContext, _ 
 	if ctx.Data == nil {
 		return ""
 	}
-	length := status.GetContextLength(ctx.Data)
+	length := status.ContextLength(ctx.Data)
 	if length == 0 {
 		return ""
 	}

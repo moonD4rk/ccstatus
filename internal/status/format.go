@@ -12,8 +12,8 @@ const (
 	longMaxTokens      = 1_000_000
 )
 
-// ContextConfig holds resolved context window size information.
-type ContextConfig struct {
+// WindowLimits holds resolved context window size information.
+type WindowLimits struct {
 	MaxTokens    int
 	UsableTokens int
 }
@@ -30,13 +30,13 @@ func FormatTokens(count int) string {
 	return strconv.Itoa(count)
 }
 
-// GetContextConfig resolves context window size.
+// ContextConfig resolves context window size.
 // Primary: use context_window.context_window_size from JSON input.
 // Fallback: heuristic based on model ID (for older Claude Code versions).
-func GetContextConfig(data *StatusJSON) ContextConfig {
+func ContextConfig(data *Session) WindowLimits {
 	if data.ContextWindow != nil && data.ContextWindow.ContextWindowSize != nil {
 		size := *data.ContextWindow.ContextWindowSize
-		return ContextConfig{
+		return WindowLimits{
 			MaxTokens:    size,
 			UsableTokens: size * defaultUsableRatio / 100,
 		}
@@ -44,28 +44,28 @@ func GetContextConfig(data *StatusJSON) ContextConfig {
 
 	lower := strings.ToLower(data.Model.ID)
 	if strings.Contains(lower, "claude-sonnet-4-5") && strings.Contains(lower, "[1m]") {
-		return ContextConfig{
+		return WindowLimits{
 			MaxTokens:    longMaxTokens,
 			UsableTokens: longMaxTokens * defaultUsableRatio / 100,
 		}
 	}
-	return ContextConfig{
+	return WindowLimits{
 		MaxTokens:    defaultMaxTokens,
 		UsableTokens: defaultMaxTokens * defaultUsableRatio / 100,
 	}
 }
 
-// GetContextPercentage returns the context usage percentage.
+// ContextPercentage returns the context usage percentage.
 // Primary: use pre-calculated used_percentage from JSON input.
 // Fallback: calculate from current_usage tokens and context_window_size.
-func GetContextPercentage(data *StatusJSON) float64 {
+func ContextPercentage(data *Session) float64 {
 	if data.ContextWindow != nil && data.ContextWindow.UsedPercentage != nil {
 		return *data.ContextWindow.UsedPercentage
 	}
 	if data.ContextWindow != nil && data.ContextWindow.CurrentUsage != nil {
 		cu := data.ContextWindow.CurrentUsage
 		contextLength := cu.InputTokens + cu.CacheCreationInputTokens + cu.CacheReadInputTokens
-		cfg := GetContextConfig(data)
+		cfg := ContextConfig(data)
 		if cfg.MaxTokens == 0 {
 			return 0
 		}
@@ -78,14 +78,14 @@ func GetContextPercentage(data *StatusJSON) float64 {
 	return 0
 }
 
-// GetRemainingPercentage returns the remaining context window percentage.
+// RemainingPercentage returns the remaining context window percentage.
 // Primary: use pre-calculated remaining_percentage from JSON input.
 // Fallback: calculate as 100 - used_percentage.
-func GetRemainingPercentage(data *StatusJSON) float64 {
+func RemainingPercentage(data *Session) float64 {
 	if data.ContextWindow != nil && data.ContextWindow.RemainingPercentage != nil {
 		return *data.ContextWindow.RemainingPercentage
 	}
-	used := GetContextPercentage(data)
+	used := ContextPercentage(data)
 	if used == 0 {
 		return 0
 	}
@@ -96,9 +96,9 @@ func GetRemainingPercentage(data *StatusJSON) float64 {
 	return remaining
 }
 
-// GetContextLength returns the total input token count (context length).
+// ContextLength returns the total input token count (context length).
 // This is the sum of input_tokens + cache_creation_input_tokens + cache_read_input_tokens.
-func GetContextLength(data *StatusJSON) int {
+func ContextLength(data *Session) int {
 	if data.ContextWindow == nil || data.ContextWindow.CurrentUsage == nil {
 		return 0
 	}

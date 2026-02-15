@@ -6,9 +6,9 @@ import (
 	"strings"
 )
 
-// GetChanges returns the number of uncommitted changes (staged + unstaged + untracked).
+// Changes returns the number of uncommitted changes (staged + unstaged + untracked).
 // Returns 0 if not in a git repository or on error.
-func GetChanges() int {
+func Changes() int {
 	ctx, cancel := context.WithTimeout(context.Background(), gitTimeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "git", "status", "--porcelain")

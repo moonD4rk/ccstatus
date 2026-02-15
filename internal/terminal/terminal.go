@@ -7,8 +7,8 @@ import (
 	"golang.org/x/term"
 )
 
-// GetWidth returns the terminal width in columns, or 0 if detection fails.
-func GetWidth() int {
+// Width returns the terminal width in columns, or 0 if detection fails.
+func Width() int {
 	width, _, err := term.GetSize(int(os.Stdout.Fd()))
 	if err != nil {
 		return 0

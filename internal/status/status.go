@@ -6,9 +6,9 @@ import (
 	"strings"
 )
 
-// StatusJSON represents the JSON payload piped from Claude Code.
+// Session represents the JSON payload piped from Claude Code.
 // All fields are optional and may be absent or null.
-type StatusJSON struct {
+type Session struct {
 	Cwd            string         `json:"cwd,omitempty"`
 	SessionID      string         `json:"session_id,omitempty"`
 	TranscriptPath string         `json:"transcript_path,omitempty"`
@@ -23,9 +23,9 @@ type StatusJSON struct {
 	Agent          *AgentInfo     `json:"agent,omitempty"`
 }
 
-// Parse parses JSON data into StatusJSON.
-func Parse(data []byte) (*StatusJSON, error) {
-	var s StatusJSON
+// Parse parses JSON data into Session.
+func Parse(data []byte) (*Session, error) {
+	var s Session
 	if err := json.Unmarshal(data, &s); err != nil {
 		return nil, err
 	}
@@ -61,7 +61,7 @@ func (m *ModelField) UnmarshalJSON(data []byte) error {
 }
 
 // MarshalJSON serializes the ModelField as an object.
-func (m ModelField) MarshalJSON() ([]byte, error) {
+func (m *ModelField) MarshalJSON() ([]byte, error) {
 	obj := struct {
 		ID          string `json:"id"`
 		DisplayName string `json:"display_name"`

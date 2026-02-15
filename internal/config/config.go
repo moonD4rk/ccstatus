@@ -58,8 +58,8 @@ func DefaultSettings() Settings {
 	}
 }
 
-// ConfigDir returns the ccstatus configuration directory path.
-func ConfigDir() string {
+// Dir returns the ccstatus configuration directory path.
+func Dir() string {
 	if dir := os.Getenv("XDG_CONFIG_HOME"); dir != "" {
 		return filepath.Join(dir, configDirName)
 	}
@@ -70,14 +70,14 @@ func ConfigDir() string {
 	return filepath.Join(home, ".config", configDirName)
 }
 
-// ConfigPath returns the full path to the settings.json file.
-func ConfigPath() string {
-	return filepath.Join(ConfigDir(), configFileName)
+// Path returns the full path to the settings.json file.
+func Path() string {
+	return filepath.Join(Dir(), configFileName)
 }
 
 // Load reads and parses the settings file. Returns defaults if the file does not exist.
 func Load() (Settings, error) {
-	path := ConfigPath()
+	path := Path()
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -94,7 +94,7 @@ func Load() (Settings, error) {
 
 // Save writes the settings to the configuration file.
 func Save(s *Settings) error {
-	dir := ConfigDir()
+	dir := Dir()
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
@@ -103,5 +103,5 @@ func Save(s *Settings) error {
 		return err
 	}
 	data = append(data, '\n')
-	return os.WriteFile(ConfigPath(), data, 0o600)
+	return os.WriteFile(Path(), data, 0o600)
 }

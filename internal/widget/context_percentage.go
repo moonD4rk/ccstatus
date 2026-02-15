@@ -7,8 +7,8 @@ import (
 	"github.com/moond4rk/ccstatus/internal/status"
 )
 
-// percentageExtractor extracts a percentage value from StatusJSON.
-type percentageExtractor func(data *status.StatusJSON) float64
+// percentageExtractor extracts a percentage value from status Data.
+type percentageExtractor func(data *status.Session) float64
 
 // percentageWidget is a generic widget that displays a formatted percentage.
 type percentageWidget struct {

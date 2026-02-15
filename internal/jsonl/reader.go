@@ -13,9 +13,9 @@ type entry struct {
 	Timestamp string `json:"timestamp"`
 }
 
-// GetSessionStart reads the first entry from a JSONL transcript file and returns
+// SessionStart reads the first entry from a JSONL transcript file and returns
 // its timestamp. Returns zero time if the file cannot be read or parsed.
-func GetSessionStart(path string) time.Time {
+func SessionStart(path string) time.Time {
 	if path == "" {
 		return time.Time{}
 	}
