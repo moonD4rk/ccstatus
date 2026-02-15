@@ -7,15 +7,21 @@ import (
 	"github.com/moond4rk/ccstatus/internal/status"
 )
 
-// ContextPercentageWidget displays the context usage as a percentage of the max context window.
-type ContextPercentageWidget struct{}
+// percentageExtractor extracts a percentage value from StatusJSON.
+type percentageExtractor func(data *status.StatusJSON) float64
 
-// Render returns the context usage percentage string.
-func (w *ContextPercentageWidget) Render(item *config.WidgetItem, ctx RenderContext, _ *config.Settings) string {
+// percentageWidget is a generic widget that displays a formatted percentage.
+type percentageWidget struct {
+	extract     percentageExtractor
+	displayName string
+	description string
+}
+
+func (w *percentageWidget) Render(item *config.WidgetItem, ctx RenderContext, _ *config.Settings) string {
 	if ctx.Data == nil {
 		return ""
 	}
-	pct := status.GetContextPercentage(ctx.Data)
+	pct := w.extract(ctx.Data)
 	if pct == 0 {
 		return ""
 	}
@@ -25,16 +31,7 @@ func (w *ContextPercentageWidget) Render(item *config.WidgetItem, ctx RenderCont
 	return fmt.Sprintf("%.0f%%", pct)
 }
 
-// DefaultColor returns the default foreground color.
-func (w *ContextPercentageWidget) DefaultColor() string { return defaultDimColor }
-
-// DisplayName returns the human-readable name.
-func (w *ContextPercentageWidget) DisplayName() string { return "Context %" }
-
-// Description returns what this widget shows.
-func (w *ContextPercentageWidget) Description() string {
-	return "Context usage as percentage of max window"
-}
-
-// SupportsRawValue returns true; raw value omits the % suffix.
-func (w *ContextPercentageWidget) SupportsRawValue() bool { return true }
+func (w *percentageWidget) DefaultColor() string   { return defaultDimColor }
+func (w *percentageWidget) DisplayName() string    { return w.displayName }
+func (w *percentageWidget) Description() string    { return w.description }
+func (w *percentageWidget) SupportsRawValue() bool { return true }

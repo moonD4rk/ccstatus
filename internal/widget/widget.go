@@ -57,16 +57,36 @@ var registry = map[string]Widget{
 		extract: extractTotalTokens, displayName: "Total Tokens", description: "Total token count (input + output)",
 	},
 
+	"current-usage-input": &tokenWidget{
+		extract: extractCurrentInputTokens, displayName: "Current Input Tokens", description: "Current round input token count",
+	},
+	"current-usage-output": &tokenWidget{
+		extract: extractCurrentOutputTokens, displayName: "Current Output Tokens", description: "Current round output token count",
+	},
+	"cache-creation": &tokenWidget{
+		extract: extractCacheCreationTokens, displayName: "Cache Creation Tokens", description: "Cache creation input token count",
+	},
+
 	// Context window
-	"context-length":            &ContextLengthWidget{},
-	"context-percentage":        &ContextPercentageWidget{},
+	"context-length": &ContextLengthWidget{},
+	"context-percentage": &percentageWidget{
+		extract: status.GetContextPercentage, displayName: "Context %", description: "Context usage as percentage of max window",
+	},
 	"context-percentage-usable": &ContextPercentageUsableWidget{},
+	"remaining-percentage": &percentageWidget{
+		extract: status.GetRemainingPercentage, displayName: "Remaining %", description: "Remaining context window percentage",
+	},
 
 	// Environment
 	"current-working-dir": &CurrentDirWidget{},
+	"project-dir":         &ProjectDirWidget{},
+	"transcript-path":     &TranscriptPathWidget{},
 	"lines-changed":       &LinesChangedWidget{},
 	"lines-added":         &LinesAddedWidget{},
 	"lines-removed":       &LinesRemovedWidget{},
+
+	// Cost and duration
+	"api-duration": &APIDurationWidget{},
 
 	// User-defined
 	"custom-text": &CustomTextWidget{},

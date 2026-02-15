@@ -78,6 +78,24 @@ func GetContextPercentage(data *StatusJSON) float64 {
 	return 0
 }
 
+// GetRemainingPercentage returns the remaining context window percentage.
+// Primary: use pre-calculated remaining_percentage from JSON input.
+// Fallback: calculate as 100 - used_percentage.
+func GetRemainingPercentage(data *StatusJSON) float64 {
+	if data.ContextWindow != nil && data.ContextWindow.RemainingPercentage != nil {
+		return *data.ContextWindow.RemainingPercentage
+	}
+	used := GetContextPercentage(data)
+	if used == 0 {
+		return 0
+	}
+	remaining := 100 - used
+	if remaining < 0 {
+		return 0
+	}
+	return remaining
+}
+
 // GetContextLength returns the total input token count (context length).
 // This is the sum of input_tokens + cache_creation_input_tokens + cache_read_input_tokens.
 func GetContextLength(data *StatusJSON) int {

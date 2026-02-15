@@ -78,7 +78,7 @@ type Widget interface {
 
 Widgets are registered in a map-based registry keyed by type string.
 
-### Available Widgets (25 total)
+### Available Widgets (27 registered, 32 planned)
 
 Data source: (J) = from Claude Code JSON input, (G) = from git commands, (T) = from JSONL transcript, (S) = from system
 
@@ -93,13 +93,20 @@ Data source: (J) = from Claude Code JSON input, (G) = from git commands, (T) = f
 - **tokens-output** (J) - Output token count (from context_window)
 - **tokens-cached** (J) - Cached token count (from context_window.current_usage)
 - **tokens-total** (J) - Total token count
+- **current-usage-input** (J) - Current round input tokens (from context_window.current_usage)
+- **current-usage-output** (J) - Current round output tokens (from context_window.current_usage)
+- **cache-creation** (J) - Cache creation input tokens (from context_window.current_usage)
 - **context-length** (J) - Context window usage (from context_window.current_usage)
 - **context-percentage** (J) - Context usage as percentage (from context_window.used_percentage)
 - **context-percentage-usable** (J) - Usable context percentage (80% of max)
+- **remaining-percentage** (J) - Remaining context window percentage (from context_window.remaining_percentage)
 - **block-timer** (T) - 5-hour session block timer (requires JSONL parsing)
 - **session-clock** (J) - Session duration (from cost.total_duration_ms)
 - **session-cost** (J) - Session cost in USD (from cost.total_cost_usd)
+- **api-duration** (J) - API response time (from cost.total_api_duration_ms)
 - **current-working-dir** (J) - Current directory (from workspace.current_dir)
+- **project-dir** (J) - Project root directory (from workspace.project_dir)
+- **transcript-path** (J) - Transcript file path (from transcript_path)
 - **terminal-width** (S) - Terminal width in columns
 - **custom-text** (-) - User-defined static text
 - **custom-command** (S) - Execute shell command, display output

@@ -59,6 +59,27 @@ func extractCachedTokens(data *status.StatusJSON) (int, bool) {
 	return data.ContextWindow.CurrentUsage.CacheReadInputTokens, true
 }
 
+func extractCurrentInputTokens(data *status.StatusJSON) (int, bool) {
+	if data.ContextWindow == nil || data.ContextWindow.CurrentUsage == nil {
+		return 0, false
+	}
+	return data.ContextWindow.CurrentUsage.InputTokens, true
+}
+
+func extractCurrentOutputTokens(data *status.StatusJSON) (int, bool) {
+	if data.ContextWindow == nil || data.ContextWindow.CurrentUsage == nil {
+		return 0, false
+	}
+	return data.ContextWindow.CurrentUsage.OutputTokens, true
+}
+
+func extractCacheCreationTokens(data *status.StatusJSON) (int, bool) {
+	if data.ContextWindow == nil || data.ContextWindow.CurrentUsage == nil {
+		return 0, false
+	}
+	return data.ContextWindow.CurrentUsage.CacheCreationInputTokens, true
+}
+
 func extractTotalTokens(data *status.StatusJSON) (int, bool) {
 	if data.ContextWindow == nil {
 		return 0, false

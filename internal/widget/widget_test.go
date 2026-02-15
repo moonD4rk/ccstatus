@@ -39,6 +39,13 @@ func TestGet(t *testing.T) {
 		{"lines-changed", false},
 		{"lines-added", false},
 		{"lines-removed", false},
+		{"remaining-percentage", false},
+		{"api-duration", false},
+		{"project-dir", false},
+		{"transcript-path", false},
+		{"current-usage-input", false},
+		{"current-usage-output", false},
+		{"cache-creation", false},
 		{"nonexistent", true},
 	}
 
@@ -313,7 +320,7 @@ func TestContextLengthWidget(t *testing.T) {
 }
 
 func TestContextPercentageWidget(t *testing.T) {
-	w := &ContextPercentageWidget{}
+	w := Get("context-percentage")
 	settings := config.DefaultSettings()
 
 	t.Run("formatted percentage", func(t *testing.T) {
@@ -643,6 +650,270 @@ func TestTypes(t *testing.T) {
 	assert.Contains(t, types, "lines-changed")
 	assert.Contains(t, types, "lines-added")
 	assert.Contains(t, types, "lines-removed")
+	assert.Contains(t, types, "remaining-percentage")
+	assert.Contains(t, types, "api-duration")
+	assert.Contains(t, types, "project-dir")
+	assert.Contains(t, types, "transcript-path")
+	assert.Contains(t, types, "current-usage-input")
+	assert.Contains(t, types, "current-usage-output")
+	assert.Contains(t, types, "cache-creation")
+}
+
+func TestRemainingPercentageWidget(t *testing.T) {
+	w := Get("remaining-percentage")
+	settings := config.DefaultSettings()
+
+	t.Run("formatted percentage", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.StatusJSON{
+			ContextWindow: &status.ContextWindow{RemainingPercentage: floatPtr(74.3)},
+		}}
+		assert.Equal(t, "74%", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("raw value omits percent sign", func(t *testing.T) {
+		item := config.WidgetItem{RawValue: true}
+		ctx := RenderContext{Data: &status.StatusJSON{
+			ContextWindow: &status.ContextWindow{RemainingPercentage: floatPtr(74.3)},
+		}}
+		assert.Equal(t, "74.3", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("zero returns empty", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.StatusJSON{}}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("nil data returns empty", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: nil}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	assert.Equal(t, defaultDimColor, w.DefaultColor())
+	assert.True(t, w.SupportsRawValue())
+}
+
+func TestAPIDurationWidget(t *testing.T) {
+	w := &APIDurationWidget{}
+	settings := config.DefaultSettings()
+
+	tests := []struct {
+		name     string
+		ms       float64
+		expected string
+	}{
+		{"less than a minute", 30_000, "<1m"},
+		{"minutes only", 300_000, "5m"},
+		{"hours and minutes", 5_460_000, "1h31m"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			item := config.WidgetItem{}
+			ctx := RenderContext{Data: &status.StatusJSON{
+				Cost: &status.CostInfo{TotalAPIDurationMS: floatPtr(tt.ms)},
+			}}
+			assert.Equal(t, tt.expected, w.Render(&item, ctx, &settings))
+		})
+	}
+
+	t.Run("nil cost returns empty", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.StatusJSON{}}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("nil data returns empty", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: nil}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("raw value returns ms", func(t *testing.T) {
+		item := config.WidgetItem{RawValue: true}
+		ctx := RenderContext{Data: &status.StatusJSON{
+			Cost: &status.CostInfo{TotalAPIDurationMS: floatPtr(2300)},
+		}}
+		assert.Equal(t, "2300", w.Render(&item, ctx, &settings))
+	})
+
+	assert.Equal(t, defaultDimColor, w.DefaultColor())
+	assert.True(t, w.SupportsRawValue())
+}
+
+func TestProjectDirWidget(t *testing.T) {
+	w := &ProjectDirWidget{}
+	settings := config.DefaultSettings()
+
+	t.Run("base dir name", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.StatusJSON{
+			Workspace: &status.Workspace{ProjectDir: "/home/user/projects/myapp"},
+		}}
+		assert.Equal(t, "myapp", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("raw value returns path outside home", func(t *testing.T) {
+		item := config.WidgetItem{RawValue: true}
+		ctx := RenderContext{Data: &status.StatusJSON{
+			Workspace: &status.Workspace{ProjectDir: "/opt/projects/myapp"},
+		}}
+		assert.Equal(t, "/opt/projects/myapp", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("raw value shortens home dir", func(t *testing.T) {
+		item := config.WidgetItem{RawValue: true}
+		home, _ := os.UserHomeDir()
+		ctx := RenderContext{Data: &status.StatusJSON{
+			Workspace: &status.Workspace{ProjectDir: home + "/projects/myapp"},
+		}}
+		assert.Equal(t, "~/projects/myapp", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("empty project dir returns empty", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.StatusJSON{
+			Workspace: &status.Workspace{},
+		}}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("nil workspace returns empty", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.StatusJSON{}}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("nil data returns empty", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: nil}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	assert.Equal(t, "blue", w.DefaultColor())
+	assert.True(t, w.SupportsRawValue())
+}
+
+func TestTranscriptPathWidget(t *testing.T) {
+	w := &TranscriptPathWidget{}
+	settings := config.DefaultSettings()
+
+	t.Run("base file name", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.StatusJSON{
+			TranscriptPath: "/tmp/session/transcript.jsonl",
+		}}
+		assert.Equal(t, "transcript.jsonl", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("raw value returns path outside home", func(t *testing.T) {
+		item := config.WidgetItem{RawValue: true}
+		ctx := RenderContext{Data: &status.StatusJSON{
+			TranscriptPath: "/tmp/session/transcript.jsonl",
+		}}
+		assert.Equal(t, "/tmp/session/transcript.jsonl", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("raw value shortens home dir", func(t *testing.T) {
+		item := config.WidgetItem{RawValue: true}
+		home, _ := os.UserHomeDir()
+		ctx := RenderContext{Data: &status.StatusJSON{
+			TranscriptPath: home + "/.claude/transcript.jsonl",
+		}}
+		assert.Equal(t, "~/.claude/transcript.jsonl", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("empty path returns empty", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.StatusJSON{}}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("nil data returns empty", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: nil}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	assert.Equal(t, defaultDimColor, w.DefaultColor())
+	assert.True(t, w.SupportsRawValue())
+}
+
+func TestCurrentUsageTokenWidgets(t *testing.T) {
+	settings := config.DefaultSettings()
+	item := config.WidgetItem{}
+
+	t.Run("current-usage-input formats tokens", func(t *testing.T) {
+		w := Get("current-usage-input")
+		ctx := RenderContext{Data: &status.StatusJSON{
+			ContextWindow: &status.ContextWindow{
+				CurrentUsage: &status.CurrentUsage{InputTokens: 8500},
+			},
+		}}
+		assert.Equal(t, "8.5k", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("current-usage-input nil current usage", func(t *testing.T) {
+		w := Get("current-usage-input")
+		ctx := RenderContext{Data: &status.StatusJSON{
+			ContextWindow: &status.ContextWindow{},
+		}}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("current-usage-input nil data", func(t *testing.T) {
+		w := Get("current-usage-input")
+		ctx := RenderContext{Data: nil}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("current-usage-output formats tokens", func(t *testing.T) {
+		w := Get("current-usage-output")
+		ctx := RenderContext{Data: &status.StatusJSON{
+			ContextWindow: &status.ContextWindow{
+				CurrentUsage: &status.CurrentUsage{OutputTokens: 1200},
+			},
+		}}
+		assert.Equal(t, "1.2k", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("current-usage-output zero returns empty", func(t *testing.T) {
+		w := Get("current-usage-output")
+		ctx := RenderContext{Data: &status.StatusJSON{
+			ContextWindow: &status.ContextWindow{
+				CurrentUsage: &status.CurrentUsage{OutputTokens: 0},
+			},
+		}}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("cache-creation formats tokens", func(t *testing.T) {
+		w := Get("cache-creation")
+		ctx := RenderContext{Data: &status.StatusJSON{
+			ContextWindow: &status.ContextWindow{
+				CurrentUsage: &status.CurrentUsage{CacheCreationInputTokens: 5000},
+			},
+		}}
+		assert.Equal(t, "5.0k", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("cache-creation zero returns empty", func(t *testing.T) {
+		w := Get("cache-creation")
+		ctx := RenderContext{Data: &status.StatusJSON{
+			ContextWindow: &status.ContextWindow{
+				CurrentUsage: &status.CurrentUsage{CacheCreationInputTokens: 0},
+			},
+		}}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("cache-creation nil context window", func(t *testing.T) {
+		w := Get("cache-creation")
+		ctx := RenderContext{Data: &status.StatusJSON{}}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
 }
 
 func TestRegister(t *testing.T) {
