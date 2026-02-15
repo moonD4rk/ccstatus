@@ -31,7 +31,7 @@ func formatCost(cost float64) string {
 }
 
 // DefaultColor returns the default foreground color.
-func (w *SessionCostWidget) DefaultColor() string { return "green" }
+func (w *SessionCostWidget) DefaultColor() string { return defaultGreenColor }
 
 // DisplayName returns the human-readable name.
 func (w *SessionCostWidget) DisplayName() string { return "Session Cost" }

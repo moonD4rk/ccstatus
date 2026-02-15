@@ -65,6 +65,8 @@ var registry = map[string]Widget{
 	// Environment
 	"current-working-dir": &CurrentDirWidget{},
 	"lines-changed":       &LinesChangedWidget{},
+	"lines-added":         &LinesAddedWidget{},
+	"lines-removed":       &LinesRemovedWidget{},
 
 	// User-defined
 	"custom-text": &CustomTextWidget{},

@@ -18,16 +18,23 @@ func TestDefaultSettings(t *testing.T) {
 	assert.Equal(t, 60, s.CompactThreshold)
 	assert.Equal(t, "|", s.DefaultSeparator)
 	assert.Equal(t, " ", s.DefaultPadding)
-	require.Len(t, s.Lines, 1)
-	require.Len(t, s.Lines[0], 13)
+	require.Len(t, s.Lines, 2)
+	// Line 1: model | ctx-% | git-branch | git-changes | +added -removed | cost
+	require.Len(t, s.Lines[0], 12)
 	assert.Equal(t, "model", s.Lines[0][0].Type)
 	assert.Equal(t, "cyan", s.Lines[0][0].Color)
 	assert.Equal(t, "context-percentage", s.Lines[0][2].Type)
-	assert.Equal(t, "current-working-dir", s.Lines[0][4].Type)
-	assert.Equal(t, "git-branch", s.Lines[0][6].Type)
-	assert.Equal(t, "git-changes", s.Lines[0][8].Type)
-	assert.Equal(t, "lines-changed", s.Lines[0][10].Type)
-	assert.Equal(t, "session-cost", s.Lines[0][12].Type)
+	assert.Equal(t, "git-branch", s.Lines[0][4].Type)
+	assert.Equal(t, "git-changes", s.Lines[0][6].Type)
+	assert.Equal(t, "lines-added", s.Lines[0][8].Type)
+	assert.Equal(t, "green", s.Lines[0][8].Color)
+	assert.Equal(t, "lines-removed", s.Lines[0][9].Type)
+	assert.Equal(t, "red", s.Lines[0][9].Color)
+	assert.Equal(t, "session-cost", s.Lines[0][11].Type)
+	// Line 2: full path
+	require.Len(t, s.Lines[1], 1)
+	assert.Equal(t, "current-working-dir", s.Lines[1][0].Type)
+	assert.True(t, s.Lines[1][0].RawValue)
 }
 
 func TestLoadMissingFile(t *testing.T) {

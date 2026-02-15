@@ -1,7 +1,9 @@
 package widget
 
 import (
+	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/moond4rk/ccstatus/internal/config"
 )
@@ -10,7 +12,7 @@ import (
 type CurrentDirWidget struct{}
 
 // Render returns the current directory from the workspace or cwd field.
-// RawValue mode returns the full path; normal mode returns the base directory name.
+// RawValue mode returns the full path with ~ substitution; normal mode returns the base name.
 func (w *CurrentDirWidget) Render(item *config.WidgetItem, ctx RenderContext, _ *config.Settings) string {
 	dir := ""
 	if ctx.Data.Workspace != nil && ctx.Data.Workspace.CurrentDir != "" {
@@ -22,9 +24,24 @@ func (w *CurrentDirWidget) Render(item *config.WidgetItem, ctx RenderContext, _ 
 		return ""
 	}
 	if item.RawValue {
-		return dir
+		return shortenHome(dir)
 	}
 	return filepath.Base(dir)
+}
+
+// shortenHome replaces the home directory prefix with ~.
+func shortenHome(path string) string {
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		return path
+	}
+	if path == home {
+		return "~"
+	}
+	if strings.HasPrefix(path, home+"/") {
+		return "~" + path[len(home):]
+	}
+	return path
 }
 
 // DefaultColor returns the default foreground color.

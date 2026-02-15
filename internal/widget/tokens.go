@@ -5,8 +5,12 @@ import (
 	"github.com/moond4rk/ccstatus/internal/status"
 )
 
-// defaultDimColor is the default foreground color for token-related widgets.
-const defaultDimColor = "brightBlack"
+const (
+	// defaultDimColor is the default foreground color for dim/secondary widgets.
+	defaultDimColor = "brightBlack"
+	// defaultGreenColor is the default foreground color for positive/cost widgets.
+	defaultGreenColor = "green"
+)
 
 // tokenExtractor is a function that extracts a token count from StatusJSON.
 type tokenExtractor func(data *status.StatusJSON) (int, bool)

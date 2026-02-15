@@ -1,6 +1,7 @@
 package widget
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -36,6 +37,8 @@ func TestGet(t *testing.T) {
 		{"session-cost", false},
 		{"session-clock", false},
 		{"lines-changed", false},
+		{"lines-added", false},
+		{"lines-removed", false},
 		{"nonexistent", true},
 	}
 
@@ -415,12 +418,21 @@ func TestCurrentDirWidget(t *testing.T) {
 		assert.Equal(t, "myapp", w.Render(&item, ctx, &settings))
 	})
 
-	t.Run("raw value returns full path", func(t *testing.T) {
+	t.Run("raw value returns path outside home", func(t *testing.T) {
 		item := config.WidgetItem{RawValue: true}
 		ctx := RenderContext{Data: &status.StatusJSON{
-			Workspace: &status.Workspace{CurrentDir: "/home/user/projects/myapp"},
+			Workspace: &status.Workspace{CurrentDir: "/opt/projects/myapp"},
 		}}
-		assert.Equal(t, "/home/user/projects/myapp", w.Render(&item, ctx, &settings))
+		assert.Equal(t, "/opt/projects/myapp", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("raw value shortens home dir", func(t *testing.T) {
+		item := config.WidgetItem{RawValue: true}
+		home, _ := os.UserHomeDir()
+		ctx := RenderContext{Data: &status.StatusJSON{
+			Workspace: &status.Workspace{CurrentDir: home + "/projects/myapp"},
+		}}
+		assert.Equal(t, "~/projects/myapp", w.Render(&item, ctx, &settings))
 	})
 
 	t.Run("falls back to cwd", func(t *testing.T) {
@@ -564,6 +576,58 @@ func TestLinesChangedWidget(t *testing.T) {
 	assert.False(t, w.SupportsRawValue())
 }
 
+func TestLinesAddedWidget(t *testing.T) {
+	w := &LinesAddedWidget{}
+	settings := config.DefaultSettings()
+
+	t.Run("formats added", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.StatusJSON{
+			Cost: &status.CostInfo{TotalLinesAdded: intPtr(156)},
+		}}
+		assert.Equal(t, "+156", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("zero returns empty", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.StatusJSON{
+			Cost: &status.CostInfo{TotalLinesAdded: intPtr(0)},
+		}}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("nil cost returns empty", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.StatusJSON{}}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	assert.Equal(t, "green", w.DefaultColor())
+}
+
+func TestLinesRemovedWidget(t *testing.T) {
+	w := &LinesRemovedWidget{}
+	settings := config.DefaultSettings()
+
+	t.Run("formats removed", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.StatusJSON{
+			Cost: &status.CostInfo{TotalLinesRemoved: intPtr(23)},
+		}}
+		assert.Equal(t, "-23", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("zero returns empty", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.StatusJSON{
+			Cost: &status.CostInfo{TotalLinesRemoved: intPtr(0)},
+		}}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	assert.Equal(t, "red", w.DefaultColor())
+}
+
 func TestTypes(t *testing.T) {
 	types := Types()
 	require.NotEmpty(t, types)
@@ -577,6 +641,8 @@ func TestTypes(t *testing.T) {
 	assert.Contains(t, types, "session-cost")
 	assert.Contains(t, types, "session-clock")
 	assert.Contains(t, types, "lines-changed")
+	assert.Contains(t, types, "lines-added")
+	assert.Contains(t, types, "lines-removed")
 }
 
 func TestRegister(t *testing.T) {

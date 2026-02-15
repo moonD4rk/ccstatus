@@ -29,7 +29,7 @@ func (w *LinesChangedWidget) Render(_ *config.WidgetItem, ctx RenderContext, _ *
 }
 
 // DefaultColor returns the default foreground color.
-func (w *LinesChangedWidget) DefaultColor() string { return "green" }
+func (w *LinesChangedWidget) DefaultColor() string { return defaultGreenColor }
 
 // DisplayName returns the human-readable name.
 func (w *LinesChangedWidget) DisplayName() string { return "Lines Changed" }
@@ -39,3 +39,57 @@ func (w *LinesChangedWidget) Description() string { return "Lines added and remo
 
 // SupportsRawValue returns false.
 func (w *LinesChangedWidget) SupportsRawValue() bool { return false }
+
+// LinesAddedWidget displays only the lines added count.
+type LinesAddedWidget struct{}
+
+// Render returns "+N" format, or empty if zero.
+func (w *LinesAddedWidget) Render(_ *config.WidgetItem, ctx RenderContext, _ *config.Settings) string {
+	if ctx.Data.Cost == nil || ctx.Data.Cost.TotalLinesAdded == nil {
+		return ""
+	}
+	n := *ctx.Data.Cost.TotalLinesAdded
+	if n == 0 {
+		return ""
+	}
+	return fmt.Sprintf("+%d", n)
+}
+
+// DefaultColor returns the default foreground color.
+func (w *LinesAddedWidget) DefaultColor() string { return defaultGreenColor }
+
+// DisplayName returns the human-readable name.
+func (w *LinesAddedWidget) DisplayName() string { return "Lines Added" }
+
+// Description returns what this widget shows.
+func (w *LinesAddedWidget) Description() string { return "Lines added in session" }
+
+// SupportsRawValue returns false.
+func (w *LinesAddedWidget) SupportsRawValue() bool { return false }
+
+// LinesRemovedWidget displays only the lines removed count.
+type LinesRemovedWidget struct{}
+
+// Render returns "-N" format, or empty if zero.
+func (w *LinesRemovedWidget) Render(_ *config.WidgetItem, ctx RenderContext, _ *config.Settings) string {
+	if ctx.Data.Cost == nil || ctx.Data.Cost.TotalLinesRemoved == nil {
+		return ""
+	}
+	n := *ctx.Data.Cost.TotalLinesRemoved
+	if n == 0 {
+		return ""
+	}
+	return fmt.Sprintf("-%d", n)
+}
+
+// DefaultColor returns the default foreground color.
+func (w *LinesRemovedWidget) DefaultColor() string { return "red" }
+
+// DisplayName returns the human-readable name.
+func (w *LinesRemovedWidget) DisplayName() string { return "Lines Removed" }
+
+// Description returns what this widget shows.
+func (w *LinesRemovedWidget) Description() string { return "Lines removed in session" }
+
+// SupportsRawValue returns false.
+func (w *LinesRemovedWidget) SupportsRawValue() bool { return false }
