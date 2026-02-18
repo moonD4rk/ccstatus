@@ -139,6 +139,70 @@ func TestContextPercentage(t *testing.T) {
 	}
 }
 
+func TestCacheHitRate(t *testing.T) {
+	tests := []struct {
+		name string
+		data *Session
+		want float64
+	}{
+		{
+			name: "high cache hit",
+			data: &Session{
+				ContextWindow: &ContextWindow{
+					CurrentUsage: &CurrentUsage{
+						InputTokens:              2000,
+						CacheCreationInputTokens: 1000,
+						CacheReadInputTokens:     7000,
+					},
+				},
+			},
+			want: 70, // 7000 / (2000 + 1000 + 7000) * 100
+		},
+		{
+			name: "no cache hits",
+			data: &Session{
+				ContextWindow: &ContextWindow{
+					CurrentUsage: &CurrentUsage{
+						InputTokens:              5000,
+						CacheCreationInputTokens: 3000,
+						CacheReadInputTokens:     0,
+					},
+				},
+			},
+			want: 0,
+		},
+		{
+			name: "all cached",
+			data: &Session{
+				ContextWindow: &ContextWindow{
+					CurrentUsage: &CurrentUsage{
+						InputTokens:              0,
+						CacheCreationInputTokens: 0,
+						CacheReadInputTokens:     10000,
+					},
+				},
+			},
+			want: 100,
+		},
+		{
+			name: "nil context window",
+			data: &Session{},
+			want: 0,
+		},
+		{
+			name: "nil current usage",
+			data: &Session{ContextWindow: &ContextWindow{}},
+			want: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.InDelta(t, tt.want, CacheHitRate(tt.data), 0.01)
+		})
+	}
+}
+
 func TestContextLength(t *testing.T) {
 	tests := []struct {
 		name string

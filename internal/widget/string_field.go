@@ -10,10 +10,12 @@ type stringFieldExtractor func(data *status.Session) string
 
 // stringFieldWidget is a generic widget that displays a single string field.
 type stringFieldWidget struct {
-	extract      stringFieldExtractor
-	defaultColor string
-	displayName  string
-	description  string
+	extract       stringFieldExtractor
+	defaultColor  string
+	displayName   string
+	description   string
+	defaultPrefix string
+	defaultSuffix string
 }
 
 // Render returns the extracted string value, or empty if unavailable.
@@ -35,3 +37,9 @@ func (w *stringFieldWidget) Description() string { return w.description }
 
 // SupportsRawValue returns false since string field widgets have no compact mode.
 func (w *stringFieldWidget) SupportsRawValue() bool { return false }
+
+// DefaultPrefix returns the default prefix for this widget.
+func (w *stringFieldWidget) DefaultPrefix() string { return w.defaultPrefix }
+
+// DefaultSuffix returns the default suffix for this widget.
+func (w *stringFieldWidget) DefaultSuffix() string { return w.defaultSuffix }

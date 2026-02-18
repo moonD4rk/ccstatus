@@ -54,3 +54,9 @@ func (w *SessionClockWidget) Description() string { return "Session duration" }
 
 // SupportsRawValue returns true since this widget supports raw ms output.
 func (w *SessionClockWidget) SupportsRawValue() bool { return true }
+
+// DefaultPrefix returns the default prefix.
+func (w *SessionClockWidget) DefaultPrefix() string { return "Session: " }
+
+// DefaultSuffix returns the default suffix.
+func (w *SessionClockWidget) DefaultSuffix() string { return "" }

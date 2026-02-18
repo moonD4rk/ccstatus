@@ -31,3 +31,9 @@ func (w *ContextLengthWidget) Description() string { return "Context window usag
 
 // SupportsRawValue returns false since formatting is always applied.
 func (w *ContextLengthWidget) SupportsRawValue() bool { return false }
+
+// DefaultPrefix returns the default prefix.
+func (w *ContextLengthWidget) DefaultPrefix() string { return "CtxLen: " }
+
+// DefaultSuffix returns the default suffix.
+func (w *ContextLengthWidget) DefaultSuffix() string { return "" }

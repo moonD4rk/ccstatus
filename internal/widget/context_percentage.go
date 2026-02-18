@@ -12,9 +12,12 @@ type percentageExtractor func(data *status.Session) float64
 
 // percentageWidget is a generic widget that displays a formatted percentage.
 type percentageWidget struct {
-	extract     percentageExtractor
-	displayName string
-	description string
+	extract       percentageExtractor
+	displayName   string
+	description   string
+	defaultPrefix string
+	defaultSuffix string
+	defaultColor  string
 }
 
 func (w *percentageWidget) Render(item *config.WidgetItem, ctx RenderContext, _ *config.Settings) string {
@@ -31,7 +34,14 @@ func (w *percentageWidget) Render(item *config.WidgetItem, ctx RenderContext, _ 
 	return fmt.Sprintf("%.0f%%", pct)
 }
 
-func (w *percentageWidget) DefaultColor() string   { return defaultDimColor }
+func (w *percentageWidget) DefaultColor() string {
+	if w.defaultColor != "" {
+		return w.defaultColor
+	}
+	return defaultDimColor
+}
 func (w *percentageWidget) DisplayName() string    { return w.displayName }
 func (w *percentageWidget) Description() string    { return w.description }
 func (w *percentageWidget) SupportsRawValue() bool { return true }
+func (w *percentageWidget) DefaultPrefix() string  { return w.defaultPrefix }
+func (w *percentageWidget) DefaultSuffix() string  { return w.defaultSuffix }

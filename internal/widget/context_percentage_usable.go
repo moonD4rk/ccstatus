@@ -46,3 +46,9 @@ func (w *ContextPercentageUsableWidget) Description() string {
 
 // SupportsRawValue returns true; raw value omits the % suffix.
 func (w *ContextPercentageUsableWidget) SupportsRawValue() bool { return true }
+
+// DefaultPrefix returns the default prefix.
+func (w *ContextPercentageUsableWidget) DefaultPrefix() string { return "Usable: " }
+
+// DefaultSuffix returns the default suffix.
+func (w *ContextPercentageUsableWidget) DefaultSuffix() string { return "" }

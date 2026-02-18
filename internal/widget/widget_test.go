@@ -326,7 +326,7 @@ func TestContextLengthWidget(t *testing.T) {
 		assert.Empty(t, w.Render(&item, ctx, &settings))
 	})
 
-	assert.Equal(t, "brightBlack", w.DefaultColor())
+	assert.Equal(t, "white", w.DefaultColor())
 }
 
 func TestContextPercentageWidget(t *testing.T) {

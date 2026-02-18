@@ -96,6 +96,16 @@ func RemainingPercentage(data *Session) float64 {
 	return remaining
 }
 
+// CacheHitRate returns the cache read ratio as a percentage.
+// Formula: cache_read_input_tokens / (input_tokens + cache_creation_input_tokens + cache_read_input_tokens) * 100
+func CacheHitRate(data *Session) float64 {
+	total := ContextLength(data)
+	if total == 0 {
+		return 0
+	}
+	return float64(data.ContextWindow.CurrentUsage.CacheReadInputTokens) / float64(total) * 100
+}
+
 // ContextLength returns the total input token count (context length).
 // This is the sum of input_tokens + cache_creation_input_tokens + cache_read_input_tokens.
 func ContextLength(data *Session) int {
