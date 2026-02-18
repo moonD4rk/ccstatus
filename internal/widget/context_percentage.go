@@ -8,7 +8,9 @@ import (
 )
 
 // percentageExtractor extracts a percentage value from status Data.
-type percentageExtractor func(data *status.Session) float64
+// Returns (value, ok) where ok=false means no data available (widget hidden),
+// and ok=true means the value is valid even if 0 (widget shown as "0%").
+type percentageExtractor func(data *status.Session) (float64, bool)
 
 // percentageWidget is a generic widget that displays a formatted percentage.
 type percentageWidget struct {
@@ -24,8 +26,8 @@ func (w *percentageWidget) Render(item *config.WidgetItem, ctx RenderContext, _ 
 	if ctx.Data == nil {
 		return ""
 	}
-	pct := w.extract(ctx.Data)
-	if pct == 0 {
+	pct, ok := w.extract(ctx.Data)
+	if !ok {
 		return ""
 	}
 	if item.RawValue {

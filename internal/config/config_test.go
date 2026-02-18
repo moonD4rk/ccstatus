@@ -19,23 +19,27 @@ func TestDefaultSettings(t *testing.T) {
 	assert.Equal(t, "|", s.DefaultSeparator)
 	assert.Equal(t, " ", s.DefaultPadding)
 	require.Len(t, s.Lines, 2)
-	// Line 1: model | ctx-% | cache-hit-rate | git-branch | +added -removed | cost
-	require.Len(t, s.Lines[0], 12)
+	// Line 1: model | ctx-% | in | out | cache-hit-rate | git-branch | +added -removed | cost
+	require.Len(t, s.Lines[0], 16)
 	assert.Equal(t, "model", s.Lines[0][0].Type)
 	assert.Equal(t, "cyan", s.Lines[0][0].Color)
 	assert.Equal(t, "context-percentage", s.Lines[0][2].Type)
-	assert.Equal(t, "cache-hit-rate", s.Lines[0][4].Type)
-	assert.Equal(t, "cyan", s.Lines[0][4].Color)
-	assert.Equal(t, "git-branch", s.Lines[0][6].Type)
-	assert.Equal(t, "lines-added", s.Lines[0][8].Type)
-	assert.Equal(t, "green", s.Lines[0][8].Color)
-	assert.Equal(t, "lines-removed", s.Lines[0][9].Type)
-	assert.Equal(t, "red", s.Lines[0][9].Color)
-	assert.Equal(t, "session-cost", s.Lines[0][11].Type)
-	// Line 2: full path
-	require.Len(t, s.Lines[1], 1)
+	assert.Equal(t, "tokens-input", s.Lines[0][4].Type)
+	assert.Equal(t, "tokens-output", s.Lines[0][6].Type)
+	assert.Equal(t, "cache-hit-rate", s.Lines[0][8].Type)
+	assert.Equal(t, "cyan", s.Lines[0][8].Color)
+	assert.Equal(t, "git-branch", s.Lines[0][10].Type)
+	assert.Equal(t, "lines-added", s.Lines[0][12].Type)
+	assert.Equal(t, "green", s.Lines[0][12].Color)
+	assert.Equal(t, "lines-removed", s.Lines[0][13].Type)
+	assert.Equal(t, "red", s.Lines[0][13].Color)
+	assert.Equal(t, "session-cost", s.Lines[0][15].Type)
+	// Line 2: cwd <flex> session-clock
+	require.Len(t, s.Lines[1], 3)
 	assert.Equal(t, "current-working-dir", s.Lines[1][0].Type)
 	assert.True(t, s.Lines[1][0].RawValue)
+	assert.Equal(t, "flex-separator", s.Lines[1][1].Type)
+	assert.Equal(t, "session-clock", s.Lines[1][2].Type)
 }
 
 func TestLoadMissingFile(t *testing.T) {
