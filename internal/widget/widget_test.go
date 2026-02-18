@@ -41,6 +41,7 @@ func TestGet(t *testing.T) {
 		{"lines-added", false},
 		{"lines-removed", false},
 		{"remaining-percentage", false},
+		{"cache-hit-rate", false},
 		{"api-duration", false},
 		{"project-dir", false},
 		{"transcript-path", false},
@@ -326,7 +327,7 @@ func TestContextLengthWidget(t *testing.T) {
 		assert.Empty(t, w.Render(&item, ctx, &settings))
 	})
 
-	assert.Equal(t, "brightBlack", w.DefaultColor())
+	assert.Equal(t, "white", w.DefaultColor())
 }
 
 func TestContextPercentageWidget(t *testing.T) {
@@ -349,10 +350,18 @@ func TestContextPercentageWidget(t *testing.T) {
 		assert.Equal(t, "25.7", w.Render(&item, ctx, &settings))
 	})
 
-	t.Run("zero returns empty", func(t *testing.T) {
+	t.Run("no data returns empty", func(t *testing.T) {
 		item := config.WidgetItem{}
 		ctx := RenderContext{Data: &status.Session{}}
 		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("zero with data shows 0%", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.Session{
+			ContextWindow: &status.ContextWindow{UsedPercentage: floatPtr(0)},
+		}}
+		assert.Equal(t, "0%", w.Render(&item, ctx, &settings))
 	})
 
 	assert.True(t, w.SupportsRawValue())
@@ -617,6 +626,7 @@ func TestTypes(t *testing.T) {
 	assert.Contains(t, types, "lines-added")
 	assert.Contains(t, types, "lines-removed")
 	assert.Contains(t, types, "remaining-percentage")
+	assert.Contains(t, types, "cache-hit-rate")
 	assert.Contains(t, types, "api-duration")
 	assert.Contains(t, types, "project-dir")
 	assert.Contains(t, types, "transcript-path")
@@ -654,7 +664,63 @@ func TestRemainingPercentageWidget(t *testing.T) {
 		assert.Equal(t, "74.3", w.Render(&item, ctx, &settings))
 	})
 
-	t.Run("zero returns empty", func(t *testing.T) {
+	t.Run("no data returns empty", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.Session{}}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("zero remaining with data shows 0%", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.Session{
+			ContextWindow: &status.ContextWindow{RemainingPercentage: floatPtr(0)},
+		}}
+		assert.Equal(t, "0%", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("nil data returns empty", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: nil}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	assert.Equal(t, defaultDimColor, w.DefaultColor())
+	assert.True(t, w.SupportsRawValue())
+}
+
+func TestCacheHitRateWidget(t *testing.T) {
+	w := Get("cache-hit-rate")
+	settings := config.DefaultSettings()
+
+	t.Run("high cache hit", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.Session{
+			ContextWindow: &status.ContextWindow{
+				CurrentUsage: &status.CurrentUsage{
+					InputTokens:              2000,
+					CacheCreationInputTokens: 1000,
+					CacheReadInputTokens:     7000,
+				},
+			},
+		}}
+		assert.Equal(t, "70%", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("zero cache hits with data shows 0%", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.Session{
+			ContextWindow: &status.ContextWindow{
+				CurrentUsage: &status.CurrentUsage{
+					InputTokens:              5000,
+					CacheCreationInputTokens: 3000,
+					CacheReadInputTokens:     0,
+				},
+			},
+		}}
+		assert.Equal(t, "0%", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("no data returns empty", func(t *testing.T) {
 		item := config.WidgetItem{}
 		ctx := RenderContext{Data: &status.Session{}}
 		assert.Empty(t, w.Render(&item, ctx, &settings))
@@ -666,7 +732,7 @@ func TestRemainingPercentageWidget(t *testing.T) {
 		assert.Empty(t, w.Render(&item, ctx, &settings))
 	})
 
-	assert.Equal(t, defaultDimColor, w.DefaultColor())
+	assert.Equal(t, "cyan", w.DefaultColor())
 	assert.True(t, w.SupportsRawValue())
 }
 

@@ -58,42 +58,55 @@ func ContextConfig(data *Session) WindowLimits {
 // ContextPercentage returns the context usage percentage.
 // Primary: use pre-calculated used_percentage from JSON input.
 // Fallback: calculate from current_usage tokens and context_window_size.
-func ContextPercentage(data *Session) float64 {
+// Returns (value, ok) where ok=false means no data available.
+func ContextPercentage(data *Session) (float64, bool) {
 	if data.ContextWindow != nil && data.ContextWindow.UsedPercentage != nil {
-		return *data.ContextWindow.UsedPercentage
+		return *data.ContextWindow.UsedPercentage, true
 	}
 	if data.ContextWindow != nil && data.ContextWindow.CurrentUsage != nil {
 		cu := data.ContextWindow.CurrentUsage
 		contextLength := cu.InputTokens + cu.CacheCreationInputTokens + cu.CacheReadInputTokens
 		cfg := ContextConfig(data)
 		if cfg.MaxTokens == 0 {
-			return 0
+			return 0, false
 		}
 		pct := float64(contextLength) / float64(cfg.MaxTokens) * 100
 		if pct > 100 {
-			return 100
+			return 100, true
 		}
-		return pct
+		return pct, true
 	}
-	return 0
+	return 0, false
 }
 
 // RemainingPercentage returns the remaining context window percentage.
 // Primary: use pre-calculated remaining_percentage from JSON input.
 // Fallback: calculate as 100 - used_percentage.
-func RemainingPercentage(data *Session) float64 {
+// Returns (value, ok) where ok=false means no data available.
+func RemainingPercentage(data *Session) (float64, bool) {
 	if data.ContextWindow != nil && data.ContextWindow.RemainingPercentage != nil {
-		return *data.ContextWindow.RemainingPercentage
+		return *data.ContextWindow.RemainingPercentage, true
 	}
-	used := ContextPercentage(data)
-	if used == 0 {
-		return 0
+	used, ok := ContextPercentage(data)
+	if !ok {
+		return 0, false
 	}
 	remaining := 100 - used
 	if remaining < 0 {
-		return 0
+		return 0, true
 	}
-	return remaining
+	return remaining, true
+}
+
+// CacheHitRate returns the cache read ratio as a percentage.
+// Formula: cache_read_input_tokens / (input_tokens + cache_creation_input_tokens + cache_read_input_tokens) * 100
+// Returns (value, ok) where ok=false means no data available (total tokens is 0).
+func CacheHitRate(data *Session) (float64, bool) {
+	total := ContextLength(data)
+	if total == 0 {
+		return 0, false
+	}
+	return float64(data.ContextWindow.CurrentUsage.CacheReadInputTokens) / float64(total) * 100, true
 }
 
 // ContextLength returns the total input token count (context length).

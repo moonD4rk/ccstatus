@@ -47,35 +47,48 @@ var registry = map[string]Widget{
 	// Token metrics
 	"tokens-input": &tokenWidget{
 		extract: extractInputTokens, displayName: "Input Tokens", description: "Total input token count",
+		defaultPrefix: "In: ",
 	},
 	"tokens-output": &tokenWidget{
 		extract: extractOutputTokens, displayName: "Output Tokens", description: "Total output token count",
+		defaultPrefix: "Out: ",
 	},
 	"tokens-cached": &tokenWidget{
 		extract: extractCachedTokens, displayName: "Cached Tokens", description: "Cached token count",
+		defaultPrefix: "Cached: ",
 	},
 	"tokens-total": &tokenWidget{
 		extract: extractTotalTokens, displayName: "Total Tokens", description: "Total token count (input + output)",
+		defaultPrefix: "Total: ",
 	},
 
 	"current-usage-input": &tokenWidget{
 		extract: extractCurrentInputTokens, displayName: "Current Input Tokens", description: "Current round input token count",
+		defaultPrefix: "CurIn: ",
 	},
 	"current-usage-output": &tokenWidget{
 		extract: extractCurrentOutputTokens, displayName: "Current Output Tokens", description: "Current round output token count",
+		defaultPrefix: "CurOut: ",
 	},
 	"cache-creation": &tokenWidget{
 		extract: extractCacheCreationTokens, displayName: "Cache Creation Tokens", description: "Cache creation input token count",
+		defaultPrefix: "CacheW: ",
 	},
 
 	// Context window
 	"context-length": &ContextLengthWidget{},
 	"context-percentage": &percentageWidget{
 		extract: status.ContextPercentage, displayName: "Context %", description: "Context usage as percentage of max window",
+		defaultPrefix: "Ctx: ",
 	},
 	"context-percentage-usable": &ContextPercentageUsableWidget{},
 	"remaining-percentage": &percentageWidget{
 		extract: status.RemainingPercentage, displayName: "Remaining %", description: "Remaining context window percentage",
+		defaultPrefix: "Rem: ",
+	},
+	"cache-hit-rate": &percentageWidget{
+		extract: status.CacheHitRate, displayName: "Cache Hit Rate", description: "Cache read token ratio as percentage",
+		defaultPrefix: "Cache: ", defaultColor: "cyan",
 	},
 
 	// Environment
@@ -99,9 +112,10 @@ var registry = map[string]Widget{
 			}
 			return data.OutputStyle.Name
 		},
-		defaultColor: defaultDimColor,
-		displayName:  "Output Style",
-		description:  "Current output style name",
+		defaultColor:  defaultDimColor,
+		displayName:   "Output Style",
+		description:   "Current output style name",
+		defaultPrefix: "Style: ",
 	},
 	"vim-mode": &stringFieldWidget{
 		extract: func(data *status.Session) string {
@@ -110,9 +124,10 @@ var registry = map[string]Widget{
 			}
 			return data.Vim.Mode
 		},
-		defaultColor: "yellow",
-		displayName:  "Vim Mode",
-		description:  "Current vim mode indicator",
+		defaultColor:  "yellow",
+		displayName:   "Vim Mode",
+		description:   "Current vim mode indicator",
+		defaultPrefix: "Vim: ",
 	},
 	"agent-name": &stringFieldWidget{
 		extract: func(data *status.Session) string {
@@ -121,9 +136,10 @@ var registry = map[string]Widget{
 			}
 			return data.Agent.Name
 		},
-		defaultColor: "cyan",
-		displayName:  "Agent Name",
-		description:  "Agent name when using --agent flag",
+		defaultColor:  "cyan",
+		displayName:   "Agent Name",
+		description:   "Agent name when using --agent flag",
+		defaultPrefix: "Agent: ",
 	},
 	"exceeds-200k":   &Exceeds200KWidget{},
 	"terminal-width": &TerminalWidthWidget{},
@@ -135,6 +151,13 @@ var registry = map[string]Widget{
 	// Layout
 	"separator":      &SeparatorWidget{},
 	"flex-separator": &FlexSeparatorWidget{},
+}
+
+// Prefixer is an optional interface for widgets that provide default prefix/suffix.
+// User-configured values in WidgetItem.Prefix/Suffix take precedence over defaults.
+type Prefixer interface {
+	DefaultPrefix() string
+	DefaultSuffix() string
 }
 
 // Get returns the widget for the given type string, or nil if unknown.

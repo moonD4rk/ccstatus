@@ -32,3 +32,9 @@ func (w *APIDurationWidget) Description() string { return "Total API response ti
 
 // SupportsRawValue returns true since this widget supports raw ms output.
 func (w *APIDurationWidget) SupportsRawValue() bool { return true }
+
+// DefaultPrefix returns the default prefix.
+func (w *APIDurationWidget) DefaultPrefix() string { return "API: " }
+
+// DefaultSuffix returns the default suffix.
+func (w *APIDurationWidget) DefaultSuffix() string { return "" }

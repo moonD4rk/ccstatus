@@ -124,3 +124,9 @@ func (w *BlockTimerWidget) Description() string { return "5-hour session block t
 
 // SupportsRawValue returns false since display mode is controlled by metadata.
 func (w *BlockTimerWidget) SupportsRawValue() bool { return false }
+
+// DefaultPrefix returns the default prefix.
+func (w *BlockTimerWidget) DefaultPrefix() string { return "Block: " }
+
+// DefaultSuffix returns the default suffix.
+func (w *BlockTimerWidget) DefaultSuffix() string { return "" }

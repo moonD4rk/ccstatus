@@ -8,6 +8,8 @@ type WidgetItem struct {
 	Color           string            `json:"color,omitempty"`
 	BackgroundColor string            `json:"backgroundColor,omitempty"`
 	Bold            bool              `json:"bold,omitempty"`
+	Prefix          string            `json:"prefix,omitempty"`
+	Suffix          string            `json:"suffix,omitempty"`
 	Character       string            `json:"character,omitempty"`
 	RawValue        bool              `json:"rawValue,omitempty"`
 	CustomText      string            `json:"customText,omitempty"`

@@ -127,6 +127,19 @@ func renderWidgets(items []config.WidgetItem, ctx widget.RenderContext, settings
 			continue
 		}
 		text := w.Render(&items[i], ctx, settings)
+		if text != "" {
+			prefix := items[i].Prefix
+			suffix := items[i].Suffix
+			if p, ok := w.(widget.Prefixer); ok {
+				if prefix == "" {
+					prefix = p.DefaultPrefix()
+				}
+				if suffix == "" {
+					suffix = p.DefaultSuffix()
+				}
+			}
+			text = prefix + text + suffix
+		}
 		segments = append(segments, segment{
 			text:  text,
 			item:  &items[i],

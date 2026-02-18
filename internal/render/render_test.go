@@ -134,7 +134,7 @@ func TestRenderLine(t *testing.T) {
 			},
 		},
 		{
-			name: "token widgets render formatted values",
+			name: "token widgets render formatted values with default prefix",
 			items: []config.WidgetItem{
 				{ID: "1", Type: "tokens-input"},
 				{ID: "2", Type: "separator"},
@@ -149,7 +149,67 @@ func TestRenderLine(t *testing.T) {
 			},
 			check: func(t *testing.T, result string) {
 				t.Helper()
-				assert.Equal(t, "50.0k | 25%", result)
+				assert.Equal(t, "In: 50.0k | Ctx: 25%", result)
+			},
+		},
+		{
+			name: "default prefix applied automatically",
+			items: []config.WidgetItem{
+				{ID: "1", Type: "context-percentage"},
+			},
+			settings: config.Settings{ColorLevel: 0, DefaultPadding: " "},
+			data: &status.Session{
+				ContextWindow: &status.ContextWindow{
+					UsedPercentage: func() *float64 { v := 25.0; return &v }(),
+				},
+			},
+			check: func(t *testing.T, result string) {
+				t.Helper()
+				assert.Equal(t, "Ctx: 25%", result)
+			},
+		},
+		{
+			name: "widget with suffix and default prefix",
+			items: []config.WidgetItem{
+				{ID: "1", Type: "tokens-input", Suffix: " tok"},
+			},
+			settings: config.Settings{ColorLevel: 0, DefaultPadding: " "},
+			data: &status.Session{
+				ContextWindow: &status.ContextWindow{
+					TotalInputTokens: intPtr(50_000),
+				},
+			},
+			check: func(t *testing.T, result string) {
+				t.Helper()
+				assert.Equal(t, "In: 50.0k tok", result)
+			},
+		},
+		{
+			name: "user prefix overrides default prefix",
+			items: []config.WidgetItem{
+				{ID: "1", Type: "tokens-input", Prefix: "Input: ", Suffix: " tokens"},
+			},
+			settings: config.Settings{ColorLevel: 0, DefaultPadding: " "},
+			data: &status.Session{
+				ContextWindow: &status.ContextWindow{
+					TotalInputTokens: intPtr(50_000),
+				},
+			},
+			check: func(t *testing.T, result string) {
+				t.Helper()
+				assert.Equal(t, "Input: 50.0k tokens", result)
+			},
+		},
+		{
+			name: "empty widget does not show prefix or suffix",
+			items: []config.WidgetItem{
+				{ID: "1", Type: "version", Prefix: "V: ", Suffix: "!"},
+			},
+			settings: config.Settings{ColorLevel: 0, DefaultPadding: " "},
+			data:     &status.Session{},
+			check: func(t *testing.T, result string) {
+				t.Helper()
+				assert.Empty(t, result)
 			},
 		},
 		{

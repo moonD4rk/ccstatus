@@ -8,7 +8,7 @@ import (
 
 const (
 	// CurrentVersion is the current settings schema version.
-	CurrentVersion = 3
+	CurrentVersion = 4
 
 	configDirName  = "ccstatus"
 	configFileName = "settings.json"
@@ -44,15 +44,23 @@ func DefaultSettings() Settings {
 				{ID: "2", Type: "separator"},
 				{ID: "3", Type: "context-percentage", Color: "brightBlack"},
 				{ID: "4", Type: "separator"},
-				{ID: "5", Type: "git-branch", Color: "magenta"},
+				{ID: "5", Type: "tokens-input", Color: "white"},
 				{ID: "6", Type: "separator"},
-				{ID: "7", Type: "lines-added", Color: "green"},
-				{ID: "8", Type: "lines-removed", Color: "red"},
-				{ID: "9", Type: "separator"},
-				{ID: "10", Type: "session-cost", Color: "green"},
+				{ID: "7", Type: "tokens-output", Color: "white"},
+				{ID: "8", Type: "separator"},
+				{ID: "9", Type: "cache-hit-rate", Color: "cyan"},
+				{ID: "10", Type: "separator"},
+				{ID: "11", Type: "git-branch", Color: "magenta"},
+				{ID: "12", Type: "separator"},
+				{ID: "13", Type: "lines-added", Color: "green"},
+				{ID: "14", Type: "lines-removed", Color: "red"},
+				{ID: "15", Type: "separator"},
+				{ID: "16", Type: "session-cost", Color: "green"},
 			},
 			{
-				{ID: "11", Type: "current-working-dir", Color: "blue", RawValue: true},
+				{ID: "17", Type: "current-working-dir", Color: "blue", RawValue: true},
+				{ID: "18", Type: "flex-separator"},
+				{ID: "19", Type: "session-clock", Color: "white"},
 			},
 		},
 	}

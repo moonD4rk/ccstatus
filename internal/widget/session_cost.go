@@ -41,3 +41,9 @@ func (w *SessionCostWidget) Description() string { return "Session cost in USD" 
 
 // SupportsRawValue returns true since this widget supports compact output.
 func (w *SessionCostWidget) SupportsRawValue() bool { return true }
+
+// DefaultPrefix returns the default prefix.
+func (w *SessionCostWidget) DefaultPrefix() string { return "Cost: " }
+
+// DefaultSuffix returns the default suffix.
+func (w *SessionCostWidget) DefaultSuffix() string { return "" }
