@@ -8,7 +8,7 @@ Date: 2026-02-15
 
 This RFC tracked the remaining widgets to implement for feature parity with the TypeScript ccstatusline project, plus ccstatus-exclusive widgets from the Claude Code JSON API.
 
-All widgets are now implemented. ccstatus has 36 registered widgets, achieving 100% coverage of the official Claude Code JSON schema.
+All widgets are now implemented. ccstatus has 37 registered widgets, achieving 100% coverage of the official Claude Code JSON schema.
 
 ## Comparison Matrix
 
@@ -32,6 +32,7 @@ All widgets are now implemented. ccstatus has 36 registered widgets, achieving 1
 | context-percentage | Y | Y | Done |
 | context-percentage-usable | Y | Y | Done |
 | remaining-percentage | Y | - | Done (Go exclusive) |
+| cache-hit-rate | Y | - | Done (Go exclusive) |
 | block-timer | Y | Y | Done |
 | session-clock | Y | Y | Done |
 | session-cost | Y | Y | Done |
@@ -53,9 +54,9 @@ All widgets are now implemented. ccstatus has 36 registered widgets, achieving 1
 
 ### Summary
 
-- **Total widgets**: 36 registered
-- **ccstatus-exclusive widgets (15)**: current-usage-input, current-usage-output, cache-creation, remaining-percentage, api-duration, project-dir, transcript-path, lines-changed/added/removed, vim-mode, agent-name, exceeds-200k
-- **Shared with ccstatusline (21)**: model, version, output-style, session-id, git-branch, git-changes, git-worktree, tokens-input/output/cached/total, context-length, context-percentage, context-percentage-usable, block-timer, session-clock, session-cost, current-working-dir, terminal-width, custom-text, custom-command, separator, flex-separator
+- **Total widgets**: 37 registered
+- **ccstatus-exclusive widgets (14)**: current-usage-input, current-usage-output, cache-creation, remaining-percentage, cache-hit-rate, api-duration, project-dir, transcript-path, lines-changed, lines-added, lines-removed, vim-mode, agent-name, exceeds-200k
+- **Shared with ccstatusline (23)**: model, version, output-style, session-id, git-branch, git-changes, git-worktree, tokens-input, tokens-output, tokens-cached, tokens-total, context-length, context-percentage, context-percentage-usable, block-timer, session-clock, session-cost, current-working-dir, terminal-width, custom-text, custom-command, separator, flex-separator
 
 ## Implementation Notes
 
@@ -63,9 +64,13 @@ All widgets are now implemented. ccstatus has 36 registered widgets, achieving 1
 
 To avoid code duplication flagged by the `dupl` linter, several generic widget types were created:
 
-- **`tokenWidget`** - Parameterized by extractor function. Used for 7 token widgets.
-- **`percentageWidget`** - Parameterized by extractor function. Used for context-percentage and remaining-percentage.
-- **`stringFieldWidget`** - Parameterized by extractor, color, name, description. Used for output-style, vim-mode, and agent-name.
+- **`tokenWidget`** - Parameterized by extractor function. Used for 7 token widgets (tokens-input, tokens-output, tokens-cached, tokens-total, current-usage-input, current-usage-output, cache-creation).
+- **`percentageWidget`** - Parameterized by extractor function. Used for 3 widgets (context-percentage, remaining-percentage, cache-hit-rate).
+- **`stringFieldWidget`** - Parameterized by extractor, color, name, description. Used for 3 widgets (output-style, vim-mode, agent-name).
+
+### cache-hit-rate
+
+Calculates the cache read token ratio as a percentage. Formula: `cache_read_input_tokens / (input_tokens + cache_creation_input_tokens + cache_read_input_tokens) * 100`. Default color: cyan. Default prefix: "Cache: ".
 
 ### block-timer
 
@@ -97,6 +102,7 @@ Detects linked worktrees by checking if `git rev-parse --git-dir` returns a path
 2. **current-usage-input/output**: Per-round token metrics
 3. **cache-creation**: Cache creation token visibility
 4. **remaining-percentage**: Explicit remaining context percentage
-5. **api-duration**: API response time widget
-6. **project-dir / transcript-path**: Additional environment info
-7. **vim-mode / agent-name / exceeds-200k**: From official Claude Code JSON fields
+5. **cache-hit-rate**: Cache read token ratio as percentage
+6. **api-duration**: API response time widget
+7. **project-dir / transcript-path**: Additional environment info
+8. **vim-mode / agent-name / exceeds-200k**: From official Claude Code JSON fields
