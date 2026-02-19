@@ -1,6 +1,6 @@
 # RFC 002: CLI Refactor and Debugging Support
 
-Status: Draft
+Status: Completed
 Author: @moond4rk
 Date: 2026-02-15
 
@@ -88,7 +88,7 @@ ccstatus install                   # Register in Claude Code settings.json
 ccstatus uninstall                 # Remove from Claude Code settings.json
 ccstatus dump [--output FILE]      # Dump stdin JSON to file (for debugging)
 ccstatus widgets                   # List all registered widget types
-ccstatus version                   # Print version (replaces -v/--version)
+ccstatus --version                 # Print version (cobra built-in)
 ```
 
 Help output:
@@ -221,32 +221,56 @@ widgetsCmd := &cobra.Command{
 
 Output format:
 ```
-Available widgets:
+Available widgets (37):
 
-  model                      Current Claude model name (cyan)
-  version                    Claude Code version (brightBlack)
-  git-branch                 Current git branch name (magenta)
-  tokens-input               Total input token count (brightBlack)
-  tokens-output              Total output token count (brightBlack)
-  tokens-cached              Cached token count (brightBlack)
-  tokens-total               Total token count (input + output) (brightBlack)
-  context-length             Context window usage in tokens (brightBlack)
-  context-percentage         Context usage as percentage (brightBlack)
-  context-percentage-usable  Usable context percentage (brightBlack)
-  custom-text                User-defined static text (white)
-  separator                  Visual separator character (brightBlack)
-  flex-separator             Expands to fill remaining width
+  model                        Current Claude model name (cyan)
+  version                      Claude Code version (white)
+  session-id                   Claude Code session ID (white)
+  session-cost                 Session cost in USD (green)
+  session-clock                Session duration (white)
+  git-branch                   Current git branch name (magenta)
+  git-changes                  Uncommitted changes count (yellow)
+  git-worktree                 Git worktree info (magenta)
+  tokens-input                 Total input token count (white)
+  tokens-output                Total output token count (white)
+  tokens-cached                Cached token count (white)
+  tokens-total                 Total token count (input + output) (white)
+  current-usage-input          Current round input token count (white)
+  current-usage-output         Current round output token count (white)
+  cache-creation               Cache creation input token count (white)
+  context-length               Context window usage in tokens (white)
+  context-percentage           Context usage as percentage of max window (white)
+  context-percentage-usable    Usable context percentage (80% of max) (white)
+  remaining-percentage         Remaining context window percentage (white)
+  cache-hit-rate               Cache read token ratio as percentage (cyan)
+  api-duration                 API response time (white)
+  block-timer                  5-hour session block timer (white)
+  current-working-dir          Current working directory (blue)
+  project-dir                  Project root directory (blue)
+  transcript-path              Transcript file path (white)
+  lines-changed                Git diff lines changed (+N/-M) (green)
+  lines-added                  Git diff lines added (green)
+  lines-removed                Git diff lines removed (red)
+  output-style                 Current output style name (white)
+  vim-mode                     Current vim mode indicator (yellow)
+  agent-name                   Agent name when using --agent flag (cyan)
+  exceeds-200k                 Warning when tokens exceed 200k (red)
+  terminal-width               Terminal width in columns (white)
+  custom-text                  User-defined static text (white)
+  custom-command               Execute shell command, display output (white)
+  separator                    Visual separator character (white)
+  flex-separator               Expands to fill remaining width
 ```
 
 ### Default Config Update
 
-Current default config references `git-changes` which is not implemented. Update to
-only include implemented and reliable widgets:
+The default configuration now features a rich 2-line layout with comprehensive
+session information:
 
 ```go
 func DefaultSettings() Settings {
     return Settings{
-        Version:          CurrentVersion,
+        Version:          CurrentVersion,  // 4
         ColorLevel:       2,
         FlexMode:         "full-minus-40",
         CompactThreshold: 60,
@@ -254,22 +278,34 @@ func DefaultSettings() Settings {
         DefaultPadding:   " ",
         Lines: [][]WidgetItem{
             {
+                // Line 1: model, context, tokens, cache, git, lines, cost
                 {ID: "1", Type: "model", Color: "cyan"},
                 {ID: "2", Type: "separator"},
                 {ID: "3", Type: "context-percentage", Color: "brightBlack"},
                 {ID: "4", Type: "separator"},
-                {ID: "5", Type: "git-branch", Color: "magenta"},
+                {ID: "5", Type: "tokens-input", Color: "white"},
+                {ID: "6", Type: "separator"},
+                {ID: "7", Type: "tokens-output", Color: "white"},
+                {ID: "8", Type: "separator"},
+                {ID: "9", Type: "cache-hit-rate", Color: "cyan"},
+                {ID: "10", Type: "separator"},
+                {ID: "11", Type: "git-branch", Color: "magenta"},
+                {ID: "12", Type: "separator"},
+                {ID: "13", Type: "lines-added", Color: "green"},
+                {ID: "14", Type: "lines-removed", Color: "red"},
+                {ID: "15", Type: "separator"},
+                {ID: "16", Type: "session-cost", Color: "green"},
+            },
+            {
+                // Line 2: working directory (left) + session clock (right)
+                {ID: "17", Type: "current-working-dir", Color: "blue", RawValue: true},
+                {ID: "18", Type: "flex-separator"},
+                {ID: "19", Type: "session-clock", Color: "white"},
             },
         },
     }
 }
 ```
-
-Changes from current default:
-- Replaced `context-length` with `context-percentage` (more reliable: reads from
-  `used_percentage` which is available earlier than `current_usage`)
-- Removed `git-changes` (not implemented)
-- Removed separators around removed widgets (no dangling separators)
 
 ### File Structure Changes
 
@@ -292,31 +328,31 @@ cmd/ccstatus/
 
 ## Implementation Plan
 
-### Step 1: Refactor root command and extract subcommands
+### Step 1: Refactor root command and extract subcommands (Completed)
 
 Split `main.go` into separate files per subcommand. Convert `--init`, `--validate`,
 `--install`, `--uninstall` flags into cobra subcommands. Keep default (no subcommand)
 behavior as stdin rendering.
 
-### Step 2: Add `dump` subcommand
+### Step 2: Add `dump` subcommand (Completed)
 
 Implement the dump command that saves stdin JSON to a file while still rendering
 the status line normally.
 
-### Step 3: Add `widgets` subcommand
+### Step 3: Add `widgets` subcommand (Completed)
 
 Implement the widgets listing command using the existing widget registry.
 
-### Step 4: Update default config
+### Step 4: Update default config (Completed)
 
-Replace unimplemented `git-changes` with reliable `context-percentage`. Remove
-trailing dangling separators.
+Replaced unimplemented widgets with full 2-line layout featuring model, context,
+tokens, cache, git, lines, cost, and session clock.
 
-### Step 5: Add `--force` flag to init
+### Step 5: Add `--force` flag to init (Completed)
 
 Allow `ccstatus init --force` to overwrite existing config.
 
-### Step 6: Tests
+### Step 6: Tests (Completed)
 
 - Test each subcommand's behavior
 - Test default config only references registered widgets
@@ -347,11 +383,8 @@ ccstatus widgets
 - `ccstatus --init` will break (becomes `ccstatus init`)
 - This is acceptable per CLAUDE.md: "Breaking changes are acceptable"
 
-## Open Questions
+## Resolved Questions
 
-1. Should `dump` also render the status line, or only save the JSON?
-   - Recommendation: Both (save + render) so it can be used as a drop-in replacement
-2. Should `widgets` show implementation status (implemented vs planned)?
-   - Recommendation: Only show implemented/registered widgets
-3. Default dump file location: `/tmp/ccstatus-dump.json` or `~/.config/ccstatus/dump.json`?
-   - Recommendation: `/tmp/ccstatus-dump.json` (temporary, no config pollution)
+1. **`dump` rendering**: Both save + render, so it can be used as a drop-in replacement.
+2. **`widgets` listing**: Only shows implemented/registered widgets.
+3. **Default dump location**: `/tmp/ccstatus-dump.json` (temporary, no config pollution).

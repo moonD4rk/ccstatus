@@ -1,6 +1,6 @@
 # RFC 001: ccstatus Architecture and Design
 
-Status: Draft
+Status: Completed
 Author: @moond4rk
 Date: 2026-02-14
 
@@ -20,15 +20,15 @@ ccstatus is a Go reimplementation of the TypeScript ccstatusline project. It is 
 ### In Scope
 
 - Piped mode: stdin JSON -> rendered ANSI status line -> stdout
-- 25 widget types (22 from TypeScript version + 3 new from official API)
+- 37 widget types (23 shared with TypeScript version + 14 ccstatus-exclusive)
 - Multi-line status line rendering
 - Flex separator (fills remaining terminal width)
-- ANSI color support (16 / 256 / truecolor)
+- ANSI color support (16 named colors via fatih/color)
 - JSONL transcript parsing (block timer only; token/context data now provided by Claude Code JSON)
-- Git integration (branch, changes, worktree)
+- Git integration (branch, changes, worktree, diff stats)
 - Claude Code settings.json integration (install/uninstall)
 - Configuration via `~/.config/ccstatus/settings.json`
-- CLI flags: `--init`, `--validate`, `--install`, `--uninstall`, `--version`
+- CLI subcommands: `init`, `validate`, `install`, `uninstall`, `dump`, `widgets`
 
 ### Out of Scope
 
@@ -166,7 +166,7 @@ eliminating the need to parse JSONL transcripts for most widgets.
 | Context window size | `context_window.context_window_size` | Model ID heuristic |
 | Session cost | `cost.total_cost_usd` | N/A |
 | Session duration | `cost.total_duration_ms` | JSONL timestamps |
-| Block timer | N/A | JSONL parsing (required) |
+| Block timer | `cost.total_duration_ms` | JSONL parsing (fallback) |
 
 ## Architecture
 
@@ -176,54 +176,68 @@ eliminating the need to parse JSONL transcripts for most widgets.
 ccstatus/
   cmd/
     ccstatus/
-      main.go              # Entry point, stdin reading, CLI flags
+      main.go              # Entry point, root command, stdin rendering
+      cmd_dump.go          # dump subcommand (debug JSON capture)
+      cmd_init.go          # init subcommand (generate settings.json)
+      cmd_install.go       # install/uninstall subcommands
+      cmd_validate.go      # validate subcommand
+      cmd_widgets.go       # widgets subcommand (list all widgets)
   internal/
     config/
       config.go            # Settings struct, load/save, defaults
       config_test.go
-      widget.go            # WidgetItem struct
-      migration.go         # Settings version migration
+      widget.go            # WidgetItem struct, IsMerged, MergeNoPadding
     render/
       render.go            # Status line rendering pipeline
       render_test.go
       truncate.go          # Terminal width truncation
-      format.go            # Token formatting, separator formatting
     widget/
-      widget.go            # Widget interface and registry
+      widget.go            # Widget interface, Prefixer interface, and registry
+      widget_test.go
       model.go             # Model widget
       version.go           # Version widget
-      output_style.go      # OutputStyle widget
-      session_id.go        # ClaudeSessionId widget
+      session_id.go        # SessionID widget
+      session_cost.go      # SessionCost widget
+      session_clock.go     # SessionClock widget
       git_branch.go        # GitBranch widget
       git_changes.go       # GitChanges widget
       git_worktree.go      # GitWorktree widget
-      tokens.go            # TokensInput, TokensOutput, TokensCached, TokensTotal
-      context.go           # ContextLength, ContextPercentage, ContextPercentageUsable
-      block_timer.go       # BlockTimer widget (requires JSONL parsing)
-      session_clock.go     # SessionClock widget (from cost.total_duration_ms)
-      session_cost.go      # SessionCost widget (from cost.total_cost_usd)
+      tokens.go            # Generic tokenWidget (7 instances: input/output/cached/total/current-usage-input/current-usage-output/cache-creation)
+      context_length.go    # ContextLength widget
+      context_percentage.go        # Generic percentageWidget (context-percentage, remaining-percentage, cache-hit-rate)
+      context_percentage_usable.go # ContextPercentageUsable widget
+      block_timer.go       # BlockTimer widget (cost.total_duration_ms + JSONL fallback)
+      api_duration.go      # APIDuration widget
       current_dir.go       # CurrentWorkingDir widget
+      project_dir.go       # ProjectDir widget
+      transcript_path.go   # TranscriptPath widget
+      lines_changed.go     # LinesChanged, LinesAdded, LinesRemoved widgets
       terminal_width.go    # TerminalWidth widget
       custom_text.go       # CustomText widget
       custom_command.go    # CustomCommand widget
-      vim_mode.go          # VimMode widget (from vim.mode)
-      agent_name.go        # AgentName widget (from agent.name)
-      exceeds_200k.go      # Exceeds200K widget (from exceeds_200k_tokens)
-      widget_test.go
+      string_field.go      # Generic stringFieldWidget (output-style, vim-mode, agent-name)
+      exceeds_200k.go      # Exceeds200K widget
+      separator.go         # Separator widget
+      flex_separator.go    # FlexSeparator widget
     jsonl/
-      jsonl.go             # Token metrics, session duration, block metrics
-      jsonl_test.go
+      reader.go            # JSONL transcript parsing (block-timer fallback)
+      reader_test.go
     color/
-      color.go             # ANSI color codes, color names, color levels
+      color.go             # ANSI color output via fatih/color (16 named colors)
       color_test.go
     git/
-      git.go               # Git command wrappers
-    claude/
-      claude.go            # Claude Code settings.json read/write
+      git.go               # Git branch, changes, worktree
+      changes.go           # Git changes count
+      diff.go              # Git diff stats (lines added/removed)
+      diff_test.go
+      worktree.go          # Git worktree detection
     terminal/
-      terminal.go          # Terminal width detection
+      terminal.go          # Terminal width detection via golang.org/x/term
     status/
-      status.go            # StatusJSON input struct, parsing
+      status.go            # Session input struct, parsing
+      status_test.go
+      format.go            # Token formatting, context config, percentage functions
+      format_test.go
   testdata/
     settings.json          # Example settings for tests
     transcript.jsonl       # Example JSONL for tests
@@ -239,36 +253,36 @@ Claude Code
 cmd/ccstatus/main.go
     |
     | 1. Read stdin
-    | 2. Parse StatusJSON (includes context_window, cost, vim, agent)
+    | 2. Parse Session (includes context_window, cost, vim, agent)
     | 3. Load Settings from ~/.config/ccstatus/settings.json
-    | 4. Parse JSONL transcript (only if block-timer widget is configured)
-    | 5. Detect terminal width
+    | 4. Detect terminal width
     v
 internal/render/render.go
     |
-    | 6. For each line in settings.lines:
+    | 5. For each line in settings.Lines:
     |    a. Render each widget via registry
-    |    b. Apply colors (fg, bg, bold) using fatih/color
-    |    c. Insert separators
-    |    d. Expand flex separators
-    |    e. Truncate to terminal width with "..."
-    |    f. Replace spaces with non-breaking spaces (U+00A0)
-    |    g. Prepend ANSI reset (\x1b[0m)
+    |    b. Apply prefix/suffix (including Prefixer defaults)
+    |    c. Clean separators (remove empty widgets, trim edges, deduplicate)
+    |    d. Apply colors (fg, bg, bold) using fatih/color
+    |    e. Join with padding / expand flex separators
+    |    f. Truncate to terminal width with "..."
+    |    g. Replace spaces with non-breaking spaces (U+00A0)
+    |    h. Prepend ANSI reset (\x1b[0m)
     v
 stdout (ANSI colored status line, one line per fmt.Println)
 ```
 
 ## Data Structures
 
-### StatusJSON (Input from Claude Code)
+### Session (Input from Claude Code)
 
 Based on the official Claude Code status line documentation
 (https://code.claude.com/docs/en/statusline).
 
 ```go
-// StatusJSON represents the JSON payload piped from Claude Code.
+// Session represents the JSON payload piped from Claude Code.
 // All fields are optional and may be absent or null.
-type StatusJSON struct {
+type Session struct {
     Cwd              string         `json:"cwd,omitempty"`
     SessionID        string         `json:"session_id,omitempty"`
     TranscriptPath   string         `json:"transcript_path,omitempty"`
@@ -295,6 +309,7 @@ func (m *ModelField) UnmarshalJSON(data []byte) error {
     var s string
     if json.Unmarshal(data, &s) == nil {
         m.ID = s
+        m.DisplayName = inferDisplayName(s)
         return nil
     }
     var obj struct {
@@ -361,21 +376,21 @@ type AgentInfo struct {
 ### Settings
 
 ```go
-const CurrentVersion = 3
+const CurrentVersion = 4
 
 // Settings represents the ccstatus configuration.
 type Settings struct {
-    Version                int          `json:"version"`
-    Lines                  [][]WidgetItem `json:"lines"`
-    FlexMode               string       `json:"flexMode"`
-    CompactThreshold       int          `json:"compactThreshold"`
-    ColorLevel             int          `json:"colorLevel"`
-    DefaultSeparator       string       `json:"defaultSeparator,omitempty"`
-    DefaultPadding         string       `json:"defaultPadding,omitempty"`
-    InheritSeparatorColors bool         `json:"inheritSeparatorColors"`
-    OverrideBackgroundColor string      `json:"overrideBackgroundColor,omitempty"`
-    OverrideForegroundColor string      `json:"overrideForegroundColor,omitempty"`
-    GlobalBold             bool         `json:"globalBold"`
+    Version                 int            `json:"version"`
+    Lines                   [][]WidgetItem `json:"lines"`
+    FlexMode                string         `json:"flexMode"`
+    CompactThreshold        int            `json:"compactThreshold"`
+    ColorLevel              int            `json:"colorLevel"`
+    DefaultSeparator        string         `json:"defaultSeparator,omitempty"`
+    DefaultPadding          string         `json:"defaultPadding,omitempty"`
+    InheritSeparatorColors  bool           `json:"inheritSeparatorColors"`
+    OverrideBackgroundColor string         `json:"overrideBackgroundColor,omitempty"`
+    OverrideForegroundColor string         `json:"overrideForegroundColor,omitempty"`
+    GlobalBold              bool           `json:"globalBold"`
 }
 
 func DefaultSettings() Settings {
@@ -390,11 +405,25 @@ func DefaultSettings() Settings {
             {
                 {ID: "1", Type: "model", Color: "cyan"},
                 {ID: "2", Type: "separator"},
-                {ID: "3", Type: "context-length", Color: "brightBlack"},
+                {ID: "3", Type: "context-percentage", Color: "brightBlack"},
                 {ID: "4", Type: "separator"},
-                {ID: "5", Type: "git-branch", Color: "magenta"},
+                {ID: "5", Type: "tokens-input", Color: "white"},
                 {ID: "6", Type: "separator"},
-                {ID: "7", Type: "git-changes", Color: "yellow"},
+                {ID: "7", Type: "tokens-output", Color: "white"},
+                {ID: "8", Type: "separator"},
+                {ID: "9", Type: "cache-hit-rate", Color: "cyan"},
+                {ID: "10", Type: "separator"},
+                {ID: "11", Type: "git-branch", Color: "magenta"},
+                {ID: "12", Type: "separator"},
+                {ID: "13", Type: "lines-added", Color: "green"},
+                {ID: "14", Type: "lines-removed", Color: "red"},
+                {ID: "15", Type: "separator"},
+                {ID: "16", Type: "session-cost", Color: "green"},
+            },
+            {
+                {ID: "17", Type: "current-working-dir", Color: "blue", RawValue: true},
+                {ID: "18", Type: "flex-separator"},
+                {ID: "19", Type: "session-clock", Color: "white"},
             },
         },
     }
@@ -411,6 +440,8 @@ type WidgetItem struct {
     Color           string            `json:"color,omitempty"`
     BackgroundColor string            `json:"backgroundColor,omitempty"`
     Bold            bool              `json:"bold,omitempty"`
+    Prefix          string            `json:"prefix,omitempty"`
+    Suffix          string            `json:"suffix,omitempty"`
     Character       string            `json:"character,omitempty"`
     RawValue        bool              `json:"rawValue,omitempty"`
     CustomText      string            `json:"customText,omitempty"`
@@ -421,34 +452,22 @@ type WidgetItem struct {
     Merge           any               `json:"merge,omitempty"` // bool or "no-padding"
     Metadata        map[string]string `json:"metadata,omitempty"`
 }
+
+// IsMerged returns true if this widget should merge with the adjacent widget.
+func (w *WidgetItem) IsMerged() bool { ... }
+
+// MergeNoPadding returns true if merge mode is "no-padding".
+func (w *WidgetItem) MergeNoPadding() bool { ... }
 ```
 
 ### RenderContext
 
 ```go
 // RenderContext carries runtime data available to all widgets during rendering.
-// Most token/context data comes directly from StatusJSON.ContextWindow (official API).
-// BlockMetrics is the only field that still requires JSONL transcript parsing.
+// All token/context data comes directly from Data.ContextWindow (official API).
 type RenderContext struct {
-    Data          *StatusJSON
-    BlockMetrics  *BlockMetrics   // From JSONL parsing (block-timer widget only)
+    Data          *status.Session
     TerminalWidth int
-}
-```
-
-Note: `TokenMetrics` and `SessionDuration` have been removed from RenderContext because
-Claude Code now provides this data directly in the JSON input:
-- Token data: `StatusJSON.ContextWindow.TotalInputTokens`, `TotalOutputTokens`, `CurrentUsage`
-- Session duration: `StatusJSON.Cost.TotalDurationMS`
-- Context percentage: `StatusJSON.ContextWindow.UsedPercentage`
-
-### BlockMetrics
-
-```go
-// BlockMetrics tracks 5-hour session block timing.
-type BlockMetrics struct {
-    StartTime    time.Time
-    LastActivity time.Time
 }
 ```
 
@@ -459,7 +478,7 @@ type BlockMetrics struct {
 type Widget interface {
     // Render produces the widget text for the status line.
     // Returns empty string if the widget has nothing to display.
-    Render(item config.WidgetItem, ctx RenderContext, settings config.Settings) string
+    Render(item *config.WidgetItem, ctx RenderContext, settings *config.Settings) string
 
     // DefaultColor returns the default foreground color name.
     DefaultColor() string
@@ -473,57 +492,86 @@ type Widget interface {
     // SupportsRawValue indicates if the widget has a compact output mode.
     SupportsRawValue() bool
 }
+
+// Prefixer is an optional interface for widgets that provide default prefix/suffix.
+// User-configured values in WidgetItem.Prefix/Suffix take precedence over defaults.
+type Prefixer interface {
+    DefaultPrefix() string
+    DefaultSuffix() string
+}
 ```
 
-### Widget Registry
+### Widget Registry (37 total)
 
 ```go
 var registry = map[string]Widget{
-    // Model & session
-    "model":                       &ModelWidget{},
-    "version":                     &VersionWidget{},
-    "output-style":                &OutputStyleWidget{},
-    "session-id":                  &SessionIDWidget{},
+    // Model and session
+    "model":         &ModelWidget{},
+    "version":       &VersionWidget{},
+    "session-cost":  &SessionCostWidget{},
+    "session-clock": &SessionClockWidget{},
 
     // Git
-    "git-branch":                  &GitBranchWidget{},
-    "git-changes":                 &GitChangesWidget{},
-    "git-worktree":                &GitWorktreeWidget{},
+    "git-branch":   &GitBranchWidget{},
+    "git-changes":  &GitChangesWidget{},
+    "git-worktree": &GitWorktreeWidget{},
 
-    // Token metrics (data from context_window JSON)
-    "tokens-input":                &TokensInputWidget{},
-    "tokens-output":               &TokensOutputWidget{},
-    "tokens-cached":               &TokensCachedWidget{},
-    "tokens-total":                &TokensTotalWidget{},
+    // Token metrics (generic tokenWidget with extractor functions)
+    "tokens-input":          &tokenWidget{...},  // Total input tokens
+    "tokens-output":         &tokenWidget{...},  // Total output tokens
+    "tokens-cached":         &tokenWidget{...},  // Cached tokens
+    "tokens-total":          &tokenWidget{...},  // Total tokens (input + output)
+    "current-usage-input":   &tokenWidget{...},  // Current round input tokens
+    "current-usage-output":  &tokenWidget{...},  // Current round output tokens
+    "cache-creation":        &tokenWidget{...},  // Cache creation input tokens
 
-    // Context window (data from context_window JSON)
+    // Context window (generic percentageWidget with extractor functions)
     "context-length":              &ContextLengthWidget{},
-    "context-percentage":          &ContextPercentageWidget{},
+    "context-percentage":          &percentageWidget{...},  // Context usage %
     "context-percentage-usable":   &ContextPercentageUsableWidget{},
-
-    // Session metrics (data from cost JSON)
-    "block-timer":                 &BlockTimerWidget{},     // Requires JSONL parsing
-    "session-clock":               &SessionClockWidget{},
-    "session-cost":                &SessionCostWidget{},
+    "remaining-percentage":        &percentageWidget{...},  // Remaining context %
+    "cache-hit-rate":              &percentageWidget{...},  // Cache read ratio %
 
     // Environment
-    "current-working-dir":         &CurrentDirWidget{},
-    "terminal-width":              &TerminalWidthWidget{},
+    "current-working-dir": &CurrentDirWidget{},
+    "project-dir":         &ProjectDirWidget{},
+    "transcript-path":     &TranscriptPathWidget{},
+    "lines-changed":       &LinesChangedWidget{},
+    "lines-added":         &LinesAddedWidget{},
+    "lines-removed":       &LinesRemovedWidget{},
+
+    // Cost and duration
+    "api-duration": &APIDurationWidget{},
+    "block-timer":  &BlockTimerWidget{},
+
+    // Session info (generic stringFieldWidget with extractor functions)
+    "session-id":    &SessionIDWidget{},
+    "output-style":  &stringFieldWidget{...},  // Output style name
+    "vim-mode":      &stringFieldWidget{...},  // Vim mode indicator
+    "agent-name":    &stringFieldWidget{...},  // Agent name
+
+    "exceeds-200k":   &Exceeds200KWidget{},
+    "terminal-width": &TerminalWidthWidget{},
 
     // User-defined
-    "custom-text":                 &CustomTextWidget{},
-    "custom-command":              &CustomCommandWidget{},
+    "custom-text":    &CustomTextWidget{},
+    "custom-command": &CustomCommandWidget{},
 
-    // New widgets from official Claude Code API
-    "vim-mode":                    &VimModeWidget{},
-    "agent-name":                  &AgentNameWidget{},
-    "exceeds-200k":                &Exceeds200KWidget{},
+    // Layout
+    "separator":      &SeparatorWidget{},
+    "flex-separator": &FlexSeparatorWidget{},
 }
 
 // Get returns the widget for the given type string, or nil if unknown.
 func Get(widgetType string) Widget {
     return registry[widgetType]
 }
+
+// Register adds a widget to the registry.
+func Register(widgetType string, w Widget) { ... }
+
+// Types returns all registered widget type names.
+func Types() []string { ... }
 ```
 
 ## Key Algorithms
@@ -549,36 +597,42 @@ The model ID heuristic is kept only as a fallback for older Claude Code versions
 
 ```go
 const (
-    defaultMaxTokens    = 200_000
-    defaultUsableTokens = 160_000  // 80% of 200k
-    longMaxTokens       = 1_000_000
-    longUsableTokens    = 800_000  // 80% of 1M
+    defaultMaxTokens   = 200_000
+    defaultUsableRatio = 80 // 80% of max
+    longMaxTokens      = 1_000_000
 )
 
-type ContextConfig struct {
+// WindowLimits holds resolved context window size information.
+type WindowLimits struct {
     MaxTokens    int
     UsableTokens int
 }
 
-// GetContextConfig resolves context window size.
+// ContextConfig resolves context window size.
 // Primary: use context_window.context_window_size from JSON input.
 // Fallback: heuristic based on model ID (for older Claude Code versions).
-func GetContextConfig(data *StatusJSON) ContextConfig {
+func ContextConfig(data *Session) WindowLimits {
     // Primary: use official context_window_size if available
     if data.ContextWindow != nil && data.ContextWindow.ContextWindowSize != nil {
         size := *data.ContextWindow.ContextWindowSize
-        return ContextConfig{
+        return WindowLimits{
             MaxTokens:    size,
-            UsableTokens: size * 80 / 100,
+            UsableTokens: size * defaultUsableRatio / 100,
         }
     }
 
     // Fallback: model ID heuristic
     lower := strings.ToLower(data.Model.ID)
     if strings.Contains(lower, "claude-sonnet-4-5") && strings.Contains(lower, "[1m]") {
-        return ContextConfig{MaxTokens: longMaxTokens, UsableTokens: longUsableTokens}
+        return WindowLimits{
+            MaxTokens:    longMaxTokens,
+            UsableTokens: longMaxTokens * defaultUsableRatio / 100,
+        }
     }
-    return ContextConfig{MaxTokens: defaultMaxTokens, UsableTokens: defaultUsableTokens}
+    return WindowLimits{
+        MaxTokens:    defaultMaxTokens,
+        UsableTokens: defaultMaxTokens * defaultUsableRatio / 100,
+    }
 }
 ```
 
@@ -589,111 +643,91 @@ is kept as a fallback. Note: `used_percentage` is calculated from input tokens o
 (input_tokens + cache_creation_input_tokens + cache_read_input_tokens), not output tokens.
 
 ```go
-// GetContextPercentage returns the context usage percentage.
+// ContextPercentage returns the context usage percentage.
 // Primary: use pre-calculated used_percentage from JSON input.
 // Fallback: calculate from current_usage tokens and context_window_size.
-func GetContextPercentage(data *StatusJSON) float64 {
+// Returns (value, ok) where ok=false means no data available.
+func ContextPercentage(data *Session) (float64, bool) {
     if data.ContextWindow != nil && data.ContextWindow.UsedPercentage != nil {
-        return *data.ContextWindow.UsedPercentage
+        return *data.ContextWindow.UsedPercentage, true
     }
     // Fallback: manual calculation if used_percentage is null (early in session)
     if data.ContextWindow != nil && data.ContextWindow.CurrentUsage != nil {
         cu := data.ContextWindow.CurrentUsage
         contextLength := cu.InputTokens + cu.CacheCreationInputTokens + cu.CacheReadInputTokens
-        cfg := GetContextConfig(data)
+        cfg := ContextConfig(data)
         if cfg.MaxTokens == 0 {
-            return 0
+            return 0, false
         }
         pct := float64(contextLength) / float64(cfg.MaxTokens) * 100
         if pct > 100 {
-            return 100
+            return 100, true
         }
-        return pct
+        return pct, true
     }
-    return 0
+    return 0, false
 }
+```
+
+### Cache Hit Rate
+
+```go
+// CacheHitRate returns the cache read ratio as a percentage.
+// Formula: cache_read_input_tokens / (input_tokens + cache_creation_input_tokens + cache_read_input_tokens) * 100
+// Returns (value, ok) where ok=false means no data available.
+func CacheHitRate(data *Session) (float64, bool) { ... }
 ```
 
 ### JSONL Transcript Parsing
 
 With the official Claude Code API now providing token metrics and session duration directly
 in the JSON input, JSONL transcript parsing is only required for the **block-timer** widget
-(5-hour session block tracking). This data is not available in the official API.
+as a fallback when `cost.total_duration_ms` is unavailable.
 
-The `internal/jsonl` package uses `gjson` for efficient field extraction from JSONL lines.
-
-### Session Duration Formatting
-
-Session duration now comes from `cost.total_duration_ms` in the JSON input. The formatting
-function converts milliseconds to human-readable format:
+The `internal/jsonl` package reads the first JSONL entry timestamp using `encoding/json`.
 
 ```go
-func FormatDuration(ms float64) string {
-    totalSec := int(ms / 1000)
-    hours := totalSec / 3600
-    mins := (totalSec % 3600) / 60
-    if hours == 0 && mins == 0 {
-        return "<1m"
-    }
-    if hours == 0 {
-        return fmt.Sprintf("%dm", mins)
-    }
-    if mins == 0 {
-        return fmt.Sprintf("%dhr", hours)
-    }
-    return fmt.Sprintf("%dhr %dm", hours, mins)
-}
-```
-
-### Block Metrics (5-Hour Session Blocks)
-
-```go
-func GetBlockMetrics() *BlockMetrics {
-    // 1. Glob ~/.claude/projects/**/*.jsonl
-    // 2. Sort by mtime (most recent first)
-    // 3. Progressive lookback: 10h -> 20h -> 48h
-    // 4. Extract timestamps from each file
-    // 5. Find gaps >= 5 hours (session boundary)
-    // 6. Return start of current block and last activity
-    // 7. Floor startTime to hour boundary
-}
+// SessionStart reads the first entry from a JSONL transcript file and returns
+// its timestamp. Returns zero time if the file cannot be read or parsed.
+func SessionStart(path string) time.Time { ... }
 ```
 
 ### Rendering Pipeline
 
 ```go
-func RenderStatusLine(items []config.WidgetItem, settings config.Settings, ctx RenderContext) string {
+// RenderLine renders a single line of widgets into an ANSI-colored string.
+func RenderLine(items []config.WidgetItem, settings *config.Settings, ctx widget.RenderContext) string {
     // 1. Iterate items, render each widget via registry
-    // 2. Skip items that produce empty output
-    // 3. Apply colors (foreground, background, bold) with override support
-    // 4. Insert separators between items (skip before first, after last)
-    // 5. Apply padding around widget content
-    // 6. Handle flex-separator: split into parts, calculate remaining space, distribute
-    // 7. Handle merge mode (combine adjacent widgets with/without padding)
-    // 8. Truncate to terminal width with "..." if needed
-    //
-    // Post-processing (practical workarounds, see Output Protocol in this RFC):
-    // 9. Replace spaces with non-breaking spaces U+00A0 (workaround: VSCode trims trailing spaces)
-    // 10. Prepend ANSI reset \x1b[0m (workaround: Claude Code applies dim to status area)
-    // 11. Skip line if no visible text remains after stripping ANSI codes
+    // 2. Apply prefix/suffix (including Prefixer interface defaults)
+    // 3. Skip items that produce empty output
+    // 4. Clean separators (remove empty, trim edges, deduplicate)
+    // 5. Apply colors (foreground, background, bold) with override support
+    // 6. Join with padding / expand flex separators
+    // 7. Truncate to terminal width with "..." if needed
+}
+
+// PostProcess applies practical workarounds to a rendered line.
+func PostProcess(line string) string {
+    // 1. Skip line if no visible text after stripping ANSI codes
+    // 2. Replace spaces with non-breaking spaces U+00A0 (VSCode workaround)
+    // 3. Prepend ANSI reset \x1b[0m (Claude Code dim workaround)
 }
 ```
 
 ### Terminal Width Detection
 
 ```go
-func GetWidth() int {
-    // 1. Try golang.org/x/term.GetSize(fd) on stdout
-    // 2. Fallback: parse `stty size` output
-    // 3. Fallback: parse `tput cols` output
-    // 4. Return 0 if all fail
+// Width returns the terminal width in columns, or 0 if detection fails.
+func Width() int {
+    // Uses golang.org/x/term.GetSize(fd) on stdout
+    // Returns 0 if detection fails
 }
 ```
 
 ### FlexMode Width Calculation
 
 ```go
-func CalculateWidth(detected int, flexMode string, compactThreshold int, contextPct float64) int {
+func CalculateFlexWidth(detected int, flexMode string, compactThreshold int, contextPct float64) int {
     switch flexMode {
     case "full":
         return detected - 6
@@ -711,66 +745,55 @@ func CalculateWidth(detected int, flexMode string, compactThreshold int, context
 
 ## Color System
 
-### Supported Colors (32 total)
+### Supported Colors (16 named)
 
 8 basic: black, red, green, yellow, blue, magenta, cyan, white
-8 bright: brightBlack, brightRed, ..., brightWhite
-8 bg: bgBlack, bgRed, ..., bgWhite
-8 bgBright: bgBrightBlack, ..., bgBrightWhite
+8 bright: brightBlack, brightRed, brightGreen, brightYellow, brightBlue, brightMagenta, brightCyan, brightWhite
 
-### Custom Color Formats
-
-- `ansi256:N` - Direct ANSI 256 color code (0-255)
-- `hex:RRGGBB` - RGB hex color (truecolor only)
+Colors are mapped to `fatih/color` attributes. Background colors are derived by adding
+the standard ANSI foreground-to-background offset (+10).
 
 ### Color Levels
 
-- 0: No colors (strip all ANSI codes)
-- 1: ANSI 16 colors
-- 2: ANSI 256 colors (default)
-- 3: Truecolor (24-bit RGB)
+- 0: No colors (returns text unmodified)
+- 1+: Apply colors via fatih/color (16 named colors)
 
 ### ANSI Code Generation
 
 ```go
-func ApplyColor(text, fg, bg string, bold bool, level int) string {
-    // Build ANSI escape sequence based on color level
-    // fg: \x1b[3Xm (16) or \x1b[38;5;Nm (256) or \x1b[38;2;R;G;Bm (true)
-    // bg: \x1b[4Xm (16) or \x1b[48;5;Nm (256) or \x1b[48;2;R;G;Bm (true)
-    // bold: \x1b[1m ... \x1b[22m
-    // reset: \x1b[0m
+// Apply wraps text with ANSI color codes based on the given color level.
+// Returns unmodified text when color level is 0 or text is empty.
+func Apply(text, fg, bg string, bold bool, level int) string {
+    // Uses fatih/color to build ANSI escape sequences
+    // fg: mapped from named color to fatih/color attribute
+    // bg: fg attribute + fgToBGOffset (10)
+    // bold: fatih/color Bold attribute
 }
+
+// StripANSI removes all ANSI escape sequences from a string.
+func StripANSI(s string) string { ... }
+
+// VisibleWidth returns the number of visible runes, ignoring ANSI codes.
+func VisibleWidth(s string) int { ... }
 ```
 
 ## Claude Code Integration
 
 ### Config Directory Resolution
 
-```go
-func GetClaudeConfigDir() string {
-    if dir := os.Getenv("CLAUDE_CONFIG_DIR"); dir != "" {
-        return dir
-    }
-    home, _ := os.UserHomeDir()
-    return filepath.Join(home, ".claude")
-}
-```
+ccstatus reads/writes `~/.claude/settings.json` (or `$CLAUDE_CONFIG_DIR/settings.json`).
 
 ### Install/Uninstall
 
-```go
-func Install() error {
-    // Read existing ~/.claude/settings.json
-    // Set statusLine.type = "command"
-    // Set statusLine.command = "ccstatus"
-    // Set statusLine.padding = 0
-    // Write back (preserve other fields)
-}
+The `install` and `uninstall` subcommands manage the Claude Code integration:
 
-func Uninstall() error {
-    // Read existing settings
-    // Remove statusLine field
-    // Write back
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "ccstatus",
+    "padding": 0
+  }
 }
 ```
 
@@ -780,65 +803,55 @@ ccstatus settings.json is a **subset** of the TypeScript ccstatusline format. Th
 
 ## Implementation Plan
 
-Each phase includes corresponding testify unit tests. Tests are written alongside
-implementation, not deferred to the end.
+All phases are completed. Each phase included corresponding testify unit tests.
 
-### Phase 1: Core Engine (Priority: P0)
+### Phase 1: Core Engine (Completed)
 
-Goal: `echo '{"model":{"id":"claude-sonnet-4-5","display_name":"Sonnet"}}' | ccstatus` produces colored output.
-
-1. `go mod tidy` - Add all dependencies (cobra, fatih/color, gjson, x/term, testify)
-2. `cmd/ccstatus/main.go` - cobra root command, stdin reading, flag definitions
-3. `internal/status/status.go` - StatusJSON parsing with ModelField, ContextWindow, VimInfo, AgentInfo
+1. `go mod tidy` - Added dependencies (cobra, fatih/color, x/term, testify)
+2. `cmd/ccstatus/main.go` - cobra root command with subcommands
+3. `internal/status/status.go` - Session parsing with ModelField, ContextWindow, VimInfo, AgentInfo
 4. `internal/config/config.go` - Settings load/save/defaults
 5. `internal/color/color.go` - ANSI color system based on fatih/color
-6. `internal/widget/widget.go` - Widget interface and registry
+6. `internal/widget/widget.go` - Widget interface, Prefixer interface, and registry
 7. `internal/render/render.go` - Rendering pipeline (colors, separators, truncation, U+00A0, ANSI reset)
 8. Simple widgets: model, version, git-branch, custom-text, separator
 
-### Phase 2: Token & Context Widgets (Priority: P0)
+### Phase 2: Token & Context Widgets (Completed)
 
-Goal: Display token usage and context percentage from Claude Code JSON input (no JSONL needed).
-
-9. Token widgets: tokens-input, tokens-output, tokens-cached, tokens-total
-   (read from `context_window.total_input_tokens`, `total_output_tokens`, `current_usage`)
-10. Context widgets: context-length, context-percentage, context-percentage-usable
-    (read from `context_window.used_percentage`, `context_window_size`)
+9. Token widgets: tokens-input, tokens-output, tokens-cached, tokens-total (via generic tokenWidget)
+10. Context widgets: context-length, context-percentage, context-percentage-usable (via generic percentageWidget)
 11. `internal/terminal/terminal.go` - Width detection
 12. Flex separator expansion
 
-### Phase 3: Remaining Widgets (Priority: P1)
-
-Goal: Complete all widget implementations.
+### Phase 3: Remaining Widgets (Completed)
 
 13. git-changes, git-worktree (from git commands)
 14. session-clock (from `cost.total_duration_ms`), session-cost (from `cost.total_cost_usd`)
-15. block-timer (requires `internal/jsonl/` JSONL parsing with gjson)
-16. output-style, session-id, terminal-width, current-working-dir
+15. block-timer (primary: `cost.total_duration_ms`, fallback: JSONL transcript parsing)
+16. output-style, session-id, terminal-width, current-working-dir (via generic stringFieldWidget)
 17. custom-command (with timeout and preserveColors)
-18. New widgets: vim-mode (from `vim.mode`), agent-name (from `agent.name`), exceeds-200k (from `exceeds_200k_tokens`)
+18. vim-mode, agent-name, exceeds-200k (from official Claude Code JSON fields)
+19. current-usage-input, current-usage-output, cache-creation (per-round token widgets)
+20. remaining-percentage, cache-hit-rate (via generic percentageWidget)
+21. api-duration, project-dir, transcript-path, lines-changed/added/removed
 
-### Phase 4: Integration & Polish (Priority: P1)
+### Phase 4: Integration & Polish (Completed)
 
-19. `internal/claude/claude.go` - Install/uninstall
-20. `--init`, `--validate` flags
-21. Settings migration
-22. Multi-line rendering
-23. Merge mode (widget combining)
+22. CLI subcommands: init, validate, install, uninstall, dump, widgets
+23. Multi-line rendering (2-line default layout)
+24. Merge mode (widget combining with/without padding)
 
-### Phase 5: Release (Priority: P2)
+### Phase 5: Release (Completed)
 
-24. Integration test with official JSON schema sample
-25. GoReleaser configuration
+25. Integration test with official JSON schema sample
 26. README documentation
 
 ## Dependencies
 
 ```
 require (
-    github.com/fatih/color      // ANSI color output
-    github.com/spf13/cobra      // CLI framework
-    github.com/tidwall/gjson    // JSONL field extraction
+    github.com/fatih/color      // ANSI color output via named color attributes
+    github.com/spf13/cobra      // CLI framework with subcommands
     golang.org/x/term           // Terminal width detection
 )
 
@@ -847,11 +860,8 @@ require (
 )
 ```
 
-## Open Questions
+## Resolved Questions
 
-1. Should `--init` generate a minimal or full default config?
-   - Recommendation: Minimal (only line 1 with basic widgets)
-2. Should we support `go install` as the primary distribution method, or also provide Homebrew tap?
-   - Recommendation: Both -- `go install` for Go users, GitHub Releases for binary downloads
-3. Should custom-command widget use `sh -c` or direct exec?
-   - Recommendation: `sh -c` for shell feature compatibility (pipes, env vars)
+1. **`init` config**: Generates a full 2-line default config with model, context, tokens, cache, git, lines, cost, and session clock.
+2. **Distribution**: `go install` as primary, GitHub Releases for binary downloads.
+3. **custom-command**: Uses `sh -c` for shell feature compatibility.
