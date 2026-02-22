@@ -3,15 +3,26 @@ package terminal
 
 import (
 	"os"
+	"strconv"
 
 	"golang.org/x/term"
 )
 
-// Width returns the terminal width in columns, or 0 if detection fails.
+// defaultWidth is the fallback terminal width when detection fails.
+const defaultWidth = 80
+
+// Width returns the terminal width in columns.
+// It tries term.GetSize first, then falls back to the COLUMNS environment
+// variable, and finally returns defaultWidth (80) if both fail.
 func Width() int {
 	width, _, err := term.GetSize(int(os.Stdout.Fd()))
-	if err != nil {
-		return 0
+	if err == nil && width > 0 {
+		return width
 	}
-	return width
+	if cols := os.Getenv("COLUMNS"); cols != "" {
+		if n, err := strconv.Atoi(cols); err == nil && n > 0 {
+			return n
+		}
+	}
+	return defaultWidth
 }
