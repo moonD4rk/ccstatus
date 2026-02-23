@@ -14,7 +14,7 @@ func TestDefaultSettings(t *testing.T) {
 
 	assert.Equal(t, CurrentVersion, s.Version)
 	assert.Equal(t, 2, s.ColorLevel)
-	assert.Equal(t, "full-minus-40", s.FlexMode)
+	assert.Equal(t, "full-until-compact", s.FlexMode)
 	assert.Equal(t, 60, s.CompactThreshold)
 	assert.Equal(t, "|", s.DefaultSeparator)
 	assert.Equal(t, " ", s.DefaultPadding)

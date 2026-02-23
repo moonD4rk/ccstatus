@@ -78,7 +78,7 @@ The default configuration uses a 2-line layout:
 {
   "version": 4,
   "colorLevel": 2,
-  "flexMode": "full-minus-40",
+  "flexMode": "full-until-compact",
   "compactThreshold": 60,
   "defaultSeparator": "|",
   "defaultPadding": " ",
@@ -115,8 +115,8 @@ The default configuration uses a 2-line layout:
 | Mode | Description |
 |------|-------------|
 | `full` | Terminal width - 6 characters |
-| `full-minus-40` | Terminal width - 40 characters (default) |
-| `full-until-compact` | Switch to -40 when context % >= compactThreshold |
+| `full-minus-40` | Terminal width - 40 characters |
+| `full-until-compact` | Switch to -40 when context % >= compactThreshold (default) |
 
 ### Available Colors
 

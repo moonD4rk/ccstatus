@@ -34,7 +34,7 @@ func DefaultSettings() Settings {
 	return Settings{
 		Version:          CurrentVersion,
 		ColorLevel:       2,
-		FlexMode:         "full-minus-40",
+		FlexMode:         "full-until-compact",
 		CompactThreshold: 60,
 		DefaultSeparator: "|",
 		DefaultPadding:   " ",
