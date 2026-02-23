@@ -5,6 +5,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -19,7 +20,7 @@ func SessionStart(path string) time.Time {
 	if path == "" {
 		return time.Time{}
 	}
-	f, err := os.Open(path)
+	f, err := os.Open(filepath.Clean(path)) //nolint:gosec // path comes from Claude Code JSON, not untrusted input
 	if err != nil {
 		return time.Time{}
 	}
