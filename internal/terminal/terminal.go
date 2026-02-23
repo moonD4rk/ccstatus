@@ -18,7 +18,7 @@ const defaultWidth = 80
 func Width() int {
 	// Try stdout and stderr fds (works when at least one is a real terminal).
 	for _, f := range []*os.File{os.Stdout, os.Stderr} {
-		if w, _, err := term.GetSize(int(f.Fd())); err == nil && w > 0 {
+		if w, _, err := term.GetSize(int(f.Fd())); err == nil && w > 0 { //nolint:gosec // fd values are small, no overflow risk
 			return w
 		}
 	}
@@ -43,7 +43,7 @@ func widthFromTTY() int {
 		return 0
 	}
 	defer f.Close()
-	w, _, err := term.GetSize(int(f.Fd()))
+	w, _, err := term.GetSize(int(f.Fd())) //nolint:gosec // fd values are small, no overflow risk
 	if err != nil {
 		return 0
 	}

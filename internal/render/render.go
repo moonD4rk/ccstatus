@@ -28,6 +28,15 @@ type segment struct {
 
 // RenderLine renders a single line of widgets into an ANSI-colored string.
 func RenderLine(items []config.WidgetItem, settings *config.Settings, ctx widget.RenderContext) string {
+	// Apply flex mode width adjustment to match Claude Code's actual display area.
+	if ctx.TerminalWidth > 0 && settings != nil {
+		contextPct := 0.0
+		if ctx.Data != nil && ctx.Data.ContextWindow != nil && ctx.Data.ContextWindow.UsedPercentage != nil {
+			contextPct = *ctx.Data.ContextWindow.UsedPercentage
+		}
+		ctx.TerminalWidth = CalculateFlexWidth(ctx.TerminalWidth, settings.FlexMode, settings.CompactThreshold, contextPct)
+	}
+
 	segments := renderWidgets(items, ctx, settings)
 	segments = cleanSeparators(segments)
 	if len(segments) == 0 {

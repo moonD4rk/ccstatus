@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 
@@ -71,14 +72,15 @@ func runDump(cmd *cobra.Command, _ []string) error {
 }
 
 func writeDump(data []byte, path string) error {
+	path = filepath.Clean(path)
 	// Try to pretty-print; fall back to raw data if JSON is invalid.
 	var raw json.RawMessage
 	if json.Unmarshal(data, &raw) == nil {
 		pretty, err := json.MarshalIndent(raw, "", "  ")
 		if err == nil {
 			pretty = append(pretty, '\n')
-			return os.WriteFile(path, pretty, 0o600)
+			return os.WriteFile(path, pretty, 0o600) //nolint:gosec // path comes from CLI flag, not untrusted input
 		}
 	}
-	return os.WriteFile(path, data, 0o600)
+	return os.WriteFile(path, data, 0o600) //nolint:gosec // path comes from CLI flag, not untrusted input
 }
