@@ -34,11 +34,11 @@ func TestDefaultSettings(t *testing.T) {
 	assert.Equal(t, "lines-removed", s.Lines[0][13].Type)
 	assert.Equal(t, "red", s.Lines[0][13].Color)
 	assert.Equal(t, "session-cost", s.Lines[0][15].Type)
-	// Line 2: cwd <flex> session-clock
+	// Line 2: cwd | session-clock
 	require.Len(t, s.Lines[1], 3)
 	assert.Equal(t, "current-working-dir", s.Lines[1][0].Type)
 	assert.True(t, s.Lines[1][0].RawValue)
-	assert.Equal(t, "flex-separator", s.Lines[1][1].Type)
+	assert.Equal(t, "separator", s.Lines[1][1].Type)
 	assert.Equal(t, "session-clock", s.Lines[1][2].Type)
 }
 
