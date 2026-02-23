@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime/debug"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -16,6 +18,47 @@ import (
 )
 
 var version = "dev"
+
+// versionString returns a human-readable version string.
+// For tagged releases (set via ldflags), it returns the tag version.
+// For dev builds (go install), it appends VCS commit and date from build info.
+func versionString() string {
+	if version != "dev" {
+		return version
+	}
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return version
+	}
+	var revision, timeVal string
+	var modified bool
+	for _, s := range info.Settings {
+		switch s.Key {
+		case "vcs.revision":
+			revision = s.Value
+		case "vcs.time":
+			timeVal = s.Value
+		case "vcs.modified":
+			modified = s.Value == "true"
+		}
+	}
+	if revision == "" {
+		return version
+	}
+	// Shorten commit hash to 7 characters.
+	if len(revision) > 7 {
+		revision = revision[:7]
+	}
+	// Extract date portion from RFC3339 timestamp.
+	if idx := strings.IndexByte(timeVal, 'T'); idx > 0 {
+		timeVal = timeVal[:idx]
+	}
+	v := fmt.Sprintf("dev (%s %s)", revision, timeVal)
+	if modified {
+		v += " dirty"
+	}
+	return v
+}
 
 func main() {
 	rootCmd := newRootCmd()
@@ -35,7 +78,7 @@ func newRootCmd() *cobra.Command {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
-	cmd.Version = version
+	cmd.Version = versionString()
 	cmd.AddCommand(
 		newInitCmd(),
 		newValidateCmd(),
@@ -68,12 +111,19 @@ func runStatusLine(_ *cobra.Command, _ []string) error {
 		TerminalWidth: terminal.Width(),
 	}
 
+	// Buffer all lines and write atomically to avoid partial reads
+	// when Claude Code reads from the pipe during rapid re-invocations.
+	var buf strings.Builder
 	for _, line := range settings.Lines {
 		rendered := render.RenderLine(line, &settings, ctx)
 		output := render.PostProcess(rendered)
 		if output != "" {
-			fmt.Println(output)
+			buf.WriteString(output)
+			buf.WriteByte('\n')
 		}
+	}
+	if buf.Len() > 0 {
+		fmt.Print(buf.String())
 	}
 	return nil
 }
