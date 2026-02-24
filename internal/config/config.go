@@ -59,7 +59,7 @@ func DefaultSettings() Settings {
 			},
 			{
 				{ID: "17", Type: "current-working-dir", Color: "blue", RawValue: true},
-				{ID: "18", Type: "flex-separator"},
+				{ID: "18", Type: "separator"},
 				{ID: "19", Type: "session-clock", Color: "white"},
 			},
 		},
