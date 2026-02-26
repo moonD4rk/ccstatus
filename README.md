@@ -8,6 +8,10 @@
 
 A customizable status line formatter for [Claude Code](https://code.claude.com/) CLI. Reads JSON session data from stdin, renders an ANSI-colored status line, and outputs to stdout.
 
+<p align="center">
+  <img src="docs/terminal-screenshot.png" alt="ccstatus in Claude Code terminal" width="800">
+</p>
+
 ## Features
 
 - Single static binary with no runtime dependencies
@@ -37,27 +41,100 @@ ccstatus install
 
 That's it. Claude Code will now display the status line after each assistant message.
 
+## CLI Reference
+
+```
+ccstatus [flags]
+ccstatus [command]
+```
+
+### Commands
+
+| Command | Description |
+|---------|-------------|
+| `init` | Generate default `settings.json` at the ccstatus config directory |
+| `install` | Register ccstatus as the status line command in Claude Code's `settings.json` |
+| `uninstall` | Remove ccstatus status line configuration from Claude Code's `settings.json` |
+| `validate` | Validate `settings.json` for correctness |
+| `dump` | Save raw JSON input from Claude Code to a file for debugging |
+| `widgets` | List all registered widget types with descriptions and default colors |
+| `completion` | Generate shell autocompletion script (bash, zsh, fish, powershell) |
+
+### Global Flags
+
+| Flag | Description |
+|------|-------------|
+| `-h, --help` | Show help for any command |
+| `-v, --version` | Print version |
+
+### Command Details
+
+#### `ccstatus init`
+
+```bash
+ccstatus init [--force]
+```
+
+Generates a default `settings.json` at `~/.config/ccstatus/settings.json`. Use `--force` to overwrite an existing file.
+
+#### `ccstatus install`
+
+```bash
+ccstatus install
+```
+
+Registers ccstatus in Claude Code's `~/.claude/settings.json` (or `$CLAUDE_CONFIG_DIR/settings.json`) by adding:
+
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "ccstatus",
+    "padding": 0
+  }
+}
+```
+
+#### `ccstatus uninstall`
+
+```bash
+ccstatus uninstall
+```
+
+Removes the ccstatus status line configuration from Claude Code's settings.
+
+#### `ccstatus validate`
+
+```bash
+ccstatus validate
+```
+
+Checks `settings.json` for errors such as unknown widget types, missing IDs, or invalid color names.
+
+#### `ccstatus dump`
+
+```bash
+ccstatus dump [--output FILE]
+```
+
+Reads JSON from stdin (same as normal mode), saves it to a file, and renders the status line. Default output: `/tmp/ccstatus-dump.json`. Useful for inspecting what Claude Code sends.
+
+#### `ccstatus widgets`
+
+```bash
+ccstatus widgets
+```
+
+Lists all registered widget types with their descriptions and default colors.
+
 ## Usage
 
 ```bash
 # Default: read JSON from stdin, render status line
 echo '{"model":{"id":"claude-opus-4-6","display_name":"Opus"}}' | ccstatus
 
-# Generate default settings.json
-ccstatus init [--force]
-
-# Validate settings.json
-ccstatus validate
-
-# Register/remove in Claude Code settings
-ccstatus install
-ccstatus uninstall
-
-# Capture raw JSON input for debugging
-ccstatus dump [--output FILE]
-
-# List all available widgets
-ccstatus widgets
+# Replay captured dump data
+cat /tmp/ccstatus-dump.json | ccstatus
 ```
 
 ## Configuration
@@ -93,6 +170,19 @@ The default configuration uses a 2-line layout:
   ]
 }
 ```
+
+### Global Settings
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `version` | int | `4` | Config schema version |
+| `colorLevel` | int | `2` | Color level: `0` (none), `1` (basic), `2` (256-color terminal) |
+| `flexMode` | string | `"full-until-compact"` | How flex separator calculates available width |
+| `compactThreshold` | int | `60` | Context % threshold for switching to compact mode |
+| `defaultSeparator` | string | `"\|"` | Separator character between widgets |
+| `defaultPadding` | string | `" "` | Padding around separators |
+| `inheritSeparatorColors` | bool | `false` | Separators inherit color from adjacent widget |
+| `globalBold` | bool | `false` | Apply bold to all widgets |
 
 ### Widget Item Options
 
