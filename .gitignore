@@ -60,3 +60,4 @@ dist/
 # Go module files
 !go.mod
 !go.sum
+!docs/*.png
