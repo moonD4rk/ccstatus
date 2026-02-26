@@ -1,0 +1,67 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+version: 2
+
+project_name: ccstatus
+
+builds:
+  - id: ccstatus
+    dir: cmd/ccstatus
+    binary: ccstatus
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+
+archives:
+  - formats:
+      - tar.gz
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else }}{{ .Arch }}{{ end }}
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  use: github
+  sort: asc
+  filters:
+    exclude:
+      - "^chore: release"
+
+release:
+  github:
+    owner: moonD4rk
+    name: ccstatus
+  draft: false
+  prerelease: auto
+
+brews:
+  - name: ccstatus
+    homepage: "https://github.com/moonD4rk/ccstatus"
+    description: "A customizable status line formatter for Claude Code CLI"
+    license: "Apache-2.0"
+    directory: Formula
+    skip_upload: auto
+    repository:
+      owner: moonD4rk
+      name: homebrew-tap
+      branch: main
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    commit_author:
+      name: "github-actions[bot]"
+      email: "github-actions[bot]@users.noreply.github.com"
+    commit_msg_template: "brew formula update for {{ .ProjectName }} version {{ .Tag }}"
+    install: |
+      bin.install "ccstatus"
+    test: |
+      system "#{bin}/ccstatus", "version"
