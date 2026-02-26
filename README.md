@@ -23,11 +23,23 @@ A customizable status line formatter for [Claude Code](https://code.claude.com/)
 
 ## Installation
 
+### Homebrew
+
+```bash
+brew install moond4rk/tap/ccstatus
+```
+
+### Go
+
 ```bash
 go install github.com/moond4rk/ccstatus/cmd/ccstatus@latest
 ```
 
-Or download a prebuilt binary from [GitHub Releases](https://github.com/moond4rk/ccstatus/releases).
+### Binary
+
+Download a prebuilt binary from [GitHub Releases](https://github.com/moond4rk/ccstatus/releases).
+
+> **Note:** ccstatus is a native Go binary and does not require Node.js. Unlike JS-based tools that use `npx`, ccstatus is best installed via Homebrew or `go install` for optimal performance.
 
 ## Quick Start
 

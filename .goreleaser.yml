@@ -5,7 +5,7 @@ project_name: ccstatus
 
 builds:
   - id: ccstatus
-    dir: cmd/ccstatus
+    main: ./cmd/ccstatus
     binary: ccstatus
     env:
       - CGO_ENABLED=0
@@ -64,4 +64,4 @@ brews:
     install: |
       bin.install "ccstatus"
     test: |
-      system "#{bin}/ccstatus", "version"
+      system "#{bin}/ccstatus", "--version"
