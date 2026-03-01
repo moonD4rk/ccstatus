@@ -364,9 +364,9 @@ func TestCalculateFlexWidth(t *testing.T) {
 		contextPct       float64
 		want             int
 	}{
-		{"full mode", 100, "full", 60, 0, 94},
+		{"full mode", 100, "full", 60, 0, 90},
 		{"full-minus-40 mode", 100, "full-minus-40", 60, 0, 60},
-		{"full-until-compact below threshold", 100, "full-until-compact", 60, 30, 94},
+		{"full-until-compact below threshold", 100, "full-until-compact", 60, 30, 90},
 		{"full-until-compact at threshold", 100, "full-until-compact", 60, 60, 60},
 		{"full-until-compact above threshold", 100, "full-until-compact", 60, 80, 60},
 		{"unknown mode returns detected", 100, "unknown", 60, 0, 100},

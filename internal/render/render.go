@@ -14,7 +14,7 @@ const (
 	flexSeparatorType = "flex-separator"
 
 	// flexFullPadding is the padding subtracted in "full" and "full-until-compact" flex modes.
-	flexFullPadding = 6
+	flexFullPadding = 10
 	// flexCompactPadding is the padding subtracted in "full-minus-40" mode and compact state.
 	flexCompactPadding = 40
 )
