@@ -5,6 +5,8 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+
+	"github.com/moond4rk/ccstatus/internal/claude"
 )
 
 func newInstallCmd() *cobra.Command {
@@ -26,11 +28,19 @@ func newUninstallCmd() *cobra.Command {
 }
 
 func runInstall(_ *cobra.Command, _ []string) error {
-	fmt.Fprintln(os.Stderr, "Install not yet implemented")
+	path, err := claude.Install()
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(os.Stderr, "ccstatus installed successfully: %s\n", path)
 	return nil
 }
 
 func runUninstall(_ *cobra.Command, _ []string) error {
-	fmt.Fprintln(os.Stderr, "Uninstall not yet implemented")
+	path, err := claude.Uninstall()
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(os.Stderr, "ccstatus uninstalled successfully: %s\n", path)
 	return nil
 }
