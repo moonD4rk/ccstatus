@@ -48,7 +48,7 @@ release:
 brews:
   - name: ccstatus
     homepage: "https://github.com/moonD4rk/ccstatus"
-    description: "A customizable status line formatter for Claude Code CLI"
+    description: "Customizable status line formatter for Claude Code CLI"
     license: "Apache-2.0"
     directory: Formula
     skip_upload: auto
