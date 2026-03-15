@@ -2,15 +2,18 @@ package widget
 
 import (
 	"github.com/moond4rk/ccstatus/internal/config"
-	"github.com/moond4rk/ccstatus/internal/git"
 )
 
 // GitWorktreeWidget displays the current git worktree name.
 type GitWorktreeWidget struct{}
 
 // Render returns the worktree name if in a linked worktree, empty otherwise.
-func (w *GitWorktreeWidget) Render(_ *config.WidgetItem, _ RenderContext, _ *config.Settings) string {
-	return git.Worktree()
+// Prioritizes the JSON worktree field from Claude Code, falls back to git command.
+func (w *GitWorktreeWidget) Render(_ *config.WidgetItem, ctx RenderContext, _ *config.Settings) string {
+	if ctx.Data != nil && ctx.Data.Worktree != nil && ctx.Data.Worktree.Name != "" {
+		return ctx.Data.Worktree.Name
+	}
+	return ctx.Git.Worktree()
 }
 
 // DefaultColor returns the default foreground color.

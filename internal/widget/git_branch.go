@@ -2,15 +2,14 @@ package widget
 
 import (
 	"github.com/moond4rk/ccstatus/internal/config"
-	"github.com/moond4rk/ccstatus/internal/git"
 )
 
 // GitBranchWidget displays the current git branch name.
 type GitBranchWidget struct{}
 
 // Render returns the current git branch, optionally prefixed with a character.
-func (w *GitBranchWidget) Render(item *config.WidgetItem, _ RenderContext, _ *config.Settings) string {
-	branch := git.Branch()
+func (w *GitBranchWidget) Render(item *config.WidgetItem, ctx RenderContext, _ *config.Settings) string {
+	branch := ctx.Git.Branch()
 	if branch == "" {
 		return ""
 	}

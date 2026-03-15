@@ -4,15 +4,14 @@ import (
 	"strconv"
 
 	"github.com/moond4rk/ccstatus/internal/config"
-	"github.com/moond4rk/ccstatus/internal/git"
 )
 
 // GitChangesWidget displays the number of uncommitted changes.
 type GitChangesWidget struct{}
 
 // Render returns the uncommitted change count, or empty if there are none.
-func (w *GitChangesWidget) Render(_ *config.WidgetItem, _ RenderContext, _ *config.Settings) string {
-	n := git.Changes()
+func (w *GitChangesWidget) Render(_ *config.WidgetItem, ctx RenderContext, _ *config.Settings) string {
+	n := ctx.Git.Changes()
 	if n == 0 {
 		return ""
 	}

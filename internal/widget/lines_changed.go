@@ -4,15 +4,14 @@ import (
 	"fmt"
 
 	"github.com/moond4rk/ccstatus/internal/config"
-	"github.com/moond4rk/ccstatus/internal/git"
 )
 
 // LinesChangedWidget displays git diff line additions and deletions.
 type LinesChangedWidget struct{}
 
 // Render returns a "+N/-M" format from git diff --shortstat, or empty if clean.
-func (w *LinesChangedWidget) Render(_ *config.WidgetItem, _ RenderContext, _ *config.Settings) string {
-	stat := git.Diff()
+func (w *LinesChangedWidget) Render(_ *config.WidgetItem, ctx RenderContext, _ *config.Settings) string {
+	stat := ctx.Git.Diff()
 	if stat.Added == 0 && stat.Removed == 0 {
 		return ""
 	}
@@ -37,8 +36,8 @@ func (w *LinesChangedWidget) SupportsRawValue() bool { return false }
 type LinesAddedWidget struct{}
 
 // Render returns "+N" from git diff, or empty if zero.
-func (w *LinesAddedWidget) Render(_ *config.WidgetItem, _ RenderContext, _ *config.Settings) string {
-	stat := git.Diff()
+func (w *LinesAddedWidget) Render(_ *config.WidgetItem, ctx RenderContext, _ *config.Settings) string {
+	stat := ctx.Git.Diff()
 	if stat.Added == 0 {
 		return ""
 	}
@@ -61,8 +60,8 @@ func (w *LinesAddedWidget) SupportsRawValue() bool { return false }
 type LinesRemovedWidget struct{}
 
 // Render returns "-N" from git diff, or empty if zero.
-func (w *LinesRemovedWidget) Render(_ *config.WidgetItem, _ RenderContext, _ *config.Settings) string {
-	stat := git.Diff()
+func (w *LinesRemovedWidget) Render(_ *config.WidgetItem, ctx RenderContext, _ *config.Settings) string {
+	stat := ctx.Git.Diff()
 	if stat.Removed == 0 {
 		return ""
 	}
