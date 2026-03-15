@@ -21,6 +21,7 @@ type Session struct {
 	Exceeds200K    *bool          `json:"exceeds_200k_tokens,omitempty"`
 	Vim            *VimInfo       `json:"vim,omitempty"`
 	Agent          *AgentInfo     `json:"agent,omitempty"`
+	Worktree       *WorktreeInfo  `json:"worktree,omitempty"`
 }
 
 // Parse parses JSON data into Session.
@@ -135,4 +136,14 @@ type VimInfo struct {
 // AgentInfo is only present when running with --agent flag or agent settings.
 type AgentInfo struct {
 	Name string `json:"name,omitempty"`
+}
+
+// WorktreeInfo is only present during --worktree sessions.
+// The Branch and OriginalBranch fields may be absent for hook-based worktrees.
+type WorktreeInfo struct {
+	Name           string `json:"name,omitempty"`
+	Path           string `json:"path,omitempty"`
+	Branch         string `json:"branch,omitempty"`
+	OriginalCwd    string `json:"original_cwd,omitempty"`
+	OriginalBranch string `json:"original_branch,omitempty"`
 }

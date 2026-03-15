@@ -109,6 +109,7 @@ func runStatusLine(_ *cobra.Command, _ []string) error {
 	ctx := widget.RenderContext{
 		Data:          statusData,
 		TerminalWidth: terminal.Width(),
+		Git:           widget.NewGitCache(),
 	}
 
 	// Buffer all lines and write atomically to avoid partial reads

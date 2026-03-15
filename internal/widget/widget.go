@@ -3,6 +3,7 @@ package widget
 
 import (
 	"github.com/moond4rk/ccstatus/internal/config"
+	"github.com/moond4rk/ccstatus/internal/git"
 	"github.com/moond4rk/ccstatus/internal/status"
 )
 
@@ -11,6 +12,67 @@ import (
 type RenderContext struct {
 	Data          *status.Session
 	TerminalWidth int
+	Git           *GitCache
+}
+
+// GitCache caches git command results for a single render cycle.
+// Each accessor lazily invokes the underlying git command at most once.
+type GitCache struct {
+	branch   *string
+	changes  *int
+	worktree *string
+	diff     *git.DiffStat
+}
+
+// NewGitCache creates a new empty cache for one render cycle.
+func NewGitCache() *GitCache { return &GitCache{} }
+
+// Branch returns the current git branch, caching the result.
+func (c *GitCache) Branch() string {
+	if c == nil {
+		return git.Branch()
+	}
+	if c.branch == nil {
+		b := git.Branch()
+		c.branch = &b
+	}
+	return *c.branch
+}
+
+// Changes returns the uncommitted change count, caching the result.
+func (c *GitCache) Changes() int {
+	if c == nil {
+		return git.Changes()
+	}
+	if c.changes == nil {
+		n := git.Changes()
+		c.changes = &n
+	}
+	return *c.changes
+}
+
+// Worktree returns the worktree name, caching the result.
+func (c *GitCache) Worktree() string {
+	if c == nil {
+		return git.Worktree()
+	}
+	if c.worktree == nil {
+		w := git.Worktree()
+		c.worktree = &w
+	}
+	return *c.worktree
+}
+
+// Diff returns the line-level diff stats, caching the result.
+func (c *GitCache) Diff() git.DiffStat {
+	if c == nil {
+		return git.Diff()
+	}
+	if c.diff == nil {
+		d := git.Diff()
+		c.diff = &d
+	}
+	return *c.diff
 }
 
 // Widget defines the contract for all status line widgets.
