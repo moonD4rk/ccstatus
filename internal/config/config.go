@@ -43,7 +43,7 @@ func DefaultSettings() Settings {
 			{
 				// model · effort | context % | git branch worktree | +added -removed | $cost
 				{ID: "1", Type: "model", Color: "cyan"},
-				{ID: "2", Type: "effort", Color: "magenta", Prefix: "· "},
+				{ID: "2", Type: "effort", Color: "cyan", Prefix: "· "},
 				{ID: "3", Type: "separator"},
 				{ID: "4", Type: "context-percentage", Color: "brightBlack"},
 				{ID: "5", Type: "separator"},

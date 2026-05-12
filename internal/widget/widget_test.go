@@ -1593,7 +1593,7 @@ func TestEffortWidget(t *testing.T) {
 		assert.Empty(t, w.Render(&item, ctx, &settings))
 	})
 
-	assert.Equal(t, "magenta", w.DefaultColor())
+	assert.Equal(t, "cyan", w.DefaultColor())
 }
 
 func TestThinkingWidget(t *testing.T) {
