@@ -10,12 +10,15 @@ import (
 )
 
 func newInstallCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "install",
 		Short: "Register ccstatus in Claude Code settings",
 		Long:  "Register ccstatus as the status line command in Claude Code's settings.json.",
 		RunE:  runInstall,
 	}
+	cmd.Flags().Int("refresh", 0, "Re-run the status line every N seconds (writes refreshInterval; 0 = unset)")
+	cmd.Flags().Bool("hide-vim-indicator", false, "Suppress Claude Code's built-in vim mode indicator (writes hideVimModeIndicator)")
+	return cmd
 }
 
 func newUninstallCmd() *cobra.Command {
@@ -27,8 +30,10 @@ func newUninstallCmd() *cobra.Command {
 	}
 }
 
-func runInstall(_ *cobra.Command, _ []string) error {
-	path, err := claude.Install()
+func runInstall(cmd *cobra.Command, _ []string) error {
+	refresh, _ := cmd.Flags().GetInt("refresh")
+	hideVim, _ := cmd.Flags().GetBool("hide-vim-indicator")
+	path, err := claude.Install(refresh, hideVim)
 	if err != nil {
 		return err
 	}

@@ -79,41 +79,54 @@ type Widget interface {
 
 Widgets are registered in a map-based registry keyed by type string.
 
-### Available Widgets (36 registered)
+### Available Widgets (44 registered)
 
 Data source: (J) = from Claude Code JSON input, (G) = from git commands, (T) = from JSONL transcript, (S) = from system
 
 - **model** (J) - Current Claude model name
 - **version** (J) - Claude Code version
-- **output-style** (J) - Output style (text/json/stream-json)
+- **output-style** (J) - Output style name (from output_style.name)
 - **session-id** (J) - Claude Code session ID
+- **session-name** (J) - Custom session name (from session_name, only with --name / /rename)
+- **session-clock** (J) - Session duration (from cost.total_duration_ms)
+- **session-cost** (J) - Session cost in USD (from cost.total_cost_usd)
 - **git-branch** (G) - Current git branch
 - **git-changes** (G) - Uncommitted changes count
-- **git-worktree** (G) - Git worktree info
-- **tokens-input** (J) - Input token count (from context_window)
-- **tokens-output** (J) - Output token count (from context_window)
-- **tokens-cached** (J) - Cached token count (from context_window.current_usage)
-- **tokens-total** (J) - Total token count
+- **git-worktree** (G/J) - Git worktree name (workspace.git_worktree, then worktree.name, then git command)
+- **tokens-input** (J) - Input tokens in current context incl. cache (from context_window.total_input_tokens; ~= context-length since CC v2.1.132)
+- **tokens-output** (J) - Output tokens from the most recent API response (from context_window.total_output_tokens)
+- **tokens-cached** (J) - Cached token count (from context_window.current_usage.cache_read_input_tokens)
+- **tokens-total** (J) - Tokens currently in the context window (input + output)
 - **current-usage-input** (J) - Current round input tokens (from context_window.current_usage)
 - **current-usage-output** (J) - Current round output tokens (from context_window.current_usage)
 - **cache-creation** (J) - Cache creation input tokens (from context_window.current_usage)
-- **context-length** (J) - Context window usage (from context_window.current_usage)
+- **context-length** (J) - Context window usage in tokens (from context_window.current_usage)
 - **context-percentage** (J) - Context usage as percentage (from context_window.used_percentage)
 - **context-percentage-usable** (J) - Usable context percentage (80% of max)
 - **remaining-percentage** (J) - Remaining context window percentage (from context_window.remaining_percentage)
-- **block-timer** (J/T) - 5-hour session block timer (from cost.total_duration_ms, JSONL fallback)
-- **session-clock** (J) - Session duration (from cost.total_duration_ms)
-- **session-cost** (J) - Session cost in USD (from cost.total_cost_usd)
+- **cache-hit-rate** (J) - Cache read token ratio as percentage (from context_window.current_usage)
+- **exceeds-200k** (J) - Warning when tokens exceed 200k threshold (from exceeds_200k_tokens)
 - **api-duration** (J) - API response time (from cost.total_api_duration_ms)
+- **block-timer** (J/T) - 5-hour block timer (from rate_limits.five_hour.resets_at, then cost.total_duration_ms, then JSONL)
+- **rate-limits** (J) - Combined 5h/7d rate-limit usage, e.g. "5h: 3% / 7d: 12%" (from rate_limits; Pro/Max only; each window shown only when present; default prefix "Limit ")
+- **rate-limit-5h** (J) - 5-hour rate-limit usage (from rate_limits.five_hour; Pro/Max only; metadata.display: percent/bar/reset/full, metadata.barWidth)
+- **rate-limit-7d** (J) - 7-day rate-limit usage (from rate_limits.seven_day; Pro/Max only; metadata.display: percent/bar/reset/full, metadata.barWidth)
 - **current-working-dir** (J) - Current directory (from workspace.current_dir)
 - **project-dir** (J) - Project root directory (from workspace.project_dir)
 - **transcript-path** (J) - Transcript file path (from transcript_path)
+- **added-dirs** (J) - Directories added via /add-dir (from workspace.added_dirs; metadata.display: list for names)
+- **lines-changed** (G) - Git diff lines changed (+N/-M)
+- **lines-added** (G) - Git diff lines added
+- **lines-removed** (G) - Git diff lines removed
+- **vim-mode** (J) - Vim mode indicator (from vim.mode, only when vim enabled)
+- **agent-name** (J) - Agent name (from agent.name, only with --agent flag)
+- **effort** (J) - Reasoning effort level (from effort.level, only when the model supports it)
+- **thinking** (J) - Extended thinking indicator (from thinking.enabled)
 - **terminal-width** (S) - Terminal width in columns
 - **custom-text** (-) - User-defined static text
 - **custom-command** (S) - Execute shell command, display output
-- **vim-mode** (J) - Vim mode indicator (from vim.mode, only when vim enabled)
-- **agent-name** (J) - Agent name (from agent.name, only with --agent flag)
-- **exceeds-200k** (J) - Warning when tokens exceed 200k threshold
+- **separator** (-) - Visual separator character
+- **flex-separator** (-) - Expands to fill remaining width
 
 ### Configuration
 
@@ -134,6 +147,8 @@ Reads/writes `~/.claude/settings.json` (or `$CLAUDE_CONFIG_DIR/settings.json`):
   }
 }
 ```
+
+`ccstatus install` accepts optional flags: `--refresh N` writes `refreshInterval` (re-run every N seconds), `--hide-vim-indicator` writes `hideVimModeIndicator` (suppress Claude Code's built-in `-- INSERT --`). Both keys are omitted when the flag is unset.
 
 ## Code Quality Standards
 

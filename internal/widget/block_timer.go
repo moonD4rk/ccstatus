@@ -14,15 +14,16 @@ const (
 	barWidth      = 10
 )
 
-// BlockTimerWidget displays elapsed time within a 5-hour Claude Code session block.
+// BlockTimerWidget displays elapsed time within a 5-hour Claude Code block.
+// The block is the rolling 5-hour rate-limit window when rate_limits data is
+// available; otherwise it approximates the block as the current session.
 // Supports three display modes via metadata["display"]:
 //   - "time" (default): shows elapsed/total like "2h15m/5h"
 //   - "progress": shows progress bar "[=====>    ] 45%"
 //   - "percentage": shows just "45%"
 type BlockTimerWidget struct{}
 
-// Render returns the block timer display.
-// Uses cost.total_duration_ms when available, falls back to JSONL transcript parsing.
+// Render returns the block timer display. See getElapsed for data-source order.
 func (w *BlockTimerWidget) Render(item *config.WidgetItem, ctx RenderContext, _ *config.Settings) string {
 	elapsed := w.getElapsed(ctx)
 	if elapsed <= 0 {
@@ -53,14 +54,26 @@ func (w *BlockTimerWidget) Render(item *config.WidgetItem, ctx RenderContext, _ 
 	}
 }
 
-// getElapsed determines session elapsed time.
-// Prefers cost.total_duration_ms; falls back to JSONL transcript timestamp.
+// getElapsed determines the elapsed portion of the current 5-hour block.
+// Source order:
+//  1. rate_limits.five_hour.resets_at — the authoritative window end; the
+//     window started blockDuration earlier, so elapsed = blockDuration - timeUntilReset.
+//  2. cost.total_duration_ms — wall-clock since the session started (fallback
+//     for users without rate_limits, e.g. non-Pro/Max or before the first API call).
+//  3. JSONL transcript first-entry timestamp — last-ditch fallback.
 func (w *BlockTimerWidget) getElapsed(ctx RenderContext) time.Duration {
 	if ctx.Data == nil {
 		return 0
 	}
 
-	// Primary: use cost.total_duration_ms if available.
+	if ctx.Data.RateLimits != nil && ctx.Data.RateLimits.FiveHour != nil &&
+		ctx.Data.RateLimits.FiveHour.ResetsAt != nil {
+		resetsAt := time.Unix(*ctx.Data.RateLimits.FiveHour.ResetsAt, 0)
+		if elapsed := blockDuration - time.Until(resetsAt); elapsed > 0 {
+			return elapsed
+		}
+	}
+
 	if ctx.Data.Cost != nil && ctx.Data.Cost.TotalDurationMS != nil {
 		ms := *ctx.Data.Cost.TotalDurationMS
 		if ms > 0 {
@@ -68,7 +81,6 @@ func (w *BlockTimerWidget) getElapsed(ctx RenderContext) time.Duration {
 		}
 	}
 
-	// Fallback: parse JSONL transcript for session start time.
 	if ctx.Data.TranscriptPath != "" {
 		start := jsonl.SessionStart(ctx.Data.TranscriptPath)
 		if !start.IsZero() {

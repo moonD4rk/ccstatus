@@ -34,7 +34,7 @@ func TestInstall(t *testing.T) {
 		tmpDir := t.TempDir()
 		t.Setenv("CLAUDE_CONFIG_DIR", tmpDir)
 
-		path, err := Install()
+		path, err := Install(0, false)
 		require.NoError(t, err)
 		assert.Equal(t, filepath.Join(tmpDir, "settings.json"), path)
 
@@ -49,6 +49,29 @@ func TestInstall(t *testing.T) {
 		assert.Equal(t, "command", sl["type"])
 		assert.Equal(t, "ccstatus", sl["command"])
 		assert.InDelta(t, 0, sl["padding"], 0.01)
+		_, hasRefresh := sl["refreshInterval"]
+		assert.False(t, hasRefresh, "refreshInterval should be omitted when 0")
+		_, hasHideVim := sl["hideVimModeIndicator"]
+		assert.False(t, hasHideVim, "hideVimModeIndicator should be omitted when false")
+	})
+
+	t.Run("with flags", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		t.Setenv("CLAUDE_CONFIG_DIR", tmpDir)
+
+		_, err := Install(5, true)
+		require.NoError(t, err)
+
+		data, err := os.ReadFile(filepath.Join(tmpDir, "settings.json"))
+		require.NoError(t, err)
+
+		var settings map[string]any
+		require.NoError(t, json.Unmarshal(data, &settings))
+
+		sl, ok := settings["statusLine"].(map[string]any)
+		require.True(t, ok)
+		assert.InDelta(t, 5, sl["refreshInterval"], 0.01)
+		assert.Equal(t, true, sl["hideVimModeIndicator"])
 	})
 
 	t.Run("preserves existing fields", func(t *testing.T) {
@@ -62,7 +85,7 @@ func TestInstall(t *testing.T) {
 `
 		require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "settings.json"), []byte(existing), 0o600))
 
-		_, err := Install()
+		_, err := Install(0, false)
 		require.NoError(t, err)
 
 		data, err := os.ReadFile(filepath.Join(tmpDir, "settings.json"))
@@ -83,10 +106,10 @@ func TestInstall(t *testing.T) {
 		tmpDir := t.TempDir()
 		t.Setenv("CLAUDE_CONFIG_DIR", tmpDir)
 
-		_, err := Install()
+		_, err := Install(0, false)
 		require.NoError(t, err)
 
-		_, err = Install()
+		_, err = Install(0, false)
 		require.NoError(t, err)
 
 		data, err := os.ReadFile(filepath.Join(tmpDir, "settings.json"))
@@ -107,7 +130,7 @@ func TestInstallInvalidJSON(t *testing.T) {
 
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "settings.json"), []byte("{invalid}"), 0o600))
 
-	_, err := Install()
+	_, err := Install(0, false)
 	assert.Error(t, err)
 }
 

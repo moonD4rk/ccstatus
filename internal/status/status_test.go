@@ -78,6 +78,34 @@ func TestParse(t *testing.T) {
 			},
 		},
 		{
+			name:  "new schema fields",
+			input: `{"session_name":"my-feature","model":{"id":"claude-opus-4-7","display_name":"Opus"},"workspace":{"current_dir":"/x","added_dirs":["/a","/b"],"git_worktree":"feat-1"},"effort":{"level":"high"},"thinking":{"enabled":true},"rate_limits":{"five_hour":{"used_percentage":45.5,"resets_at":1738425600},"seven_day":{"used_percentage":30,"resets_at":1738857600}}}`,
+			check: func(t *testing.T, s *Session) {
+				t.Helper()
+				assert.Equal(t, "my-feature", s.SessionName)
+
+				require.NotNil(t, s.Workspace)
+				assert.Equal(t, []string{"/a", "/b"}, s.Workspace.AddedDirs)
+				assert.Equal(t, "feat-1", s.Workspace.GitWorktree)
+
+				require.NotNil(t, s.Effort)
+				assert.Equal(t, "high", s.Effort.Level)
+
+				require.NotNil(t, s.Thinking)
+				assert.True(t, s.Thinking.Enabled)
+
+				require.NotNil(t, s.RateLimits)
+				require.NotNil(t, s.RateLimits.FiveHour)
+				require.NotNil(t, s.RateLimits.FiveHour.UsedPercentage)
+				assert.InDelta(t, 45.5, *s.RateLimits.FiveHour.UsedPercentage, 0.01)
+				require.NotNil(t, s.RateLimits.FiveHour.ResetsAt)
+				assert.Equal(t, int64(1738425600), *s.RateLimits.FiveHour.ResetsAt)
+				require.NotNil(t, s.RateLimits.SevenDay)
+				require.NotNil(t, s.RateLimits.SevenDay.UsedPercentage)
+				assert.InDelta(t, 30.0, *s.RateLimits.SevenDay.UsedPercentage, 0.01)
+			},
+		},
+		{
 			name:  "empty JSON object",
 			input: `{}`,
 			check: func(t *testing.T, s *Session) {
@@ -86,6 +114,10 @@ func TestParse(t *testing.T) {
 				assert.Nil(t, s.ContextWindow)
 				assert.Nil(t, s.Vim)
 				assert.Nil(t, s.Agent)
+				assert.Empty(t, s.SessionName)
+				assert.Nil(t, s.Effort)
+				assert.Nil(t, s.Thinking)
+				assert.Nil(t, s.RateLimits)
 			},
 		},
 		{

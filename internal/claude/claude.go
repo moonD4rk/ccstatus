@@ -11,9 +11,11 @@ const settingsFileName = "settings.json"
 
 // StatusLine is the configuration block written to Claude Code's settings.json.
 type StatusLine struct {
-	Type    string `json:"type"`
-	Command string `json:"command"`
-	Padding int    `json:"padding"`
+	Type                 string `json:"type"`
+	Command              string `json:"command"`
+	Padding              int    `json:"padding"`
+	RefreshInterval      *int   `json:"refreshInterval,omitempty"`
+	HideVimModeIndicator *bool  `json:"hideVimModeIndicator,omitempty"`
 }
 
 // Dir returns the Claude Code configuration directory.
@@ -35,21 +37,29 @@ func SettingsPath() string {
 	return filepath.Join(Dir(), settingsFileName)
 }
 
-// Install registers ccstatus in Claude Code's settings.json.
-// It preserves all existing fields and creates the file if it does not exist.
-// The path to the written settings file is returned.
-func Install() (string, error) {
+// Install registers ccstatus in Claude Code's settings.json. It preserves all
+// existing fields and creates the file if it does not exist. A positive
+// refreshInterval (seconds) and hideVimMode=true are written into the statusLine
+// block; otherwise those keys are omitted. Returns the path to the written file.
+func Install(refreshInterval int, hideVimMode bool) (string, error) {
 	path := SettingsPath()
 	settings, err := readSettings(path)
 	if err != nil {
 		return "", err
 	}
 
-	settings["statusLine"] = StatusLine{
+	sl := StatusLine{
 		Type:    "command",
 		Command: "ccstatus",
 		Padding: 0,
 	}
+	if refreshInterval > 0 {
+		sl.RefreshInterval = &refreshInterval
+	}
+	if hideVimMode {
+		sl.HideVimModeIndicator = &hideVimMode
+	}
+	settings["statusLine"] = sl
 
 	if err := writeSettings(path, settings); err != nil {
 		return "", err
