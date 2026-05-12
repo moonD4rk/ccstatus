@@ -108,7 +108,7 @@ func runStatusLine(_ *cobra.Command, _ []string) error {
 
 	ctx := widget.RenderContext{
 		Data:          statusData,
-		TerminalWidth: terminal.Width(),
+		TerminalWidth: terminal.Width(settings.TerminalWidth),
 		Git:           widget.NewGitCache(),
 	}
 

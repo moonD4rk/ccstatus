@@ -21,6 +21,7 @@ type Settings struct {
 	FlexMode                string         `json:"flexMode"`
 	CompactThreshold        int            `json:"compactThreshold"`
 	ColorLevel              int            `json:"colorLevel"`
+	TerminalWidth           int            `json:"terminalWidth,omitempty"`
 	DefaultSeparator        string         `json:"defaultSeparator,omitempty"`
 	DefaultPadding          string         `json:"defaultPadding,omitempty"`
 	InheritSeparatorColors  bool           `json:"inheritSeparatorColors"`

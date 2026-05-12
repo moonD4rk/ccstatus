@@ -119,6 +119,8 @@ Data source: (J) = from Claude Code JSON input, (G) = from git commands, (T) = f
 
 Settings stored at `~/.config/ccstatus/settings.json`. Manual editing only.
 
+`terminalWidth` (int, optional): force the status line width when auto-detection is wrong. Claude Code runs the status line command with stdio piped (not a TTY), so `terminal.Width()` often falls back to 80; setting `terminalWidth` overrides that.
+
 ### Claude Code Integration
 
 Reads/writes `~/.claude/settings.json` (or `$CLAUDE_CONFIG_DIR/settings.json`):
