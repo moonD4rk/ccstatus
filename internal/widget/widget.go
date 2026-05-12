@@ -106,13 +106,15 @@ var registry = map[string]Widget{
 	"git-changes":  &GitChangesWidget{},
 	"git-worktree": &GitWorktreeWidget{},
 
-	// Token metrics
+	// Token metrics. Since Claude Code v2.1.132 the total_input_tokens /
+	// total_output_tokens fields reflect the current context window, not
+	// cumulative session totals; tokens-input is now ~= context-length.
 	"tokens-input": &tokenWidget{
-		extract: extractInputTokens, displayName: "Input Tokens", description: "Total input token count",
+		extract: extractInputTokens, displayName: "Input Tokens", description: "Input tokens currently in context (includes cache reads/writes)",
 		defaultPrefix: "In: ",
 	},
 	"tokens-output": &tokenWidget{
-		extract: extractOutputTokens, displayName: "Output Tokens", description: "Total output token count",
+		extract: extractOutputTokens, displayName: "Output Tokens", description: "Output tokens from the most recent API response",
 		defaultPrefix: "Out: ",
 	},
 	"tokens-cached": &tokenWidget{
@@ -120,7 +122,7 @@ var registry = map[string]Widget{
 		defaultPrefix: "Cached: ",
 	},
 	"tokens-total": &tokenWidget{
-		extract: extractTotalTokens, displayName: "Total Tokens", description: "Total token count (input + output)",
+		extract: extractTotalTokens, displayName: "Total Tokens", description: "Total tokens currently in the context window (input + output)",
 		defaultPrefix: "Total: ",
 	},
 
@@ -157,6 +159,7 @@ var registry = map[string]Widget{
 	"current-working-dir": &CurrentDirWidget{},
 	"project-dir":         &ProjectDirWidget{},
 	"transcript-path":     &TranscriptPathWidget{},
+	"added-dirs":          &AddedDirsWidget{},
 	"lines-changed":       &LinesChangedWidget{},
 	"lines-added":         &LinesAddedWidget{},
 	"lines-removed":       &LinesRemovedWidget{},
@@ -164,6 +167,17 @@ var registry = map[string]Widget{
 	// Cost and duration
 	"api-duration": &APIDurationWidget{},
 	"block-timer":  &BlockTimerWidget{},
+
+	// Rate limits
+	"rate-limits": &RateLimitsWidget{},
+	"rate-limit-5h": &RateLimitWidget{
+		extract: fiveHourWindow, displayName: "5h Rate Limit", description: "5-hour rate-limit usage",
+		defaultPrefix: "5h limit: ",
+	},
+	"rate-limit-7d": &RateLimitWidget{
+		extract: sevenDayWindow, displayName: "7d Rate Limit", description: "7-day rate-limit usage",
+		defaultPrefix: "7d limit: ",
+	},
 
 	// Session info
 	"session-id": &SessionIDWidget{},
@@ -202,6 +216,38 @@ var registry = map[string]Widget{
 		displayName:   "Agent Name",
 		description:   "Agent name when using --agent flag",
 		defaultPrefix: "Agent: ",
+	},
+	"effort": &stringFieldWidget{
+		extract: func(data *status.Session) string {
+			if data.Effort == nil {
+				return ""
+			}
+			return data.Effort.Level
+		},
+		defaultColor:  "magenta",
+		displayName:   "Reasoning Effort",
+		description:   "Current reasoning effort level",
+		defaultPrefix: "Effort: ",
+	},
+	"thinking": &stringFieldWidget{
+		extract: func(data *status.Session) string {
+			if data.Thinking == nil || !data.Thinking.Enabled {
+				return ""
+			}
+			return "on"
+		},
+		defaultColor:  "magenta",
+		displayName:   "Thinking",
+		description:   "Extended thinking indicator",
+		defaultPrefix: "Think: ",
+	},
+	"session-name": &stringFieldWidget{
+		extract: func(data *status.Session) string {
+			return data.SessionName
+		},
+		defaultColor: defaultDimColor,
+		displayName:  "Session Name",
+		description:  "Custom session name set with --name or /rename",
 	},
 	"exceeds-200k":   &Exceeds200KWidget{},
 	"terminal-width": &TerminalWidthWidget{},

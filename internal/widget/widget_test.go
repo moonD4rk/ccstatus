@@ -57,6 +57,13 @@ func TestGet(t *testing.T) {
 		{"custom-command", false},
 		{"git-worktree", false},
 		{"block-timer", false},
+		{"rate-limits", false},
+		{"rate-limit-5h", false},
+		{"rate-limit-7d", false},
+		{"effort", false},
+		{"thinking", false},
+		{"session-name", false},
+		{"added-dirs", false},
 		{"nonexistent", true},
 	}
 
@@ -642,6 +649,14 @@ func TestTypes(t *testing.T) {
 	assert.Contains(t, types, "custom-command")
 	assert.Contains(t, types, "git-worktree")
 	assert.Contains(t, types, "block-timer")
+	assert.Contains(t, types, "rate-limits")
+	assert.Contains(t, types, "rate-limit-5h")
+	assert.Contains(t, types, "rate-limit-7d")
+	assert.Contains(t, types, "effort")
+	assert.Contains(t, types, "thinking")
+	assert.Contains(t, types, "session-name")
+	assert.Contains(t, types, "added-dirs")
+	assert.Len(t, types, 44)
 }
 
 func TestRemainingPercentageWidget(t *testing.T) {
@@ -972,7 +987,8 @@ func TestRegister(t *testing.T) {
 	assert.NotNil(t, Get("test-widget"))
 }
 
-func boolPtr(v bool) *bool { return &v }
+func boolPtr(v bool) *bool    { return &v }
+func int64Ptr(v int64) *int64 { return &v }
 
 func TestOutputStyleWidget(t *testing.T) {
 	w := Get("output-style")
@@ -1321,7 +1337,353 @@ func TestBlockTimerWidget(t *testing.T) {
 		assert.Contains(t, result, "/5h")
 	})
 
+	t.Run("prefers rate_limits.five_hour over duration_ms", func(t *testing.T) {
+		item := config.WidgetItem{Metadata: map[string]string{"display": "percentage"}}
+		ctx := RenderContext{Data: &status.Session{
+			RateLimits: &status.RateLimits{FiveHour: &status.RateLimitWindow{
+				ResetsAt: int64Ptr(time.Now().Add(150 * time.Minute).Unix()), // 2.5h left => 50% elapsed
+			}},
+			Cost: &status.CostInfo{TotalDurationMS: floatPtr(600_000)}, // would be ~3%; must be ignored
+		}}
+		assert.Equal(t, "50%", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("rate_limits past reset clamps to full", func(t *testing.T) {
+		item := config.WidgetItem{Metadata: map[string]string{"display": "percentage"}}
+		ctx := RenderContext{Data: &status.Session{
+			RateLimits: &status.RateLimits{FiveHour: &status.RateLimitWindow{
+				ResetsAt: int64Ptr(time.Now().Add(-1 * time.Hour).Unix()),
+			}},
+		}}
+		assert.Equal(t, "100%", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("falls through to duration_ms when reset is implausibly far", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.Session{
+			RateLimits: &status.RateLimits{FiveHour: &status.RateLimitWindow{
+				ResetsAt: int64Ptr(time.Now().Add(10 * time.Hour).Unix()),
+			}},
+			Cost: &status.CostInfo{TotalDurationMS: floatPtr(7_200_000)}, // 2h
+		}}
+		assert.Equal(t, "2h/5h", w.Render(&item, ctx, &settings))
+	})
+
 	assert.Equal(t, defaultDimColor, w.DefaultColor())
+	assert.False(t, w.SupportsRawValue())
+}
+
+func TestGitWorktreeWidget(t *testing.T) {
+	w := &GitWorktreeWidget{}
+	settings := config.DefaultSettings()
+	item := config.WidgetItem{}
+
+	t.Run("workspace.git_worktree wins", func(t *testing.T) {
+		ctx := RenderContext{Data: &status.Session{
+			Workspace: &status.Workspace{GitWorktree: "ws-tree"},
+			Worktree:  &status.WorktreeInfo{Name: "wt-tree"},
+		}}
+		assert.Equal(t, "ws-tree", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("falls back to worktree.name", func(t *testing.T) {
+		ctx := RenderContext{Data: &status.Session{
+			Worktree: &status.WorktreeInfo{Name: "wt-tree"},
+		}}
+		assert.Equal(t, "wt-tree", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("empty workspace.git_worktree falls back to worktree.name", func(t *testing.T) {
+		ctx := RenderContext{Data: &status.Session{
+			Workspace: &status.Workspace{GitWorktree: ""},
+			Worktree:  &status.WorktreeInfo{Name: "wt-tree"},
+		}}
+		assert.Equal(t, "wt-tree", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("nil data falls back to git command without panic", func(t *testing.T) {
+		ctx := RenderContext{Data: nil}
+		assert.NotPanics(t, func() { w.Render(&item, ctx, &settings) })
+	})
+
+	assert.Equal(t, "magenta", w.DefaultColor())
+	assert.False(t, w.SupportsRawValue())
+}
+
+func TestRateLimitWidget(t *testing.T) {
+	settings := config.DefaultSettings()
+	w := Get("rate-limit-5h")
+	require.NotNil(t, w)
+
+	t.Run("percent mode by default", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.Session{
+			RateLimits: &status.RateLimits{FiveHour: &status.RateLimitWindow{UsedPercentage: floatPtr(45)}},
+		}}
+		assert.Equal(t, "45%", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("raw value omits percent sign", func(t *testing.T) {
+		item := config.WidgetItem{RawValue: true}
+		ctx := RenderContext{Data: &status.Session{
+			RateLimits: &status.RateLimits{FiveHour: &status.RateLimitWindow{UsedPercentage: floatPtr(45)}},
+		}}
+		assert.Equal(t, "45.0", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("reset mode shows time to reset", func(t *testing.T) {
+		item := config.WidgetItem{Metadata: map[string]string{"display": "reset"}}
+		ctx := RenderContext{Data: &status.Session{
+			RateLimits: &status.RateLimits{FiveHour: &status.RateLimitWindow{
+				ResetsAt: int64Ptr(time.Now().Add(2 * time.Hour).Unix()),
+			}},
+		}}
+		result := w.Render(&item, ctx, &settings)
+		assert.Contains(t, []string{"1h59m", "2h"}, result)
+	})
+
+	t.Run("full mode combines percent and reset", func(t *testing.T) {
+		item := config.WidgetItem{Metadata: map[string]string{"display": "full"}}
+		ctx := RenderContext{Data: &status.Session{
+			RateLimits: &status.RateLimits{FiveHour: &status.RateLimitWindow{
+				UsedPercentage: floatPtr(30),
+				ResetsAt:       int64Ptr(time.Now().Add(2 * time.Hour).Unix()),
+			}},
+		}}
+		result := w.Render(&item, ctx, &settings)
+		assert.Contains(t, result, "30%")
+		assert.Contains(t, result, " / ")
+	})
+
+	t.Run("bar mode renders a block bar", func(t *testing.T) {
+		item := config.WidgetItem{Metadata: map[string]string{"display": "bar"}}
+		ctx := RenderContext{Data: &status.Session{
+			RateLimits: &status.RateLimits{FiveHour: &status.RateLimitWindow{UsedPercentage: floatPtr(30)}},
+		}}
+		assert.Equal(t, "▓▓▓░░░░░░░ 30%", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("bar mode honors barWidth", func(t *testing.T) {
+		item := config.WidgetItem{Metadata: map[string]string{"display": "bar", "barWidth": "5"}}
+		ctx := RenderContext{Data: &status.Session{
+			RateLimits: &status.RateLimits{FiveHour: &status.RateLimitWindow{UsedPercentage: floatPtr(40)}},
+		}}
+		assert.Equal(t, "▓▓░░░ 40%", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("bar mode hidden when used_percentage absent", func(t *testing.T) {
+		item := config.WidgetItem{Metadata: map[string]string{"display": "bar"}}
+		ctx := RenderContext{Data: &status.Session{
+			RateLimits: &status.RateLimits{FiveHour: &status.RateLimitWindow{}},
+		}}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("hidden when rate_limits absent", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.Session{}}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("hidden when five_hour window absent", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.Session{RateLimits: &status.RateLimits{}}}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("hidden when used_percentage absent in percent mode", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.Session{
+			RateLimits: &status.RateLimits{FiveHour: &status.RateLimitWindow{}},
+		}}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("nil data returns empty", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: nil}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("rate-limit-7d reads seven_day window", func(t *testing.T) {
+		w7 := Get("rate-limit-7d")
+		require.NotNil(t, w7)
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.Session{
+			RateLimits: &status.RateLimits{SevenDay: &status.RateLimitWindow{UsedPercentage: floatPtr(12)}},
+		}}
+		assert.Equal(t, "12%", w7.Render(&item, ctx, &settings))
+	})
+
+	assert.Equal(t, "yellow", w.DefaultColor())
+	assert.True(t, w.SupportsRawValue())
+	pfx, ok := w.(Prefixer)
+	require.True(t, ok)
+	assert.Equal(t, "5h limit: ", pfx.DefaultPrefix())
+}
+
+func TestRateLimitsWidget(t *testing.T) {
+	w := Get("rate-limits")
+	require.NotNil(t, w)
+	settings := config.DefaultSettings()
+	item := config.WidgetItem{}
+
+	t.Run("both windows", func(t *testing.T) {
+		ctx := RenderContext{Data: &status.Session{RateLimits: &status.RateLimits{
+			FiveHour: &status.RateLimitWindow{UsedPercentage: floatPtr(3)},
+			SevenDay: &status.RateLimitWindow{UsedPercentage: floatPtr(12)},
+		}}}
+		assert.Equal(t, "5h: 3% / 7d: 12%", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("only five_hour", func(t *testing.T) {
+		ctx := RenderContext{Data: &status.Session{RateLimits: &status.RateLimits{
+			FiveHour: &status.RateLimitWindow{UsedPercentage: floatPtr(3)},
+		}}}
+		assert.Equal(t, "5h: 3%", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("only seven_day", func(t *testing.T) {
+		ctx := RenderContext{Data: &status.Session{RateLimits: &status.RateLimits{
+			SevenDay: &status.RateLimitWindow{UsedPercentage: floatPtr(12)},
+		}}}
+		assert.Equal(t, "7d: 12%", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("windows present but no used_percentage", func(t *testing.T) {
+		ctx := RenderContext{Data: &status.Session{RateLimits: &status.RateLimits{
+			FiveHour: &status.RateLimitWindow{}, SevenDay: &status.RateLimitWindow{},
+		}}}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("nil rate_limits returns empty", func(t *testing.T) {
+		assert.Empty(t, w.Render(&item, RenderContext{Data: &status.Session{}}, &settings))
+	})
+
+	t.Run("nil data returns empty", func(t *testing.T) {
+		assert.Empty(t, w.Render(&item, RenderContext{Data: nil}, &settings))
+	})
+
+	assert.Equal(t, "yellow", w.DefaultColor())
+	assert.False(t, w.SupportsRawValue())
+	pfx, ok := w.(Prefixer)
+	require.True(t, ok)
+	assert.Equal(t, "Limit ", pfx.DefaultPrefix())
+}
+
+func TestEffortWidget(t *testing.T) {
+	w := Get("effort")
+	require.NotNil(t, w)
+	settings := config.DefaultSettings()
+	item := config.WidgetItem{}
+
+	t.Run("returns level", func(t *testing.T) {
+		ctx := RenderContext{Data: &status.Session{Effort: &status.EffortInfo{Level: "high"}}}
+		assert.Equal(t, "high", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("nil effort returns empty", func(t *testing.T) {
+		ctx := RenderContext{Data: &status.Session{}}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("nil data returns empty", func(t *testing.T) {
+		ctx := RenderContext{Data: nil}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	assert.Equal(t, "magenta", w.DefaultColor())
+}
+
+func TestThinkingWidget(t *testing.T) {
+	w := Get("thinking")
+	require.NotNil(t, w)
+	settings := config.DefaultSettings()
+	item := config.WidgetItem{}
+
+	t.Run("enabled returns indicator", func(t *testing.T) {
+		ctx := RenderContext{Data: &status.Session{Thinking: &status.ThinkingInfo{Enabled: true}}}
+		assert.Equal(t, "on", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("disabled returns empty", func(t *testing.T) {
+		ctx := RenderContext{Data: &status.Session{Thinking: &status.ThinkingInfo{Enabled: false}}}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("nil thinking returns empty", func(t *testing.T) {
+		ctx := RenderContext{Data: &status.Session{}}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("nil data returns empty", func(t *testing.T) {
+		ctx := RenderContext{Data: nil}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+}
+
+func TestSessionNameWidget(t *testing.T) {
+	w := Get("session-name")
+	require.NotNil(t, w)
+	settings := config.DefaultSettings()
+	item := config.WidgetItem{}
+
+	t.Run("returns name", func(t *testing.T) {
+		ctx := RenderContext{Data: &status.Session{SessionName: "my-feature"}}
+		assert.Equal(t, "my-feature", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("empty name returns empty", func(t *testing.T) {
+		ctx := RenderContext{Data: &status.Session{}}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("nil data returns empty", func(t *testing.T) {
+		ctx := RenderContext{Data: nil}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+}
+
+func TestAddedDirsWidget(t *testing.T) {
+	w := &AddedDirsWidget{}
+	settings := config.DefaultSettings()
+
+	t.Run("count by default", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.Session{
+			Workspace: &status.Workspace{AddedDirs: []string{"/a/b", "/c/d"}},
+		}}
+		assert.Equal(t, "+2", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("list mode shows basenames", func(t *testing.T) {
+		item := config.WidgetItem{Metadata: map[string]string{"display": "list"}}
+		ctx := RenderContext{Data: &status.Session{
+			Workspace: &status.Workspace{AddedDirs: []string{"/home/x/foo", "/home/x/bar"}},
+		}}
+		assert.Equal(t, "foo, bar", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("empty added dirs returns empty", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.Session{Workspace: &status.Workspace{AddedDirs: []string{}}}}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("nil workspace returns empty", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: &status.Session{}}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("nil data returns empty", func(t *testing.T) {
+		item := config.WidgetItem{}
+		ctx := RenderContext{Data: nil}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	assert.Equal(t, "blue", w.DefaultColor())
 	assert.False(t, w.SupportsRawValue())
 }
 
@@ -1342,5 +1704,13 @@ func TestStripANSI(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, tt.expected, stripANSI(tt.input))
 		})
+	}
+}
+
+func TestDefaultConfigWidgetsRegistered(t *testing.T) {
+	for _, line := range config.DefaultSettings().Lines {
+		for _, item := range line {
+			assert.NotNilf(t, Get(item.Type), "default config references unregistered widget %q", item.Type)
+		}
 	}
 }

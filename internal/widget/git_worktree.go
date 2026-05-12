@@ -8,10 +8,16 @@ import (
 type GitWorktreeWidget struct{}
 
 // Render returns the worktree name if in a linked worktree, empty otherwise.
-// Prioritizes the JSON worktree field from Claude Code, falls back to git command.
+// Source order: workspace.git_worktree (any linked worktree), worktree.name
+// (--worktree sessions only), then a `git rev-parse --git-dir` heuristic.
 func (w *GitWorktreeWidget) Render(_ *config.WidgetItem, ctx RenderContext, _ *config.Settings) string {
-	if ctx.Data != nil && ctx.Data.Worktree != nil && ctx.Data.Worktree.Name != "" {
-		return ctx.Data.Worktree.Name
+	if ctx.Data != nil {
+		if ctx.Data.Workspace != nil && ctx.Data.Workspace.GitWorktree != "" {
+			return ctx.Data.Workspace.GitWorktree
+		}
+		if ctx.Data.Worktree != nil && ctx.Data.Worktree.Name != "" {
+			return ctx.Data.Worktree.Name
+		}
 	}
 	return ctx.Git.Worktree()
 }

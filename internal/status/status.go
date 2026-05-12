@@ -11,6 +11,7 @@ import (
 type Session struct {
 	Cwd            string         `json:"cwd,omitempty"`
 	SessionID      string         `json:"session_id,omitempty"`
+	SessionName    string         `json:"session_name,omitempty"`
 	TranscriptPath string         `json:"transcript_path,omitempty"`
 	Model          ModelField     `json:"model,omitempty"`
 	Workspace      *Workspace     `json:"workspace,omitempty"`
@@ -19,6 +20,9 @@ type Session struct {
 	Cost           *CostInfo      `json:"cost,omitempty"`
 	ContextWindow  *ContextWindow `json:"context_window,omitempty"`
 	Exceeds200K    *bool          `json:"exceeds_200k_tokens,omitempty"`
+	Effort         *EffortInfo    `json:"effort,omitempty"`
+	Thinking       *ThinkingInfo  `json:"thinking,omitempty"`
+	RateLimits     *RateLimits    `json:"rate_limits,omitempty"`
 	Vim            *VimInfo       `json:"vim,omitempty"`
 	Agent          *AgentInfo     `json:"agent,omitempty"`
 	Worktree       *WorktreeInfo  `json:"worktree,omitempty"`
@@ -89,8 +93,10 @@ func inferDisplayName(id string) string {
 
 // Workspace holds directory information for the Claude Code session.
 type Workspace struct {
-	CurrentDir string `json:"current_dir,omitempty"`
-	ProjectDir string `json:"project_dir,omitempty"`
+	CurrentDir  string   `json:"current_dir,omitempty"`
+	ProjectDir  string   `json:"project_dir,omitempty"`
+	AddedDirs   []string `json:"added_dirs,omitempty"`
+	GitWorktree string   `json:"git_worktree,omitempty"`
 }
 
 // OutputStyle holds the output style configuration.
@@ -146,4 +152,28 @@ type WorktreeInfo struct {
 	Branch         string `json:"branch,omitempty"`
 	OriginalCwd    string `json:"original_cwd,omitempty"`
 	OriginalBranch string `json:"original_branch,omitempty"`
+}
+
+// EffortInfo holds the live reasoning-effort level. Absent when the current
+// model does not support the effort parameter.
+type EffortInfo struct {
+	Level string `json:"level,omitempty"` // low | medium | high | xhigh | max
+}
+
+// ThinkingInfo indicates whether extended thinking is enabled for the session.
+type ThinkingInfo struct {
+	Enabled bool `json:"enabled,omitempty"`
+}
+
+// RateLimits holds Claude.ai subscription rate-limit windows. Present only for
+// Pro/Max subscribers after the first API response; each window may be absent.
+type RateLimits struct {
+	FiveHour *RateLimitWindow `json:"five_hour,omitempty"`
+	SevenDay *RateLimitWindow `json:"seven_day,omitempty"`
+}
+
+// RateLimitWindow holds usage data for a single rate-limit window.
+type RateLimitWindow struct {
+	UsedPercentage *float64 `json:"used_percentage,omitempty"` // 0-100
+	ResetsAt       *int64   `json:"resets_at,omitempty"`       // Unix epoch seconds
 }

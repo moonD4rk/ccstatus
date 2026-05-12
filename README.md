@@ -15,7 +15,7 @@ A customizable status line formatter for [Claude Code](https://code.claude.com/)
 ## Features
 
 - Single static binary with no runtime dependencies
-- 37 configurable widgets (model, tokens, context, git, cost, and more)
+- 44 configurable widgets (model, tokens, context, git, cost, rate limits, and more)
 - Multi-line status line with flex separator layout
 - ANSI 16-color support via [fatih/color](https://github.com/fatih/color)
 - Configurable via `~/.config/ccstatus/settings.json`
@@ -107,6 +107,11 @@ Registers ccstatus in Claude Code's `~/.claude/settings.json` (or `$CLAUDE_CONFI
 }
 ```
 
+Optional flags:
+
+- `--refresh N` — also re-run the status line every `N` seconds (writes `refreshInterval`). Useful when you use time-based widgets (`session-clock`, `block-timer`, `api-duration`) or git widgets that change while a background subagent works. Omit to run only on Claude Code's events.
+- `--hide-vim-indicator` — suppress Claude Code's built-in `-- INSERT --` line (writes `hideVimModeIndicator`). Set this if you use the `vim-mode` widget so the mode isn't shown twice.
+
 #### `ccstatus uninstall`
 
 ```bash
@@ -155,11 +160,25 @@ Settings are stored at `~/.config/ccstatus/settings.json`. Edit manually to cust
 
 ### Default Layout
 
-The default configuration uses a 2-line layout:
+The default configuration uses a 2-line layout. Widgets that have nothing to show (e.g. `effort`, `rate-limit-5h`, `git-worktree`, `session-name`, `vim-mode`, `agent-name`) are simply omitted, so the line stays compact when they don't apply.
 
-**Line 1:** model | context % | input tokens | output tokens | cache hit rate | git branch | lines +/- | session cost
+**Line 1:** model · effort | context % | git branch + worktree | lines +/- | session cost (`$`)
 
-**Line 2:** working directory [flex space] session clock
+**Line 2:** working directory | rate limits (5h / 7d) | session clock
+
+Example renders:
+
+```
+Opus 4.7 (1M context) · xhigh | Ctx: 36% | main feat-x | +12 -3 | $0.34
+~/dev/myproj | Limit 5h: 3% / 7d: 12% | Session: 2h15m
+```
+
+```
+Sonnet | Ctx: 12% | main | +4 | $0.05
+~/dev/myproj | Session: 30m
+```
+
+The default is deliberately lean. Widgets with nothing to show (`effort`, `rate-limits`, `git-worktree`) are simply omitted, so a plain session collapses to `model | Ctx% | branch | +/- | $` over `cwd | Session`. Claude Code runs the status line command with stdout piped (not a TTY), so width auto-detection can fall back to ~80 columns; if a long model name plus all of line 1's widgets gets truncated with `...`, set `terminalWidth` (or widen the terminal). To customize — add `cache-hit-rate` / `session-name`, swap `rate-limits` for the per-window `rate-limit-5h` (which supports `metadata.display: bar`/`reset`/`full`), etc. — edit `lines` in `settings.json`.
 
 ### Settings Reference
 
@@ -168,7 +187,7 @@ The default configuration uses a 2-line layout:
   "version": 4,
   "colorLevel": 2,
   "flexMode": "full-until-compact",
-  "compactThreshold": 60,
+  "compactThreshold": 90,
   "defaultSeparator": "|",
   "defaultPadding": " ",
   "inheritSeparatorColors": false,
@@ -190,7 +209,7 @@ The default configuration uses a 2-line layout:
 | `version` | int | `4` | Config schema version |
 | `colorLevel` | int | `2` | Color level: `0` (none), `1` (basic), `2` (256-color terminal) |
 | `flexMode` | string | `"full-until-compact"` | How flex separator calculates available width |
-| `compactThreshold` | int | `60` | Context % threshold for switching to compact mode |
+| `compactThreshold` | int | `90` | Context % at which `full-until-compact` switches to the wider (−40 col) right margin |
 | `terminalWidth` | int | (auto) | Force the status line width in columns. Claude Code runs the status line command with stdio piped, so width auto-detection often falls back to 80 regardless of terminal size — set this (e.g. `180`) to make ccstatus use your real width. Leave unset/`0` to auto-detect. |
 | `defaultSeparator` | string | `"\|"` | Separator character between widgets |
 | `defaultPadding` | string | `" "` | Padding around separators |
@@ -234,16 +253,17 @@ The default configuration uses a 2-line layout:
 | `model` | JSON | Current Claude model name | cyan |
 | `version` | JSON | Claude Code version | white |
 | `session-id` | JSON | Session ID (8-char short) | white |
+| `session-name` | JSON | Custom session name (`--name` / `/rename`) | white |
 | `session-cost` | JSON | Session cost in USD | green |
 | `session-clock` | JSON | Session duration | white |
 | `output-style` | JSON | Output style name | white |
 | `git-branch` | Git | Current branch name | magenta |
 | `git-changes` | Git | Uncommitted changes count | yellow |
 | `git-worktree` | Git | Worktree name | magenta |
-| `tokens-input` | JSON | Total input tokens | white |
-| `tokens-output` | JSON | Total output tokens | white |
+| `tokens-input` | JSON | Input tokens in current context, incl. cache (~= `context-length` since CC v2.1.132) | white |
+| `tokens-output` | JSON | Output tokens from the most recent API response | white |
 | `tokens-cached` | JSON | Cached tokens | white |
-| `tokens-total` | JSON | Total tokens (in + out) | white |
+| `tokens-total` | JSON | Tokens currently in the context window (in + out) | white |
 | `current-usage-input` | JSON | Current round input tokens | white |
 | `current-usage-output` | JSON | Current round output tokens | white |
 | `cache-creation` | JSON | Cache creation tokens | white |
@@ -253,15 +273,21 @@ The default configuration uses a 2-line layout:
 | `remaining-percentage` | JSON | Remaining context % | white |
 | `cache-hit-rate` | JSON | Cache read ratio % | cyan |
 | `api-duration` | JSON | API response time | white |
-| `block-timer` | JSON/JSONL | 5-hour session block timer | white |
+| `block-timer` | JSON/JSONL | 5-hour block timer (uses the rate-limit window when available) | white |
+| `rate-limits` | JSON | Combined 5h/7d rate-limit usage, e.g. `5h: 3% / 7d: 12%` (each shown only when present) | yellow |
+| `rate-limit-5h` | JSON | 5-hour rate-limit usage (`metadata.display`: `percent`/`bar`/`reset`/`full`; `metadata.barWidth`) | yellow |
+| `rate-limit-7d` | JSON | 7-day rate-limit usage (`metadata.display`: `percent`/`bar`/`reset`/`full`; `metadata.barWidth`) | yellow |
 | `current-working-dir` | JSON | Current directory | blue |
 | `project-dir` | JSON | Project root directory | blue |
 | `transcript-path` | JSON | Transcript file path | white |
+| `added-dirs` | JSON | Directories added via `/add-dir` (`metadata.display`: `list` for names) | blue |
 | `lines-changed` | Git | Lines changed (+N/-M) | green |
 | `lines-added` | Git | Lines added | green |
 | `lines-removed` | Git | Lines removed | red |
 | `vim-mode` | JSON | Vim mode indicator | yellow |
 | `agent-name` | JSON | Agent name | cyan |
+| `effort` | JSON | Reasoning effort level | magenta |
+| `thinking` | JSON | Extended thinking indicator | magenta |
 | `exceeds-200k` | JSON | Warning at 200k tokens | red |
 | `terminal-width` | System | Terminal width in columns | white |
 | `custom-text` | - | User-defined static text | white |
