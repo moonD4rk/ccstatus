@@ -54,10 +54,11 @@ linters:
     goconst:
       min-len: 2
       min-occurrences: 3
-      # Color names, the "separator" widget type, and rate-limit display modes
-      # are self-explanatory identifiers — a constant would add no meaning.
+      ignore-tests: true
+      # Color names, widget type strings, flex modes, and rate-limit / block-timer
+      # display modes are self-explanatory identifiers — a constant would add no meaning.
       ignore-string-values:
-        - '^(black|red|green|yellow|blue|magenta|cyan|white|brightBlack|brightRed|brightGreen|brightYellow|brightBlue|brightMagenta|brightCyan|brightWhite|separator|bar|reset|full|percent)$'
+        - '^(black|red|green|yellow|blue|magenta|cyan|white|brightBlack|brightRed|brightGreen|brightYellow|brightBlue|brightMagenta|brightCyan|brightWhite|separator|flex-separator|bar|reset|full|full-minus-40|full-until-compact|percent|percentage|progress|time)$'
     gocritic:
       enabled-tags:
         - diagnostic
