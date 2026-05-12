@@ -35,19 +35,13 @@ brew install moond4rk/tap/ccstatus
 go install github.com/moond4rk/ccstatus/cmd/ccstatus@latest
 ```
 
-### Binary
-
-Download a prebuilt binary from [GitHub Releases](https://github.com/moond4rk/ccstatus/releases).
-
-> **Note:** ccstatus is a native Go binary and does not require Node.js. Unlike JS-based tools that use `npx`, ccstatus is best installed via Homebrew or `go install` for optimal performance.
-
 ## Quick Start
 
 ```bash
 # Generate default settings
 ccstatus init
 
-# Register in Claude Code
+# Register in Claude Code (re-run anytime to update; --refresh N / --hide-vim-indicator optional)
 ccstatus install
 ```
 
@@ -148,7 +142,7 @@ Lists all registered widget types with their descriptions and default colors.
 
 ```bash
 # Default: read JSON from stdin, render status line
-echo '{"model":{"id":"claude-opus-4-6","display_name":"Opus"}}' | ccstatus
+echo '{"model":{"id":"claude-opus-4-7","display_name":"Opus"}}' | ccstatus
 
 # Replay captured dump data
 cat /tmp/ccstatus-dump.json | ccstatus
@@ -160,25 +154,21 @@ Settings are stored at `~/.config/ccstatus/settings.json`. Edit manually to cust
 
 ### Default Layout
 
-The default configuration uses a 2-line layout. Widgets that have nothing to show (e.g. `effort`, `rate-limit-5h`, `git-worktree`, `session-name`, `vim-mode`, `agent-name`) are simply omitted, so the line stays compact when they don't apply.
+A lean 2-line layout. Widgets with nothing to show — `effort`, `git-worktree`, `rate-limits` — are dropped, so a plain session collapses to `model | Ctx% | branch | +/- | $` over `cwd | Session`.
 
-**Line 1:** model · effort | context % | git branch + worktree | lines +/- | session cost (`$`)
+**Line 1:** `model · effort | context % | git branch + worktree | lines +/- | session cost`
 
-**Line 2:** working directory | rate limits (5h / 7d) | session clock
-
-Example renders:
+**Line 2:** `working directory | rate limits (5h/7d) | session clock`
 
 ```
-Opus 4.7 (1M context) · xhigh | Ctx: 36% | main feat-x | +12 -3 | $0.34
+Opus 4.7 (1M context) · max | Ctx: 36% | main feat-x | +12 -3 | $0.34
 ~/dev/myproj | Limit 5h: 3% / 7d: 12% | Session: 2h15m
-```
 
-```
 Sonnet | Ctx: 12% | main | +4 | $0.05
 ~/dev/myproj | Session: 30m
 ```
 
-The default is deliberately lean. Widgets with nothing to show (`effort`, `rate-limits`, `git-worktree`) are simply omitted, so a plain session collapses to `model | Ctx% | branch | +/- | $` over `cwd | Session`. Claude Code runs the status line command with stdout piped (not a TTY), so width auto-detection can fall back to ~80 columns; if a long model name plus all of line 1's widgets gets truncated with `...`, set `terminalWidth` (or widen the terminal). To customize — add `cache-hit-rate` / `session-name`, swap `rate-limits` for the per-window `rate-limit-5h` (which supports `metadata.display: bar`/`reset`/`full`), etc. — edit `lines` in `settings.json`.
+To customize, edit the `lines` array in `settings.json` — e.g. swap `rate-limits` for the per-window `rate-limit-5h` (`metadata.display`: `bar`/`reset`/`full`), or add `cache-hit-rate`. (If line 1 is getting truncated with `...`, see `terminalWidth` below.)
 
 ### Settings Reference
 
@@ -207,7 +197,7 @@ The default is deliberately lean. Widgets with nothing to show (`effort`, `rate-
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `version` | int | `4` | Config schema version |
-| `colorLevel` | int | `2` | Color level: `0` (none), `1` (basic), `2` (256-color terminal) |
+| `colorLevel` | int | `2` | `0` disables color; any value `>= 1` enables ANSI 16-color output |
 | `flexMode` | string | `"full-until-compact"` | How flex separator calculates available width |
 | `compactThreshold` | int | `90` | Context % at which `full-until-compact` switches to the wider (−40 col) right margin |
 | `terminalWidth` | int | (auto) | Force the status line width in columns. Claude Code runs the status line command with stdio piped, so width auto-detection often falls back to 80 regardless of terminal size — set this (e.g. `180`) to make ccstatus use your real width. Leave unset/`0` to auto-detect. |
@@ -236,9 +226,9 @@ The default is deliberately lean. Widgets with nothing to show (`effort`, `rate-
 
 | Mode | Description |
 |------|-------------|
-| `full` | Terminal width - 6 characters |
+| `full` | Terminal width - 10 characters |
 | `full-minus-40` | Terminal width - 40 characters |
-| `full-until-compact` | Switch to -40 when context % >= compactThreshold (default) |
+| `full-until-compact` | Terminal width - 10, switching to - 40 once context % >= `compactThreshold` (default) |
 
 ### Available Colors
 
@@ -286,7 +276,7 @@ The default is deliberately lean. Widgets with nothing to show (`effort`, `rate-
 | `lines-removed` | Git | Lines removed | red |
 | `vim-mode` | JSON | Vim mode indicator | yellow |
 | `agent-name` | JSON | Agent name | cyan |
-| `effort` | JSON | Reasoning effort level | magenta |
+| `effort` | JSON | Reasoning effort level | cyan |
 | `thinking` | JSON | Extended thinking indicator | magenta |
 | `exceeds-200k` | JSON | Warning at 200k tokens | red |
 | `terminal-width` | System | Terminal width in columns | white |

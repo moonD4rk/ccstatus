@@ -224,7 +224,7 @@ var registry = map[string]Widget{
 			}
 			return data.Effort.Level
 		},
-		defaultColor:  "magenta",
+		defaultColor:  "cyan",
 		displayName:   "Reasoning Effort",
 		description:   "Current reasoning effort level",
 		defaultPrefix: "Effort: ",
