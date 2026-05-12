@@ -191,6 +191,7 @@ The default configuration uses a 2-line layout:
 | `colorLevel` | int | `2` | Color level: `0` (none), `1` (basic), `2` (256-color terminal) |
 | `flexMode` | string | `"full-until-compact"` | How flex separator calculates available width |
 | `compactThreshold` | int | `60` | Context % threshold for switching to compact mode |
+| `terminalWidth` | int | (auto) | Force the status line width in columns. Claude Code runs the status line command with stdio piped, so width auto-detection often falls back to 80 regardless of terminal size — set this (e.g. `180`) to make ccstatus use your real width. Leave unset/`0` to auto-detect. |
 | `defaultSeparator` | string | `"\|"` | Separator character between widgets |
 | `defaultPadding` | string | `" "` | Padding around separators |
 | `inheritSeparatorColors` | bool | `false` | Separators inherit color from adjacent widget |
