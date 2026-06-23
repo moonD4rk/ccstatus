@@ -11,7 +11,7 @@ import (
 // AddedDirsWidget displays directories added via /add-dir or --add-dir.
 // Default: "+N" (the count). With metadata["display"]="list", shows the joined
 // basenames. Renders empty when no directories have been added.
-type AddedDirsWidget struct{}
+type AddedDirsWidget struct{ noAffix }
 
 // Render returns the added-directories display, or empty if none.
 func (w *AddedDirsWidget) Render(item *config.WidgetItem, ctx RenderContext, _ *config.Settings) string {

@@ -17,6 +17,8 @@ const (
 	flexFullPadding = 10
 	// flexCompactPadding is the padding subtracted in "full-minus-40" mode and compact state.
 	flexCompactPadding = 40
+	// minFlexWidth is the floor for the resolved width so truncation always runs.
+	minFlexWidth = 1
 )
 
 // segment holds a rendered widget's text and metadata for the pipeline.
@@ -67,63 +69,82 @@ func PostProcess(line string) string {
 }
 
 // CalculateFlexWidth resolves the available terminal width based on flex mode.
+// The result is clamped to a positive minimum: a non-positive width would make
+// RenderLine skip truncation entirely (its guard is width > 0), letting the line
+// overflow — strictly worse than a narrow-but-bounded width.
 func CalculateFlexWidth(detected int, flexMode string, compactThreshold int, contextPct float64) int {
+	var width int
 	switch flexMode {
 	case "full":
-		return detected - flexFullPadding
+		width = detected - flexFullPadding
 	case "full-minus-40":
-		return detected - flexCompactPadding
+		width = detected - flexCompactPadding
 	case "full-until-compact":
 		if contextPct >= float64(compactThreshold) {
-			return detected - flexCompactPadding
+			width = detected - flexCompactPadding
+		} else {
+			width = detected - flexFullPadding
 		}
-		return detected - flexFullPadding
+	default:
+		return detected
 	}
-	return detected
+	return max(width, minFlexWidth)
 }
 
-// joinWithFlex joins colored segments with padding, expanding flex separators.
+// joinWithFlex joins colored segments, expanding every flex separator. With N
+// flex separators the row splits into N+1 groups; the leftover terminal width is
+// spread evenly across the N gaps so a left/center/right layout aligns correctly.
 func joinWithFlex(colored []string, segments []segment, settings *config.Settings, ctx widget.RenderContext) string {
-	flexIdx := -1
-	for i, seg := range segments {
-		if seg.item.Type == flexSeparatorType {
-			flexIdx = i
-			break
+	var flexIdx []int
+	for i := range segments {
+		if segments[i].item.Type == flexSeparatorType {
+			flexIdx = append(flexIdx, i)
 		}
 	}
-
-	if flexIdx < 0 {
+	if len(flexIdx) == 0 {
 		return strings.Join(colored, settings.DefaultPadding)
 	}
 
-	// Build left and right parts around the flex separator
-	left := strings.Join(colored[:flexIdx], settings.DefaultPadding)
-	right := ""
-	if flexIdx+1 < len(colored) {
-		right = strings.Join(colored[flexIdx+1:], settings.DefaultPadding)
+	// Split into the groups between flex separators, each padding-joined.
+	groups := make([]string, 0, len(flexIdx)+1)
+	prev := 0
+	for _, idx := range flexIdx {
+		groups = append(groups, strings.Join(colored[prev:idx], settings.DefaultPadding))
+		prev = idx + 1
 	}
+	groups = append(groups, strings.Join(colored[prev:], settings.DefaultPadding))
+	gaps := len(flexIdx)
 
 	totalWidth := ctx.TerminalWidth
 	if totalWidth <= 0 {
-		// No terminal width: fall back to single space
-		return joinParts(left, right, " ")
+		// Unknown width: collapse each gap to a single space.
+		return strings.Join(groups, " ")
 	}
 
-	usedWidth := color.VisibleWidth(left) + color.VisibleWidth(right)
-	flexWidth := totalWidth - usedWidth
-	if flexWidth <= 0 {
-		return joinParts(left, right, "")
+	used := 0
+	for _, g := range groups {
+		used += color.VisibleWidth(g)
+	}
+	free := totalWidth - used
+	if free <= 0 {
+		// No room to expand: butt the groups together.
+		return strings.Join(groups, "")
 	}
 
-	return joinParts(left, right, strings.Repeat(" ", flexWidth))
-}
-
-// joinParts concatenates left, filler, and right, omitting empty parts.
-func joinParts(left, right, filler string) string {
+	// Distribute free width across the gaps; spread the remainder over the
+	// leading gaps so the line fills exactly to totalWidth.
+	base, extra := free/gaps, free%gaps
 	var b strings.Builder
-	b.WriteString(left)
-	b.WriteString(filler)
-	b.WriteString(right)
+	for i, g := range groups {
+		b.WriteString(g)
+		if i < gaps {
+			w := base
+			if i < extra {
+				w++
+			}
+			b.WriteString(strings.Repeat(" ", w))
+		}
+	}
 	return b.String()
 }
 
@@ -139,13 +160,11 @@ func renderWidgets(items []config.WidgetItem, ctx widget.RenderContext, settings
 		if text != "" {
 			prefix := items[i].Prefix
 			suffix := items[i].Suffix
-			if p, ok := w.(widget.Prefixer); ok {
-				if prefix == "" {
-					prefix = p.DefaultPrefix()
-				}
-				if suffix == "" {
-					suffix = p.DefaultSuffix()
-				}
+			if prefix == "" {
+				prefix = w.DefaultPrefix()
+			}
+			if suffix == "" {
+				suffix = w.DefaultSuffix()
 			}
 			text = prefix + text + suffix
 		}

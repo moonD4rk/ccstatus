@@ -5,7 +5,7 @@ import (
 )
 
 // GitBranchWidget displays the current git branch name.
-type GitBranchWidget struct{}
+type GitBranchWidget struct{ noAffix }
 
 // Render returns the current git branch, optionally prefixed with a character.
 func (w *GitBranchWidget) Render(item *config.WidgetItem, ctx RenderContext, _ *config.Settings) string {

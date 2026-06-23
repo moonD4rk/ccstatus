@@ -1,19 +1,21 @@
 package widget
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"os/exec"
 	"strings"
 	"time"
 
+	"github.com/moond4rk/ccstatus/internal/color"
 	"github.com/moond4rk/ccstatus/internal/config"
 )
 
 const defaultCommandTimeout = 3 * time.Second
 
 // CustomCommandWidget executes a shell command and displays its output.
-type CustomCommandWidget struct{}
+type CustomCommandWidget struct{ noAffix }
 
 // Render executes the configured command and returns its first line of stdout.
 // The command receives the full JSON session data via stdin.
@@ -33,10 +35,15 @@ func (w *CustomCommandWidget) Render(item *config.WidgetItem, ctx RenderContext,
 
 	cmd := exec.CommandContext(cmdCtx, "sh", "-c", cmdPath)
 
-	// Pipe JSON data to stdin so the command can use it.
-	if ctx.Data != nil {
+	// Forward the exact stdin Claude Code sent so the command sees the full
+	// official schema, including fields ccstatus does not model yet. Only when
+	// the raw bytes are unavailable (e.g. a synthetic RenderContext in tests)
+	// fall back to re-serializing the parsed session, which is necessarily lossy.
+	if len(ctx.RawInput) > 0 {
+		cmd.Stdin = bytes.NewReader(ctx.RawInput)
+	} else if ctx.Data != nil {
 		if data, err := json.Marshal(ctx.Data); err == nil {
-			cmd.Stdin = strings.NewReader(string(data))
+			cmd.Stdin = bytes.NewReader(data)
 		}
 	}
 
@@ -52,41 +59,21 @@ func (w *CustomCommandWidget) Render(item *config.WidgetItem, ctx RenderContext,
 		result = result[:idx]
 	}
 
-	// Apply maxWidth truncation.
-	if item.MaxWidth > 0 && len(result) > item.MaxWidth {
-		result = result[:item.MaxWidth]
+	// Strip ANSI codes unless preserveColors is set, before measuring width so
+	// maxWidth counts visible characters rather than escape bytes.
+	if !item.PreserveColors {
+		result = color.StripANSI(result)
 	}
 
-	// Strip ANSI codes unless preserveColors is set.
-	if !item.PreserveColors {
-		result = stripANSI(result)
+	// Apply maxWidth truncation by runes so multibyte output is never cut
+	// mid-codepoint.
+	if item.MaxWidth > 0 {
+		if runes := []rune(result); len(runes) > item.MaxWidth {
+			result = string(runes[:item.MaxWidth])
+		}
 	}
 
 	return result
-}
-
-// stripANSI removes ANSI escape sequences from a string.
-func stripANSI(s string) string {
-	var b strings.Builder
-	b.Grow(len(s))
-	i := 0
-	for i < len(s) {
-		if s[i] == '\x1b' && i+1 < len(s) && s[i+1] == '[' {
-			// Skip until we find the terminating letter.
-			j := i + 2
-			for j < len(s) && (s[j] < 'A' || s[j] > 'Z') && (s[j] < 'a' || s[j] > 'z') {
-				j++
-			}
-			if j < len(s) {
-				j++ // skip the terminating letter
-			}
-			i = j
-		} else {
-			b.WriteByte(s[i])
-			i++
-		}
-	}
-	return b.String()
 }
 
 // DefaultColor returns the default foreground color.

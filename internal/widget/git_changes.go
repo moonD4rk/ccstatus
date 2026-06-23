@@ -7,7 +7,7 @@ import (
 )
 
 // GitChangesWidget displays the number of uncommitted changes.
-type GitChangesWidget struct{}
+type GitChangesWidget struct{ noAffix }
 
 // Render returns the uncommitted change count, or empty if there are none.
 func (w *GitChangesWidget) Render(_ *config.WidgetItem, ctx RenderContext, _ *config.Settings) string {

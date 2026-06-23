@@ -13,27 +13,49 @@ type RenderContext struct {
 	Data          *status.Session
 	TerminalWidth int
 	Git           *GitCache
+	// RawInput is the exact stdin Claude Code piped in, forwarded verbatim to
+	// custom commands so they see the full official schema (including fields
+	// ccstatus does not model yet). Nil when unavailable.
+	RawInput []byte
 }
 
-// GitCache caches git command results for a single render cycle.
-// Each accessor lazily invokes the underlying git command at most once.
+// GitProvider supplies git repository facts for one render cycle.
+// git.Repo satisfies it for production; tests inject a deterministic fake.
+type GitProvider interface {
+	Branch() string
+	Changes() int
+	Diff() git.DiffStat
+	Worktree() string
+}
+
+// GitCache memoizes GitProvider results for a single render cycle so each git
+// command runs at most once. A nil cache yields zero values.
 type GitCache struct {
+	provider GitProvider
 	branch   *string
 	changes  *int
 	worktree *string
 	diff     *git.DiffStat
 }
 
-// NewGitCache creates a new empty cache for one render cycle.
-func NewGitCache() *GitCache { return &GitCache{} }
+// NewGitCache creates a cache whose git commands run in dir (empty = the
+// process working directory).
+func NewGitCache(dir string) *GitCache {
+	return &GitCache{provider: git.Repo{Dir: dir}}
+}
+
+// NewGitCacheWithProvider creates a cache backed by a custom provider, for tests.
+func NewGitCacheWithProvider(p GitProvider) *GitCache {
+	return &GitCache{provider: p}
+}
 
 // Branch returns the current git branch, caching the result.
 func (c *GitCache) Branch() string {
-	if c == nil {
-		return git.Branch()
+	if c == nil || c.provider == nil {
+		return ""
 	}
 	if c.branch == nil {
-		b := git.Branch()
+		b := c.provider.Branch()
 		c.branch = &b
 	}
 	return *c.branch
@@ -41,11 +63,11 @@ func (c *GitCache) Branch() string {
 
 // Changes returns the uncommitted change count, caching the result.
 func (c *GitCache) Changes() int {
-	if c == nil {
-		return git.Changes()
+	if c == nil || c.provider == nil {
+		return 0
 	}
 	if c.changes == nil {
-		n := git.Changes()
+		n := c.provider.Changes()
 		c.changes = &n
 	}
 	return *c.changes
@@ -53,11 +75,11 @@ func (c *GitCache) Changes() int {
 
 // Worktree returns the worktree name, caching the result.
 func (c *GitCache) Worktree() string {
-	if c == nil {
-		return git.Worktree()
+	if c == nil || c.provider == nil {
+		return ""
 	}
 	if c.worktree == nil {
-		w := git.Worktree()
+		w := c.provider.Worktree()
 		c.worktree = &w
 	}
 	return *c.worktree
@@ -65,11 +87,11 @@ func (c *GitCache) Worktree() string {
 
 // Diff returns the line-level diff stats, caching the result.
 func (c *GitCache) Diff() git.DiffStat {
-	if c == nil {
-		return git.Diff()
+	if c == nil || c.provider == nil {
+		return git.DiffStat{}
 	}
 	if c.diff == nil {
-		d := git.Diff()
+		d := c.provider.Diff()
 		c.diff = &d
 	}
 	return *c.diff
@@ -92,6 +114,14 @@ type Widget interface {
 
 	// SupportsRawValue indicates if the widget has a compact output mode.
 	SupportsRawValue() bool
+
+	// DefaultPrefix returns text prepended to the output when the user set none.
+	// Embed noAffix to inherit "".
+	DefaultPrefix() string
+
+	// DefaultSuffix returns text appended to the output when the user set none.
+	// Embed noAffix to inherit "".
+	DefaultSuffix() string
 }
 
 var registry = map[string]Widget{
@@ -108,7 +138,9 @@ var registry = map[string]Widget{
 
 	// Token metrics. Since Claude Code v2.1.132 the total_input_tokens /
 	// total_output_tokens fields reflect the current context window, not
-	// cumulative session totals; tokens-input is now ~= context-length.
+	// cumulative session totals. tokens-input and context-length track the same
+	// quantity; context-length also falls back to total_input_tokens when
+	// current_usage is null (e.g. just after /compact), so it does not blank out.
 	"tokens-input": &tokenWidget{
 		extract: extractInputTokens, displayName: "Input Tokens", description: "Input tokens currently in context (includes cache reads/writes)",
 		defaultPrefix: "In: ",
@@ -160,6 +192,8 @@ var registry = map[string]Widget{
 	"project-dir":         &ProjectDirWidget{},
 	"transcript-path":     &TranscriptPathWidget{},
 	"added-dirs":          &AddedDirsWidget{},
+	"repo":                &RepoWidget{},
+	"pr":                  &PRWidget{},
 	"lines-changed":       &LinesChangedWidget{},
 	"lines-added":         &LinesAddedWidget{},
 	"lines-removed":       &LinesRemovedWidget{},
@@ -261,22 +295,17 @@ var registry = map[string]Widget{
 	"flex-separator": &FlexSeparatorWidget{},
 }
 
-// Prefixer is an optional interface for widgets that provide default prefix/suffix.
-// User-configured values in WidgetItem.Prefix/Suffix take precedence over defaults.
-type Prefixer interface {
-	DefaultPrefix() string
-	DefaultSuffix() string
-}
+// noAffix provides empty default prefix/suffix. Embed it in widgets that add no
+// affix of their own, so every Widget satisfies the interface without boilerplate.
+// User-configured WidgetItem.Prefix/Suffix always take precedence over defaults.
+type noAffix struct{}
+
+func (noAffix) DefaultPrefix() string { return "" }
+func (noAffix) DefaultSuffix() string { return "" }
 
 // Get returns the widget for the given type string, or nil if unknown.
 func Get(widgetType string) Widget {
 	return registry[widgetType]
-}
-
-// Register adds a widget to the registry. Used by other packages to register
-// widgets that are implemented outside the base widget package.
-func Register(widgetType string, w Widget) {
-	registry[widgetType] = w
 }
 
 // Types returns all registered widget type names.

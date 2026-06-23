@@ -3,7 +3,7 @@ package widget
 import "github.com/moond4rk/ccstatus/internal/config"
 
 // Exceeds200KWidget displays a warning when token count exceeds the 200k threshold.
-type Exceeds200KWidget struct{}
+type Exceeds200KWidget struct{ noAffix }
 
 // Render returns ">200k" if the token count exceeds 200k, empty otherwise.
 func (w *Exceeds200KWidget) Render(_ *config.WidgetItem, ctx RenderContext, _ *config.Settings) string {

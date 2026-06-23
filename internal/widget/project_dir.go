@@ -7,7 +7,7 @@ import (
 )
 
 // ProjectDirWidget displays the project root directory.
-type ProjectDirWidget struct{}
+type ProjectDirWidget struct{ noAffix }
 
 // Render returns the project directory from the workspace field.
 // RawValue mode returns the full path with ~ substitution; normal mode returns the base name.

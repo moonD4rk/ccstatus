@@ -17,6 +17,7 @@ func newInstallCmd() *cobra.Command {
 		RunE:  runInstall,
 	}
 	cmd.Flags().Int("refresh", 0, "Re-run the status line every N seconds (writes refreshInterval; 0 = unset)")
+	cmd.Flags().Int("padding", 0, "Horizontal padding added to the status line (writes padding)")
 	cmd.Flags().Bool("hide-vim-indicator", false, "Suppress Claude Code's built-in vim mode indicator (writes hideVimModeIndicator)")
 	return cmd
 }
@@ -31,9 +32,23 @@ func newUninstallCmd() *cobra.Command {
 }
 
 func runInstall(cmd *cobra.Command, _ []string) error {
-	refresh, _ := cmd.Flags().GetInt("refresh")
-	hideVim, _ := cmd.Flags().GetBool("hide-vim-indicator")
-	path, err := claude.Install(refresh, hideVim)
+	// Only flags the user explicitly set become overrides; unset flags preserve
+	// the current statusLine values on re-install.
+	var opts claude.InstallOptions
+	if cmd.Flags().Changed("refresh") {
+		v, _ := cmd.Flags().GetInt("refresh")
+		opts.RefreshInterval = &v
+	}
+	if cmd.Flags().Changed("padding") {
+		v, _ := cmd.Flags().GetInt("padding")
+		opts.Padding = &v
+	}
+	if cmd.Flags().Changed("hide-vim-indicator") {
+		v, _ := cmd.Flags().GetBool("hide-vim-indicator")
+		opts.HideVimMode = &v
+	}
+
+	path, err := claude.Install(opts)
 	if err != nil {
 		return err
 	}

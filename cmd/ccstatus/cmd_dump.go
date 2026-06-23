@@ -59,6 +59,8 @@ func runDump(cmd *cobra.Command, _ []string) error {
 	ctx := widget.RenderContext{
 		Data:          statusData,
 		TerminalWidth: terminal.Width(settings.TerminalWidth),
+		Git:           widget.NewGitCache(statusData.WorkingDir()),
+		RawInput:      data,
 	}
 
 	for _, line := range settings.Lines {

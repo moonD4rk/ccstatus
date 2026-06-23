@@ -17,7 +17,7 @@ type SessionClockWidget struct{}
 
 // Render returns the session duration in human-readable format.
 func (w *SessionClockWidget) Render(item *config.WidgetItem, ctx RenderContext, _ *config.Settings) string {
-	if ctx.Data.Cost == nil || ctx.Data.Cost.TotalDurationMS == nil {
+	if ctx.Data == nil || ctx.Data.Cost == nil || ctx.Data.Cost.TotalDurationMS == nil {
 		return ""
 	}
 	ms := *ctx.Data.Cost.TotalDurationMS

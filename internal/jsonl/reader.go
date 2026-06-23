@@ -9,6 +9,11 @@ import (
 	"time"
 )
 
+// maxLineBytes bounds the first transcript line the scanner will read. The
+// default bufio.Scanner cap is 64KB, which a large first record (pasted/tool/
+// image payload) can exceed, silently yielding no timestamp.
+const maxLineBytes = 1 << 20 // 1 MiB
+
 // entry represents the minimal fields we need from a JSONL transcript entry.
 type entry struct {
 	Timestamp string `json:"timestamp"`
@@ -27,6 +32,7 @@ func SessionStart(path string) time.Time {
 	defer f.Close()
 
 	scanner := bufio.NewScanner(f)
+	scanner.Buffer(make([]byte, 0, 64*1024), maxLineBytes)
 	if !scanner.Scan() {
 		return time.Time{}
 	}

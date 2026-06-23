@@ -5,7 +5,7 @@ import "github.com/moond4rk/ccstatus/internal/config"
 const sessionIDShortLen = 8
 
 // SessionIDWidget displays the Claude Code session ID.
-type SessionIDWidget struct{}
+type SessionIDWidget struct{ noAffix }
 
 // Render returns the session ID. Normal mode truncates to 8 characters;
 // rawValue mode returns the full UUID.

@@ -1,8 +1,6 @@
 package git
 
 import (
-	"context"
-	"os/exec"
 	"strconv"
 	"strings"
 )
@@ -16,11 +14,9 @@ type DiffStat struct {
 // Diff returns the number of lines added and removed in the working tree
 // (staged + unstaged) compared to HEAD. Returns zero values if not in a git
 // repository or on error.
-func Diff() DiffStat {
-	// Staged changes (index vs HEAD)
-	staged := diffShortStat("--cached")
-	// Unstaged changes (working tree vs index)
-	unstaged := diffShortStat()
+func (r Repo) Diff() DiffStat {
+	staged := r.diffShortStat("--cached") // index vs HEAD
+	unstaged := r.diffShortStat()         // working tree vs index
 	return DiffStat{
 		Added:   staged.Added + unstaged.Added,
 		Removed: staged.Removed + unstaged.Removed,
@@ -29,17 +25,13 @@ func Diff() DiffStat {
 
 // diffShortStat runs git diff --shortstat with optional extra args and parses the output.
 // Output format: " 3 files changed, 10 insertions(+), 5 deletions(-)"
-func diffShortStat(extraArgs ...string) DiffStat {
-	ctx, cancel := context.WithTimeout(context.Background(), gitTimeout)
-	defer cancel()
-
+func (r Repo) diffShortStat(extraArgs ...string) DiffStat {
 	args := append([]string{"diff", "--shortstat"}, extraArgs...)
-	cmd := exec.CommandContext(ctx, "git", args...)
-	out, err := cmd.Output()
-	if err != nil {
+	out, ok := r.run(args...)
+	if !ok {
 		return DiffStat{}
 	}
-	return parseShortStat(strings.TrimSpace(string(out)))
+	return parseShortStat(out)
 }
 
 // parseShortStat parses git diff --shortstat output.

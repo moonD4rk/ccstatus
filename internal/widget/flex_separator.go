@@ -6,7 +6,7 @@ const flexSeparatorType = "flex-separator"
 
 // FlexSeparatorWidget is a placeholder that expands to fill remaining terminal width.
 // The actual expansion is handled by the render pipeline.
-type FlexSeparatorWidget struct{}
+type FlexSeparatorWidget struct{ noAffix }
 
 // Render returns a sentinel value; the render pipeline replaces it with spaces.
 func (w *FlexSeparatorWidget) Render(_ *config.WidgetItem, _ RenderContext, _ *config.Settings) string {

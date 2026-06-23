@@ -37,27 +37,46 @@ func SettingsPath() string {
 	return filepath.Join(Dir(), settingsFileName)
 }
 
-// Install registers ccstatus in Claude Code's settings.json. It preserves all
-// existing fields and creates the file if it does not exist. A positive
-// refreshInterval (seconds) and hideVimMode=true are written into the statusLine
-// block; otherwise those keys are omitted. Returns the path to the written file.
-func Install(refreshInterval int, hideVimMode bool) (string, error) {
+// InstallOptions configures the statusLine block written by Install. A nil field
+// leaves that setting at its existing value (or its default on a fresh install)
+// rather than overwriting it, so re-installing never silently drops a setting.
+type InstallOptions struct {
+	RefreshInterval *int  // > 0 sets refreshInterval; <= 0 clears it
+	Padding         *int  // sets padding
+	HideVimMode     *bool // true sets hideVimModeIndicator; false clears it
+}
+
+// Install registers ccstatus as the statusLine command in Claude Code's
+// settings.json. It preserves every other top-level field and every statusLine
+// field not overridden by opts, creating the file if it does not exist. Returns
+// the path to the written file.
+func Install(opts InstallOptions) (string, error) {
 	path := SettingsPath()
 	settings, err := readSettings(path)
 	if err != nil {
 		return "", err
 	}
 
-	sl := StatusLine{
-		Type:    "command",
-		Command: "ccstatus",
-		Padding: 0,
+	sl := existingStatusLine(settings)
+	sl.Type = "command"
+	sl.Command = "ccstatus"
+	if opts.Padding != nil {
+		sl.Padding = *opts.Padding
 	}
-	if refreshInterval > 0 {
-		sl.RefreshInterval = &refreshInterval
+	if opts.RefreshInterval != nil {
+		if v := *opts.RefreshInterval; v > 0 {
+			sl.RefreshInterval = &v
+		} else {
+			sl.RefreshInterval = nil
+		}
 	}
-	if hideVimMode {
-		sl.HideVimModeIndicator = &hideVimMode
+	if opts.HideVimMode != nil {
+		if *opts.HideVimMode {
+			enabled := true
+			sl.HideVimModeIndicator = &enabled
+		} else {
+			sl.HideVimModeIndicator = nil
+		}
 	}
 	settings["statusLine"] = sl
 
@@ -65,6 +84,24 @@ func Install(refreshInterval int, hideVimMode bool) (string, error) {
 		return "", err
 	}
 	return path, nil
+}
+
+// existingStatusLine extracts the current statusLine block so unspecified fields
+// survive a re-install. Returns the zero StatusLine when absent or unparsable.
+func existingStatusLine(settings map[string]any) StatusLine {
+	raw, ok := settings["statusLine"]
+	if !ok {
+		return StatusLine{}
+	}
+	b, err := json.Marshal(raw)
+	if err != nil {
+		return StatusLine{}
+	}
+	var sl StatusLine
+	if err := json.Unmarshal(b, &sl); err != nil {
+		return StatusLine{}
+	}
+	return sl
 }
 
 // Uninstall removes the ccstatus statusLine from Claude Code's settings.json.

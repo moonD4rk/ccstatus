@@ -90,8 +90,8 @@ func newRootCmd() *cobra.Command {
 	return cmd
 }
 
-func runStatusLine(_ *cobra.Command, _ []string) error {
-	data, err := io.ReadAll(os.Stdin)
+func runStatusLine(cmd *cobra.Command, _ []string) error {
+	data, err := io.ReadAll(cmd.InOrStdin())
 	if err != nil {
 		return fmt.Errorf("reading stdin: %w", err)
 	}
@@ -109,7 +109,8 @@ func runStatusLine(_ *cobra.Command, _ []string) error {
 	ctx := widget.RenderContext{
 		Data:          statusData,
 		TerminalWidth: terminal.Width(settings.TerminalWidth),
-		Git:           widget.NewGitCache(),
+		Git:           widget.NewGitCache(statusData.WorkingDir()),
+		RawInput:      data,
 	}
 
 	// Buffer all lines and write atomically to avoid partial reads
@@ -124,7 +125,7 @@ func runStatusLine(_ *cobra.Command, _ []string) error {
 		}
 	}
 	if buf.Len() > 0 {
-		fmt.Print(buf.String())
+		fmt.Fprint(cmd.OutOrStdout(), buf.String())
 	}
 	return nil
 }

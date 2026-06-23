@@ -3,7 +3,7 @@ package widget
 import "github.com/moond4rk/ccstatus/internal/config"
 
 // SeparatorWidget displays a visual separator between other widgets.
-type SeparatorWidget struct{}
+type SeparatorWidget struct{ noAffix }
 
 // Render returns the separator character from the widget config or settings default.
 func (w *SeparatorWidget) Render(item *config.WidgetItem, _ RenderContext, settings *config.Settings) string {

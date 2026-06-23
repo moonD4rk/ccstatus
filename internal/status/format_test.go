@@ -17,6 +17,8 @@ func TestFormatTokens(t *testing.T) {
 		{"exact thousand", 1000, "1.0k"},
 		{"thousands", 1500, "1.5k"},
 		{"large thousands", 50000, "50.0k"},
+		{"just below unit boundary stays k", 999_949, "999.9k"},
+		{"rounds up across unit boundary to M", 999_950, "1.0M"},
 		{"exact million", 1_000_000, "1.0M"},
 		{"millions", 1_200_000, "1.2M"},
 	}
@@ -58,6 +60,18 @@ func TestContextConfig(t *testing.T) {
 			data:       &Session{Model: ModelField{ID: "claude-sonnet-4-5"}},
 			wantMax:    200_000,
 			wantUsable: 160_000,
+		},
+		{
+			name:       "[1m] suffix fallback is 1M for any family (opus)",
+			data:       &Session{Model: ModelField{ID: "claude-opus-4-8[1m]"}},
+			wantMax:    1_000_000,
+			wantUsable: 800_000,
+		},
+		{
+			name:       "[1m] suffix fallback is 1M (sonnet)",
+			data:       &Session{Model: ModelField{ID: "claude-sonnet-4-5[1m]"}},
+			wantMax:    1_000_000,
+			wantUsable: 800_000,
 		},
 		{
 			name:       "empty data defaults",
@@ -265,6 +279,8 @@ func TestCacheHitRate(t *testing.T) {
 }
 
 func TestContextLength(t *testing.T) {
+	intPtr := func(v int) *int { return &v }
+
 	tests := []struct {
 		name string
 		data *Session
@@ -284,12 +300,19 @@ func TestContextLength(t *testing.T) {
 			want: 15_000,
 		},
 		{
+			name: "falls back to total_input_tokens after /compact (current_usage null)",
+			data: &Session{
+				ContextWindow: &ContextWindow{TotalInputTokens: intPtr(42_000)},
+			},
+			want: 42_000,
+		},
+		{
 			name: "nil context window",
 			data: &Session{},
 			want: 0,
 		},
 		{
-			name: "nil current usage",
+			name: "nil current usage and no total_input_tokens",
 			data: &Session{ContextWindow: &ContextWindow{}},
 			want: 0,
 		},

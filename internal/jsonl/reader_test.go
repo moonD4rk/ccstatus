@@ -2,6 +2,7 @@ package jsonl
 
 import (
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -100,5 +101,20 @@ func TestSessionStart(t *testing.T) {
 	t.Run("empty path returns zero", func(t *testing.T) {
 		result := SessionStart("")
 		assert.True(t, result.IsZero())
+	})
+
+	t.Run("first line larger than 64KB still parses", func(t *testing.T) {
+		f, err := os.CreateTemp(t.TempDir(), "large-*.jsonl")
+		require.NoError(t, err)
+
+		// Exceed bufio.Scanner's default 64KB cap with a big first record.
+		big := strings.Repeat("x", 70*1024)
+		_, err = f.WriteString(`{"timestamp":"2026-01-15T10:30:00Z","payload":"` + big + `"}` + "\n")
+		require.NoError(t, err)
+		require.NoError(t, f.Close())
+
+		result := SessionStart(f.Name())
+		require.False(t, result.IsZero(), "large first line should still yield a timestamp")
+		assert.Equal(t, 2026, result.Year())
 	})
 }

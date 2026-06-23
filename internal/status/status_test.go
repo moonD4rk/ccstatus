@@ -106,6 +106,35 @@ func TestParse(t *testing.T) {
 			},
 		},
 		{
+			name:  "pr and workspace.repo",
+			input: `{"workspace":{"repo":{"host":"github.com","owner":"anthropics","name":"claude-code"}},"pr":{"number":1234,"url":"https://github.com/anthropics/claude-code/pull/1234","review_state":"approved"}}`,
+			check: func(t *testing.T, s *Session) {
+				t.Helper()
+				require.NotNil(t, s.Workspace)
+				require.NotNil(t, s.Workspace.Repo)
+				assert.Equal(t, "github.com", s.Workspace.Repo.Host)
+				assert.Equal(t, "anthropics", s.Workspace.Repo.Owner)
+				assert.Equal(t, "claude-code", s.Workspace.Repo.Name)
+
+				require.NotNil(t, s.PR)
+				require.NotNil(t, s.PR.Number)
+				assert.Equal(t, 1234, *s.PR.Number)
+				assert.Equal(t, "https://github.com/anthropics/claude-code/pull/1234", s.PR.URL)
+				assert.Equal(t, "approved", s.PR.ReviewState)
+			},
+		},
+		{
+			name:  "pr present but review_state independently absent",
+			input: `{"pr":{"number":7}}`,
+			check: func(t *testing.T, s *Session) {
+				t.Helper()
+				require.NotNil(t, s.PR)
+				require.NotNil(t, s.PR.Number)
+				assert.Equal(t, 7, *s.PR.Number)
+				assert.Empty(t, s.PR.ReviewState)
+			},
+		},
+		{
 			name:  "empty JSON object",
 			input: `{}`,
 			check: func(t *testing.T, s *Session) {
@@ -118,6 +147,7 @@ func TestParse(t *testing.T) {
 				assert.Nil(t, s.Effort)
 				assert.Nil(t, s.Thinking)
 				assert.Nil(t, s.RateLimits)
+				assert.Nil(t, s.PR)
 			},
 		},
 		{
@@ -151,6 +181,14 @@ func TestParse(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestThinkingEnabledRoundTrips(t *testing.T) {
+	// enabled has no omitempty, so an explicit false survives marshaling and a
+	// re-serialized session does not lose "thinking explicitly off".
+	data, err := json.Marshal(&Session{Thinking: &ThinkingInfo{Enabled: false}})
+	require.NoError(t, err)
+	assert.Contains(t, string(data), `"enabled":false`)
 }
 
 func TestModelField_MarshalJSON(t *testing.T) {

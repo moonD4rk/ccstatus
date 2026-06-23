@@ -7,7 +7,7 @@ import (
 )
 
 // TerminalWidthWidget displays the current terminal width in columns.
-type TerminalWidthWidget struct{}
+type TerminalWidthWidget struct{ noAffix }
 
 // Render returns the terminal width as a string.
 func (w *TerminalWidthWidget) Render(_ *config.WidgetItem, ctx RenderContext, _ *config.Settings) string {

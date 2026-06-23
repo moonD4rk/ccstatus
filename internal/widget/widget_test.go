@@ -4,13 +4,34 @@ import (
 	"os"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/moond4rk/ccstatus/internal/config"
+	"github.com/moond4rk/ccstatus/internal/git"
 	"github.com/moond4rk/ccstatus/internal/status"
 )
+
+// fakeGit is a deterministic GitProvider so git widgets can be asserted exactly
+// without depending on the working tree the test happens to run in.
+type fakeGit struct {
+	branch   string
+	changes  int
+	diff     git.DiffStat
+	worktree string
+}
+
+func (f fakeGit) Branch() string     { return f.branch }
+func (f fakeGit) Changes() int       { return f.changes }
+func (f fakeGit) Diff() git.DiffStat { return f.diff }
+func (f fakeGit) Worktree() string   { return f.worktree }
+
+// gitCtx builds a RenderContext whose git accessors return p's fixed values.
+func gitCtx(p GitProvider) RenderContext {
+	return RenderContext{Data: &status.Session{}, Git: NewGitCacheWithProvider(p)}
+}
 
 func intPtr(v int) *int           { return &v }
 func floatPtr(v float64) *float64 { return &v }
@@ -565,19 +586,54 @@ func TestSessionClockWidget(t *testing.T) {
 	assert.True(t, w.SupportsRawValue())
 }
 
+func TestGitBranchWidget(t *testing.T) {
+	w := &GitBranchWidget{}
+	settings := config.DefaultSettings()
+
+	t.Run("renders branch name", func(t *testing.T) {
+		ctx := gitCtx(fakeGit{branch: "main"})
+		assert.Equal(t, "main", w.Render(&config.WidgetItem{}, ctx, &settings))
+	})
+	t.Run("empty outside a repo", func(t *testing.T) {
+		ctx := gitCtx(fakeGit{})
+		assert.Empty(t, w.Render(&config.WidgetItem{}, ctx, &settings))
+	})
+	t.Run("character prefix", func(t *testing.T) {
+		ctx := gitCtx(fakeGit{branch: "main"})
+		assert.Equal(t, "@ main", w.Render(&config.WidgetItem{Character: "@"}, ctx, &settings))
+	})
+
+	assert.Equal(t, "magenta", w.DefaultColor())
+	assert.True(t, w.SupportsRawValue())
+}
+
+func TestGitChangesWidget(t *testing.T) {
+	w := &GitChangesWidget{}
+	settings := config.DefaultSettings()
+
+	t.Run("renders change count", func(t *testing.T) {
+		ctx := gitCtx(fakeGit{changes: 3})
+		assert.Equal(t, "3", w.Render(&config.WidgetItem{}, ctx, &settings))
+	})
+	t.Run("empty when clean", func(t *testing.T) {
+		ctx := gitCtx(fakeGit{changes: 0})
+		assert.Empty(t, w.Render(&config.WidgetItem{}, ctx, &settings))
+	})
+
+	assert.Equal(t, "yellow", w.DefaultColor())
+}
+
 func TestLinesChangedWidget(t *testing.T) {
 	w := &LinesChangedWidget{}
+	settings := config.DefaultSettings()
 
-	t.Run("returns git diff format or empty", func(t *testing.T) {
-		// Widget calls real git commands; result depends on working tree state.
-		// Verify output is either empty or matches +N/-M format.
-		settings := config.DefaultSettings()
-		item := config.WidgetItem{}
-		ctx := RenderContext{Data: &status.Session{}}
-		result := w.Render(&item, ctx, &settings)
-		if result != "" {
-			assert.Regexp(t, `^\+\d+/-\d+$`, result)
-		}
+	t.Run("renders +N/-M", func(t *testing.T) {
+		ctx := gitCtx(fakeGit{diff: git.DiffStat{Added: 10, Removed: 5}})
+		assert.Equal(t, "+10/-5", w.Render(&config.WidgetItem{}, ctx, &settings))
+	})
+	t.Run("empty when no diff", func(t *testing.T) {
+		ctx := gitCtx(fakeGit{})
+		assert.Empty(t, w.Render(&config.WidgetItem{}, ctx, &settings))
 	})
 
 	assert.Equal(t, "green", w.DefaultColor())
@@ -587,15 +643,15 @@ func TestLinesChangedWidget(t *testing.T) {
 
 func TestLinesAddedWidget(t *testing.T) {
 	w := &LinesAddedWidget{}
+	settings := config.DefaultSettings()
 
-	t.Run("returns git diff format or empty", func(t *testing.T) {
-		settings := config.DefaultSettings()
-		item := config.WidgetItem{}
-		ctx := RenderContext{Data: &status.Session{}}
-		result := w.Render(&item, ctx, &settings)
-		if result != "" {
-			assert.Regexp(t, `^\+\d+$`, result)
-		}
+	t.Run("renders +N", func(t *testing.T) {
+		ctx := gitCtx(fakeGit{diff: git.DiffStat{Added: 7}})
+		assert.Equal(t, "+7", w.Render(&config.WidgetItem{}, ctx, &settings))
+	})
+	t.Run("empty when nothing added", func(t *testing.T) {
+		ctx := gitCtx(fakeGit{diff: git.DiffStat{Removed: 3}})
+		assert.Empty(t, w.Render(&config.WidgetItem{}, ctx, &settings))
 	})
 
 	assert.Equal(t, "green", w.DefaultColor())
@@ -603,18 +659,76 @@ func TestLinesAddedWidget(t *testing.T) {
 
 func TestLinesRemovedWidget(t *testing.T) {
 	w := &LinesRemovedWidget{}
+	settings := config.DefaultSettings()
 
-	t.Run("returns git diff format or empty", func(t *testing.T) {
-		settings := config.DefaultSettings()
-		item := config.WidgetItem{}
-		ctx := RenderContext{Data: &status.Session{}}
-		result := w.Render(&item, ctx, &settings)
-		if result != "" {
-			assert.Regexp(t, `^-\d+$`, result)
-		}
+	t.Run("renders -N", func(t *testing.T) {
+		ctx := gitCtx(fakeGit{diff: git.DiffStat{Removed: 4}})
+		assert.Equal(t, "-4", w.Render(&config.WidgetItem{}, ctx, &settings))
+	})
+	t.Run("empty when nothing removed", func(t *testing.T) {
+		ctx := gitCtx(fakeGit{diff: git.DiffStat{Added: 2}})
+		assert.Empty(t, w.Render(&config.WidgetItem{}, ctx, &settings))
 	})
 
 	assert.Equal(t, "red", w.DefaultColor())
+}
+
+func TestRepoWidget(t *testing.T) {
+	w := &RepoWidget{}
+	settings := config.DefaultSettings()
+	repo := &status.Repo{Host: "github.com", Owner: "anthropics", Name: "claude-code"}
+
+	t.Run("owner/name by default", func(t *testing.T) {
+		ctx := RenderContext{Data: &status.Session{Workspace: &status.Workspace{Repo: repo}}}
+		assert.Equal(t, "anthropics/claude-code", w.Render(&config.WidgetItem{}, ctx, &settings))
+	})
+	t.Run("raw value drops the owner", func(t *testing.T) {
+		ctx := RenderContext{Data: &status.Session{Workspace: &status.Workspace{Repo: repo}}}
+		assert.Equal(t, "claude-code", w.Render(&config.WidgetItem{RawValue: true}, ctx, &settings))
+	})
+	t.Run("name only when no owner", func(t *testing.T) {
+		ctx := RenderContext{Data: &status.Session{Workspace: &status.Workspace{Repo: &status.Repo{Name: "solo"}}}}
+		assert.Equal(t, "solo", w.Render(&config.WidgetItem{}, ctx, &settings))
+	})
+	t.Run("empty when repo absent", func(t *testing.T) {
+		ctx := RenderContext{Data: &status.Session{Workspace: &status.Workspace{}}}
+		assert.Empty(t, w.Render(&config.WidgetItem{}, ctx, &settings))
+	})
+	t.Run("empty when data nil", func(t *testing.T) {
+		assert.Empty(t, w.Render(&config.WidgetItem{}, RenderContext{}, &settings))
+	})
+
+	assert.Equal(t, "blue", w.DefaultColor())
+	assert.True(t, w.SupportsRawValue())
+}
+
+func TestPRWidget(t *testing.T) {
+	w := &PRWidget{}
+	settings := config.DefaultSettings()
+	num := 1234
+
+	t.Run("number and review state", func(t *testing.T) {
+		ctx := RenderContext{Data: &status.Session{PR: &status.PRInfo{Number: &num, ReviewState: "approved"}}}
+		assert.Equal(t, "#1234 approved", w.Render(&config.WidgetItem{}, ctx, &settings))
+	})
+	t.Run("number only when review state absent", func(t *testing.T) {
+		ctx := RenderContext{Data: &status.Session{PR: &status.PRInfo{Number: &num}}}
+		assert.Equal(t, "#1234", w.Render(&config.WidgetItem{}, ctx, &settings))
+	})
+	t.Run("raw value is the bare number", func(t *testing.T) {
+		ctx := RenderContext{Data: &status.Session{PR: &status.PRInfo{Number: &num, ReviewState: "approved"}}}
+		assert.Equal(t, "1234", w.Render(&config.WidgetItem{RawValue: true}, ctx, &settings))
+	})
+	t.Run("empty when no number", func(t *testing.T) {
+		ctx := RenderContext{Data: &status.Session{PR: &status.PRInfo{}}}
+		assert.Empty(t, w.Render(&config.WidgetItem{}, ctx, &settings))
+	})
+	t.Run("empty when pr absent", func(t *testing.T) {
+		assert.Empty(t, w.Render(&config.WidgetItem{}, RenderContext{Data: &status.Session{}}, &settings))
+	})
+
+	assert.Equal(t, "cyan", w.DefaultColor())
+	assert.True(t, w.SupportsRawValue())
 }
 
 func TestTypes(t *testing.T) {
@@ -632,6 +746,8 @@ func TestTypes(t *testing.T) {
 	assert.Contains(t, types, "lines-changed")
 	assert.Contains(t, types, "lines-added")
 	assert.Contains(t, types, "lines-removed")
+	assert.Contains(t, types, "repo")
+	assert.Contains(t, types, "pr")
 	assert.Contains(t, types, "remaining-percentage")
 	assert.Contains(t, types, "cache-hit-rate")
 	assert.Contains(t, types, "api-duration")
@@ -656,7 +772,7 @@ func TestTypes(t *testing.T) {
 	assert.Contains(t, types, "thinking")
 	assert.Contains(t, types, "session-name")
 	assert.Contains(t, types, "added-dirs")
-	assert.Len(t, types, 44)
+	assert.Len(t, types, 46)
 }
 
 func TestRemainingPercentageWidget(t *testing.T) {
@@ -972,21 +1088,6 @@ func TestCurrentUsageTokenWidgets(t *testing.T) {
 	})
 }
 
-func TestRegister(t *testing.T) {
-	original := Get("test-widget")
-	defer func() {
-		if original == nil {
-			delete(registry, "test-widget")
-		} else {
-			registry["test-widget"] = original
-		}
-	}()
-
-	assert.Nil(t, Get("test-widget"))
-	Register("test-widget", &CustomTextWidget{})
-	assert.NotNil(t, Get("test-widget"))
-}
-
 func boolPtr(v bool) *bool    { return &v }
 func int64Ptr(v int64) *int64 { return &v }
 
@@ -1208,6 +1309,16 @@ func TestCustomCommandWidget(t *testing.T) {
 		assert.Equal(t, "long", w.Render(&item, ctx, &settings))
 	})
 
+	t.Run("maxWidth truncates by rune, not byte", func(t *testing.T) {
+		// printf emits "aéb" (é = UTF-8 C3 A9); maxWidth 2 must yield "aé",
+		// never a mid-codepoint byte cut.
+		item := config.WidgetItem{CommandPath: `printf 'a\303\251b'`, MaxWidth: 2}
+		ctx := RenderContext{Data: &status.Session{}}
+		got := w.Render(&item, ctx, &settings)
+		assert.Equal(t, "aé", got)
+		assert.True(t, utf8.ValidString(got))
+	})
+
 	t.Run("strips ANSI by default", func(t *testing.T) {
 		item := config.WidgetItem{CommandPath: `printf '\033[32mgreen\033[0m'`}
 		ctx := RenderContext{Data: &status.Session{}}
@@ -1242,6 +1353,15 @@ func TestCustomCommandWidget(t *testing.T) {
 		// jq may not be installed; accept either the parsed value or fallback.
 		assert.True(t, result == "1.0.80" || result == "fallback",
 			"expected '1.0.80' or 'fallback', got %q", result)
+	})
+
+	t.Run("forwards raw stdin verbatim so unmodeled fields survive", func(t *testing.T) {
+		// A re-serialized Session would drop unknown_future_field and emit
+		// version 1.0.80; forwarding the raw bytes preserves both.
+		raw := `{"version":"9.9.9","unknown_future_field":true}`
+		item := config.WidgetItem{CommandPath: "cat"}
+		ctx := RenderContext{Data: &status.Session{Version: "1.0.80"}, RawInput: []byte(raw)}
+		assert.Equal(t, raw, w.Render(&item, ctx, &settings))
 	})
 
 	assert.Equal(t, "white", w.DefaultColor())
@@ -1401,9 +1521,16 @@ func TestGitWorktreeWidget(t *testing.T) {
 		assert.Equal(t, "wt-tree", w.Render(&item, ctx, &settings))
 	})
 
-	t.Run("nil data falls back to git command without panic", func(t *testing.T) {
+	t.Run("falls back to the git provider", func(t *testing.T) {
+		ctx := RenderContext{Data: &status.Session{}, Git: NewGitCacheWithProvider(fakeGit{worktree: "linked"})}
+		assert.Equal(t, "linked", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("nil data and nil git: empty, no panic", func(t *testing.T) {
 		ctx := RenderContext{Data: nil}
-		assert.NotPanics(t, func() { w.Render(&item, ctx, &settings) })
+		assert.NotPanics(t, func() {
+			assert.Empty(t, w.Render(&item, ctx, &settings))
+		})
 	})
 
 	assert.Equal(t, "magenta", w.DefaultColor())
@@ -1517,9 +1644,7 @@ func TestRateLimitWidget(t *testing.T) {
 
 	assert.Equal(t, "yellow", w.DefaultColor())
 	assert.True(t, w.SupportsRawValue())
-	pfx, ok := w.(Prefixer)
-	require.True(t, ok)
-	assert.Equal(t, "5h limit: ", pfx.DefaultPrefix())
+	assert.Equal(t, "5h limit: ", w.DefaultPrefix())
 }
 
 func TestRateLimitsWidget(t *testing.T) {
@@ -1567,9 +1692,7 @@ func TestRateLimitsWidget(t *testing.T) {
 
 	assert.Equal(t, "yellow", w.DefaultColor())
 	assert.False(t, w.SupportsRawValue())
-	pfx, ok := w.(Prefixer)
-	require.True(t, ok)
-	assert.Equal(t, "Limit ", pfx.DefaultPrefix())
+	assert.Equal(t, "Limit ", w.DefaultPrefix())
 }
 
 func TestEffortWidget(t *testing.T) {
@@ -1687,30 +1810,24 @@ func TestAddedDirsWidget(t *testing.T) {
 	assert.False(t, w.SupportsRawValue())
 }
 
-func TestStripANSI(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		expected string
-	}{
-		{"no ANSI", "hello", "hello"},
-		{"color code", "\033[32mgreen\033[0m", "green"},
-		{"bold", "\033[1mbold\033[0m", "bold"},
-		{"multiple codes", "\033[1;32mbold green\033[0m", "bold green"},
-		{"empty string", "", ""},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.expected, stripANSI(tt.input))
-		})
-	}
-}
-
 func TestDefaultConfigWidgetsRegistered(t *testing.T) {
 	for _, line := range config.DefaultSettings().Lines {
 		for _, item := range line {
 			assert.NotNilf(t, Get(item.Type), "default config references unregistered widget %q", item.Type)
 		}
+	}
+}
+
+// TestAllWidgetsNilDataSafe enforces the convention that every widget's Render
+// tolerates a nil Session (and nil GitCache) without panicking.
+func TestAllWidgetsNilDataSafe(t *testing.T) {
+	settings := config.DefaultSettings()
+	for _, typ := range Types() {
+		w := Get(typ)
+		t.Run(typ, func(t *testing.T) {
+			assert.NotPanics(t, func() {
+				_ = w.Render(&config.WidgetItem{}, RenderContext{Data: nil}, &settings)
+			})
+		})
 	}
 }
