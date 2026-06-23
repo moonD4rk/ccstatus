@@ -7,7 +7,7 @@ import (
 )
 
 // LinesChangedWidget displays git diff line additions and deletions.
-type LinesChangedWidget struct{}
+type LinesChangedWidget struct{ noAffix }
 
 // Render returns a "+N/-M" format from git diff --shortstat, or empty if clean.
 func (w *LinesChangedWidget) Render(_ *config.WidgetItem, ctx RenderContext, _ *config.Settings) string {
@@ -33,7 +33,7 @@ func (w *LinesChangedWidget) Description() string {
 func (w *LinesChangedWidget) SupportsRawValue() bool { return false }
 
 // LinesAddedWidget displays only the git diff lines added count.
-type LinesAddedWidget struct{}
+type LinesAddedWidget struct{ noAffix }
 
 // Render returns "+N" from git diff, or empty if zero.
 func (w *LinesAddedWidget) Render(_ *config.WidgetItem, ctx RenderContext, _ *config.Settings) string {
@@ -57,7 +57,7 @@ func (w *LinesAddedWidget) Description() string { return "Uncommitted lines adde
 func (w *LinesAddedWidget) SupportsRawValue() bool { return false }
 
 // LinesRemovedWidget displays only the git diff lines removed count.
-type LinesRemovedWidget struct{}
+type LinesRemovedWidget struct{ noAffix }
 
 // Render returns "-N" from git diff, or empty if zero.
 func (w *LinesRemovedWidget) Render(_ *config.WidgetItem, ctx RenderContext, _ *config.Settings) string {

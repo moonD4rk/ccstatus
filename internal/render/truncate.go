@@ -9,56 +9,48 @@ import (
 
 const truncSuffix = "..."
 
-// Truncate shortens a line to fit within maxWidth visible characters.
-// ANSI escape sequences are preserved in the output but do not count toward width.
-// A "..." suffix is appended when truncation occurs.
+// Truncate shortens a line to fit within maxWidth display columns. ANSI escape
+// sequences are preserved in the output but do not count toward width; wide
+// runes count as 2 cells. A "..." suffix is appended when truncation occurs.
 func Truncate(line string, maxWidth int) string {
 	if maxWidth <= 0 {
 		return ""
 	}
 
-	visible := color.VisibleWidth(line)
-	if visible <= maxWidth {
+	if color.VisibleWidth(line) <= maxWidth {
 		return line
 	}
 
-	suffixWidth := utf8.RuneCountInString(truncSuffix)
+	suffixWidth := color.VisibleWidth(truncSuffix)
 	target := maxWidth - suffixWidth
 	if target <= 0 {
 		return truncSuffix[:maxWidth]
 	}
 
-	var result strings.Builder
-	result.Grow(len(line))
-	visCount := 0
+	var b strings.Builder
+	b.Grow(len(line))
+	width := 0
 	i := 0
-	for i < len(line) && visCount < target {
-		// Skip ANSI escape sequences
-		if i+1 < len(line) && line[i] == '\x1b' && line[i+1] == '[' {
-			j := i + 2
-			for j < len(line) && !isTerminator(line[j]) {
-				j++
-			}
-			if j < len(line) {
-				j++
-			}
-			result.WriteString(line[i:j])
+	for i < len(line) {
+		// Copy escape sequences through without counting their width.
+		if line[i] == '\x1b' {
+			j := color.ScanEscape(line, i)
+			b.WriteString(line[i:j])
 			i = j
 			continue
 		}
-		// Copy one rune
-		_, size := utf8.DecodeRuneInString(line[i:])
-		result.WriteString(line[i : i+size])
-		visCount++
+		r, size := utf8.DecodeRuneInString(line[i:])
+		rw := color.RuneWidth(r)
+		if width+rw > target {
+			break
+		}
+		b.WriteString(line[i : i+size])
+		width += rw
 		i += size
 	}
 
-	// Reset colors before suffix
-	result.WriteString("\x1b[0m")
-	result.WriteString(truncSuffix)
-	return result.String()
-}
-
-func isTerminator(b byte) bool {
-	return (b >= 'A' && b <= 'Z') || (b >= 'a' && b <= 'z')
+	// Reset colors before the suffix.
+	b.WriteString("\x1b[0m")
+	b.WriteString(truncSuffix)
+	return b.String()
 }

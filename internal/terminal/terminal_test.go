@@ -22,6 +22,34 @@ func TestWidth(t *testing.T) {
 		assert.Positive(t, Width(0))
 		assert.Positive(t, Width(-5))
 	})
+
+	t.Run("COLUMNS is honored before fd/tty fallbacks", func(t *testing.T) {
+		t.Setenv("COLUMNS", "123")
+		assert.Equal(t, 123, Width(0))
+	})
+
+	t.Run("override still beats COLUMNS", func(t *testing.T) {
+		t.Setenv("COLUMNS", "123")
+		assert.Equal(t, 200, Width(200))
+	})
+
+	t.Run("invalid COLUMNS falls through to a positive width", func(t *testing.T) {
+		t.Setenv("COLUMNS", "not-a-number")
+		assert.Positive(t, Width(0))
+	})
+}
+
+func TestWidthFromColumns(t *testing.T) {
+	t.Run("positive integer", func(t *testing.T) {
+		t.Setenv("COLUMNS", "80")
+		assert.Equal(t, 80, widthFromColumns())
+	})
+	for _, v := range []string{"", "0", "-3", "abc"} {
+		t.Run("ignores "+v, func(t *testing.T) {
+			t.Setenv("COLUMNS", v)
+			assert.Zero(t, widthFromColumns())
+		})
+	}
 }
 
 func TestWidthFromTTYName(t *testing.T) {

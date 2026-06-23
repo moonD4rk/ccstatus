@@ -24,38 +24,49 @@ const (
 
 // Width returns the terminal width in columns.
 //
-// If override > 0 it wins (the `terminalWidth` setting; use it when running
-// under a host like Claude Code that pipes stdio and may run the status line
-// command detached from the terminal). Otherwise the detection order is:
-// stdout fd, stderr fd, /dev/tty, the controlling terminal of an ancestor
-// process, the COLUMNS env var, then the default 80.
+// If override > 0 it wins (the `terminalWidth` setting). Otherwise the order is:
+//  1. COLUMNS env var — authoritative under the v2.1.153+ status line spec,
+//     which captures the command's output (so the fds are not a terminal) and
+//     sets COLUMNS/LINES to the live dimensions before each run. Costs no
+//     subprocess and is re-set every invocation, so it is not stale.
+//  2. stdout/stderr fd — direct CLI use, and Claude Code versions before the
+//     COLUMNS contract.
+//  3. /dev/tty — our own controlling terminal, if not detached from it.
+//  4. an ancestor process's controlling terminal — last resort that spawns
+//     `ps`, reached only when everything above failed.
+//  5. the default 80.
 func Width(override int) int {
 	if override > 0 {
 		return override
 	}
-	// 1. A standard fd that happens to be a real terminal.
+	if w := widthFromColumns(); w > 0 {
+		return w
+	}
 	for _, f := range []*os.File{os.Stdout, os.Stderr} {
 		if w, _, err := term.GetSize(int(f.Fd())); err == nil && w > 0 { //nolint:gosec // fd values are small, no overflow risk
 			return w
 		}
 	}
-	// 2. Our own controlling terminal (works unless we were detached from it).
 	if w := widthFromTTYPath("/dev/tty"); w > 0 {
 		return w
 	}
-	// 3. The controlling terminal of an ancestor process. This recovers the
-	//    real width when the host ran the status line command detached from
-	//    the terminal (so /dev/tty fails) but an ancestor still owns the tty.
 	if w := widthFromAncestorTTY(); w > 0 {
 		return w
 	}
-	// 4. The COLUMNS env var (captured at spawn time, so it can be stale).
-	if cols := os.Getenv("COLUMNS"); cols != "" {
-		if n, err := strconv.Atoi(cols); err == nil && n > 0 {
-			return n
-		}
-	}
 	return defaultWidth
+}
+
+// widthFromColumns parses the COLUMNS environment variable, returning 0 when it
+// is unset or not a positive integer.
+func widthFromColumns() int {
+	cols := os.Getenv("COLUMNS")
+	if cols == "" {
+		return 0
+	}
+	if n, err := strconv.Atoi(cols); err == nil && n > 0 {
+		return n
+	}
+	return 0
 }
 
 // widthFromTTYPath opens a tty device path and returns its width, or 0.

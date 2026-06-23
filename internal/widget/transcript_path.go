@@ -7,7 +7,7 @@ import (
 )
 
 // TranscriptPathWidget displays the transcript file path.
-type TranscriptPathWidget struct{}
+type TranscriptPathWidget struct{ noAffix }
 
 // Render returns the transcript path.
 // RawValue mode returns the full path with ~ substitution; normal mode returns the base name.

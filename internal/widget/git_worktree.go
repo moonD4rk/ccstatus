@@ -5,7 +5,7 @@ import (
 )
 
 // GitWorktreeWidget displays the current git worktree name.
-type GitWorktreeWidget struct{}
+type GitWorktreeWidget struct{ noAffix }
 
 // Render returns the worktree name if in a linked worktree, empty otherwise.
 // Source order: workspace.git_worktree (any linked worktree), worktree.name

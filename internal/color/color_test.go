@@ -114,6 +114,16 @@ func TestStripANSI(t *testing.T) {
 			input: "\x1b[0m\x1b[36m\x1b[0m",
 			want:  "",
 		},
+		{
+			name:  "OSC 8 hyperlink (BEL-terminated)",
+			input: "\x1b]8;;https://example.com\x07link\x1b]8;;\x07",
+			want:  "link",
+		},
+		{
+			name:  "OSC 8 hyperlink (ST-terminated)",
+			input: "\x1b]8;;https://example.com\x1b\\link\x1b]8;;\x1b\\",
+			want:  "link",
+		},
 	}
 
 	for _, tt := range tests {
@@ -133,7 +143,10 @@ func TestVisibleWidth(t *testing.T) {
 		{name: "colored text", input: "\x1b[36mhello\x1b[0m", want: 5},
 		{name: "empty", input: "", want: 0},
 		{name: "only ANSI", input: "\x1b[0m", want: 0},
-		{name: "unicode", input: "cafe\u0301", want: 5},
+		{name: "combining mark is zero-width", input: "cafe\u0301", want: 4},
+		{name: "CJK is double-width", input: "\u4f60\u597d\u4e16\u754c", want: 8},
+		{name: "emoji is double-width", input: "\U0001F680", want: 2},
+		{name: "OSC 8 hyperlink counts only visible text", input: "\x1b]8;;https://x.com\x07link\x1b]8;;\x07", want: 4},
 	}
 
 	for _, tt := range tests {

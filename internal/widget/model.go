@@ -3,7 +3,7 @@ package widget
 import "github.com/moond4rk/ccstatus/internal/config"
 
 // ModelWidget displays the current Claude model name.
-type ModelWidget struct{}
+type ModelWidget struct{ noAffix }
 
 // Render returns the model display name, or model ID if rawValue is set.
 func (w *ModelWidget) Render(item *config.WidgetItem, ctx RenderContext, _ *config.Settings) string {

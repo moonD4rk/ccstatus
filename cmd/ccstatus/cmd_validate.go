@@ -2,10 +2,10 @@ package main
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 
+	"github.com/moond4rk/ccstatus/internal/color"
 	"github.com/moond4rk/ccstatus/internal/config"
 	"github.com/moond4rk/ccstatus/internal/widget"
 )
@@ -19,27 +19,67 @@ func newValidateCmd() *cobra.Command {
 	}
 }
 
-func runValidate(_ *cobra.Command, _ []string) error {
+// runValidate checks the loaded settings for unknown widget types, missing or
+// duplicate widget IDs, and invalid color names. It reports every problem and
+// exits non-zero when any are found, so it is usable as a CI gate.
+func runValidate(cmd *cobra.Command, _ []string) error {
 	settings, err := config.Load()
 	if err != nil {
 		return fmt.Errorf("invalid settings: %w", err)
 	}
 
-	// Check for unknown widget types.
-	var warnings []string
-	for _, line := range settings.Lines {
-		for i := range line {
-			if widget.Get(line[i].Type) == nil {
-				warnings = append(warnings, fmt.Sprintf("unknown widget type: %q", line[i].Type))
-			}
+	problems := collectProblems(&settings)
+
+	if len(problems) > 0 {
+		for _, p := range problems {
+			fmt.Fprintln(cmd.ErrOrStderr(), "Error:", p)
+		}
+		return fmt.Errorf("%d problem(s) found in %s", len(problems), config.Path())
+	}
+	fmt.Fprintln(cmd.OutOrStdout(), "Settings are valid")
+	return nil
+}
+
+// collectProblems returns a human-readable list of configuration problems, in
+// document order so the output is stable.
+func collectProblems(settings *config.Settings) []string {
+	var problems []string
+	seen := make(map[string]bool)
+
+	checkColor := func(loc, kind, val string) {
+		if val != "" && !color.IsNamed(val) {
+			problems = append(problems, fmt.Sprintf("%s: invalid %s %q", loc, kind, val))
 		}
 	}
 
-	if len(warnings) > 0 {
-		for _, w := range warnings {
-			fmt.Fprintf(os.Stderr, "Warning: %s\n", w)
+	for li, line := range settings.Lines {
+		for i := range line {
+			item := &line[i]
+			loc := fmt.Sprintf("line %d widget %d", li+1, i+1)
+
+			switch {
+			case item.Type == "":
+				problems = append(problems, loc+": missing widget type")
+			case widget.Get(item.Type) == nil:
+				problems = append(problems, fmt.Sprintf("%s: unknown widget type %q", loc, item.Type))
+			}
+
+			switch {
+			case item.ID == "":
+				problems = append(problems, loc+": missing id")
+			case seen[item.ID]:
+				problems = append(problems, fmt.Sprintf("%s: duplicate id %q", loc, item.ID))
+			default:
+				seen[item.ID] = true
+			}
+
+			checkColor(loc, "color", item.Color)
+			checkColor(loc, "backgroundColor", item.BackgroundColor)
 		}
 	}
-	fmt.Fprintln(os.Stderr, "Settings are valid")
-	return nil
+
+	checkColor("settings", "overrideForegroundColor", settings.OverrideForegroundColor)
+	checkColor("settings", "overrideBackgroundColor", settings.OverrideBackgroundColor)
+
+	return problems
 }

@@ -13,7 +13,7 @@ type SessionCostWidget struct{}
 
 // Render returns the session cost formatted as dollars.
 func (w *SessionCostWidget) Render(item *config.WidgetItem, ctx RenderContext, _ *config.Settings) string {
-	if ctx.Data.Cost == nil || ctx.Data.Cost.TotalCostUSD == nil {
+	if ctx.Data == nil || ctx.Data.Cost == nil || ctx.Data.Cost.TotalCostUSD == nil {
 		return ""
 	}
 	cost := *ctx.Data.Cost.TotalCostUSD

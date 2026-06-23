@@ -40,7 +40,7 @@ Claude Code pipes session JSON to stdin. ccstatus parses it (`internal/status`),
 
 Subcommands: `ccstatus init` (write default settings.json), `validate`, `install` / `uninstall` (manage the `statusLine` block in `~/.claude/settings.json`, or `$CLAUDE_CONFIG_DIR/`; `install` takes `--refresh N` and `--hide-vim-indicator`), `dump` (save the raw Claude Code JSON to `/tmp/ccstatus-dump.json`), `widgets` (list all widget types).
 
-~44 widgets implement `Widget` (`Render` / `DefaultColor` / `DisplayName` / `Description` / `SupportsRawValue`), registered in a map keyed by type string in `internal/widget/widget.go`; generic templates (`tokenWidget`, `percentageWidget`, `stringFieldWidget`, `RateLimitWidget`) back most of them. Data sources: Claude Code JSON, `git` commands, the JSONL transcript (`block-timer` fallback only), the system. `ccstatus widgets` lists them all; `README.md` has per-widget detail.
+~46 widgets implement `Widget` (`Render` / `DefaultColor` / `DisplayName` / `Description` / `SupportsRawValue` / `DefaultPrefix` / `DefaultSuffix` — embed `noAffix` for empty affixes), registered in a map keyed by type string in `internal/widget/widget.go`; generic templates (`tokenWidget`, `percentageWidget`, `stringFieldWidget`, `RateLimitWidget`) back most of them. Data sources: Claude Code JSON, `git` commands (run in the session dir via the injectable `git.Repo`/`GitProvider`), the JSONL transcript (`block-timer` fallback only), the system. `ccstatus widgets` lists them all; `README.md` has per-widget detail.
 
 ## Conventions
 

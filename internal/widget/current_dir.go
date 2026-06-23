@@ -9,11 +9,14 @@ import (
 )
 
 // CurrentDirWidget displays the current working directory.
-type CurrentDirWidget struct{}
+type CurrentDirWidget struct{ noAffix }
 
 // Render returns the current directory from the workspace or cwd field.
 // RawValue mode returns the full path with ~ substitution; normal mode returns the base name.
 func (w *CurrentDirWidget) Render(item *config.WidgetItem, ctx RenderContext, _ *config.Settings) string {
+	if ctx.Data == nil {
+		return ""
+	}
 	dir := ""
 	if ctx.Data.Workspace != nil && ctx.Data.Workspace.CurrentDir != "" {
 		dir = ctx.Data.Workspace.CurrentDir

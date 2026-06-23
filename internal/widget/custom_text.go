@@ -3,7 +3,7 @@ package widget
 import "github.com/moond4rk/ccstatus/internal/config"
 
 // CustomTextWidget displays user-defined static text.
-type CustomTextWidget struct{}
+type CustomTextWidget struct{ noAffix }
 
 // Render returns the custom text from the widget configuration.
 func (w *CustomTextWidget) Render(item *config.WidgetItem, _ RenderContext, _ *config.Settings) string {

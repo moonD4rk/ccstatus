@@ -41,7 +41,7 @@ func (w *ContextPercentageUsableWidget) DisplayName() string { return "Context %
 
 // Description returns what this widget shows.
 func (w *ContextPercentageUsableWidget) Description() string {
-	return "Context usage as percentage of usable window (80% of max)"
+	return "Context usage as % of the usable window (heuristic: 80% of max, leaving auto-compact headroom)"
 }
 
 // SupportsRawValue returns true; raw value omits the % suffix.

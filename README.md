@@ -1,10 +1,6 @@
 # ccstatus
 
-[![Go CI](https://github.com/moond4rk/ccstatus/actions/workflows/ci.yml/badge.svg)](https://github.com/moond4rk/ccstatus/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/moond4rk/ccstatus/branch/main/graph/badge.svg)](https://codecov.io/gh/moond4rk/ccstatus)
-[![Go Reference](https://pkg.go.dev/badge/github.com/moond4rk/ccstatus.svg)](https://pkg.go.dev/github.com/moond4rk/ccstatus)
-[![Go Report Card](https://goreportcard.com/badge/github.com/moond4rk/ccstatus)](https://goreportcard.com/report/github.com/moond4rk/ccstatus)
-[![License](https://img.shields.io/github/license/moond4rk/ccstatus)](https://github.com/moond4rk/ccstatus/blob/main/LICENSE)
+[![Go CI](https://github.com/moond4rk/ccstatus/actions/workflows/ci.yml/badge.svg)](https://github.com/moond4rk/ccstatus/actions/workflows/ci.yml) [![codecov](https://codecov.io/gh/moond4rk/ccstatus/branch/main/graph/badge.svg)](https://codecov.io/gh/moond4rk/ccstatus) [![Go Reference](https://pkg.go.dev/badge/github.com/moond4rk/ccstatus.svg)](https://pkg.go.dev/github.com/moond4rk/ccstatus) [![Go Report Card](https://goreportcard.com/badge/github.com/moond4rk/ccstatus)](https://goreportcard.com/report/github.com/moond4rk/ccstatus) [![License](https://img.shields.io/github/license/moond4rk/ccstatus)](https://github.com/moond4rk/ccstatus/blob/main/LICENSE)
 
 A customizable status line formatter for [Claude Code](https://code.claude.com/) CLI. Reads JSON session data from stdin, renders an ANSI-colored status line, and outputs to stdout.
 
@@ -15,7 +11,7 @@ A customizable status line formatter for [Claude Code](https://code.claude.com/)
 ## Features
 
 - Single static binary with no runtime dependencies
-- 44 configurable widgets (model, tokens, context, git, cost, rate limits, and more)
+- 46 configurable widgets (model, tokens, context, git, cost, rate limits, and more)
 - Multi-line status line with flex separator layout
 - ANSI 16-color support via [fatih/color](https://github.com/fatih/color)
 - Configurable via `~/.config/ccstatus/settings.json`
@@ -57,7 +53,7 @@ ccstatus [command]
 ### Commands
 
 | Command | Description |
-|---------|-------------|
+| --- | --- |
 | `init` | Generate default `settings.json` at the ccstatus config directory |
 | `install` | Register ccstatus as the status line command in Claude Code's `settings.json` |
 | `uninstall` | Remove ccstatus status line configuration from Claude Code's `settings.json` |
@@ -68,10 +64,10 @@ ccstatus [command]
 
 ### Global Flags
 
-| Flag | Description |
-|------|-------------|
-| `-h, --help` | Show help for any command |
-| `-v, --version` | Print version |
+| Flag            | Description               |
+| --------------- | ------------------------- |
+| `-h, --help`    | Show help for any command |
+| `-v, --version` | Print version             |
 
 ### Command Details
 
@@ -120,7 +116,7 @@ Removes the ccstatus status line configuration from Claude Code's settings.
 ccstatus validate
 ```
 
-Checks `settings.json` for errors such as unknown widget types, missing IDs, or invalid color names.
+Checks `settings.json` for unknown widget types, missing or duplicate widget IDs, and invalid color names. Exits non-zero when any problem is found, so it works as a CI gate.
 
 #### `ccstatus dump`
 
@@ -184,9 +180,9 @@ To customize, edit the `lines` array in `settings.json` — e.g. swap `rate-limi
   "globalBold": false,
   "lines": [
     [
-      {"id": "1", "type": "model", "color": "cyan"},
-      {"id": "2", "type": "separator"},
-      {"id": "3", "type": "context-percentage", "color": "brightBlack"}
+      { "id": "1", "type": "model", "color": "cyan" },
+      { "id": "2", "type": "separator" },
+      { "id": "3", "type": "context-percentage", "color": "brightBlack" }
     ]
   ]
 }
@@ -195,7 +191,7 @@ To customize, edit the `lines` array in `settings.json` — e.g. swap `rate-limi
 ### Global Settings
 
 | Field | Type | Default | Description |
-|-------|------|---------|-------------|
+| --- | --- | --- | --- |
 | `version` | int | `4` | Config schema version |
 | `colorLevel` | int | `2` | `0` disables color; any value `>= 1` enables ANSI 16-color output |
 | `flexMode` | string | `"full-until-compact"` | How flex separator calculates available width |
@@ -209,7 +205,7 @@ To customize, edit the `lines` array in `settings.json` — e.g. swap `rate-limi
 ### Widget Item Options
 
 | Field | Type | Description |
-|-------|------|-------------|
+| --- | --- | --- |
 | `id` | string | Unique identifier |
 | `type` | string | Widget type (see list below) |
 | `color` | string | Foreground color name |
@@ -225,7 +221,7 @@ To customize, edit the `lines` array in `settings.json` — e.g. swap `rate-limi
 ### Flex Modes
 
 | Mode | Description |
-|------|-------------|
+| --- | --- |
 | `full` | Terminal width - 10 characters |
 | `full-minus-40` | Terminal width - 40 characters |
 | `full-until-compact` | Terminal width - 10, switching to - 40 once context % >= `compactThreshold` (default) |
@@ -239,7 +235,7 @@ To customize, edit the `lines` array in `settings.json` — e.g. swap `rate-limi
 ## Available Widgets
 
 | Widget | Source | Description | Default Color |
-|--------|--------|-------------|---------------|
+| --- | --- | --- | --- |
 | `model` | JSON | Current Claude model name | cyan |
 | `version` | JSON | Claude Code version | white |
 | `session-id` | JSON | Session ID (8-char short) | white |
@@ -259,7 +255,7 @@ To customize, edit the `lines` array in `settings.json` — e.g. swap `rate-limi
 | `cache-creation` | JSON | Cache creation tokens | white |
 | `context-length` | JSON | Context usage in tokens | white |
 | `context-percentage` | JSON | Context usage % | white |
-| `context-percentage-usable` | JSON | Usable context % (80% of max) | white |
+| `context-percentage-usable` | JSON | Usable context % (heuristic: 80% of max, leaving auto-compact headroom) | white |
 | `remaining-percentage` | JSON | Remaining context % | white |
 | `cache-hit-rate` | JSON | Cache read ratio % | cyan |
 | `api-duration` | JSON | API response time | white |
@@ -271,6 +267,8 @@ To customize, edit the `lines` array in `settings.json` — e.g. swap `rate-limi
 | `project-dir` | JSON | Project root directory | blue |
 | `transcript-path` | JSON | Transcript file path | white |
 | `added-dirs` | JSON | Directories added via `/add-dir` (`metadata.display`: `list` for names) | blue |
+| `repo` | JSON | Repository `owner/name` from the origin remote (raw: name only) | blue |
+| `pr` | JSON | Open PR number + review state, e.g. `#1234 approved` (raw: number) | cyan |
 | `lines-changed` | Git | Lines changed (+N/-M) | green |
 | `lines-added` | Git | Lines added | green |
 | `lines-removed` | Git | Lines removed | red |
@@ -294,6 +292,8 @@ Claude Code  --[JSON]--> ccstatus --[ANSI text]--> status line
 ```
 
 For the full JSON schema, see the [official documentation](https://code.claude.com/docs/en/statusline).
+
+> **Not yet supported:** the separate [`subagentStatusLine`](https://code.claude.com/docs/en/statusline#subagent-status-lines) setting (a per-subagent row in the agent panel) has a different input/output contract and is tracked for a future release.
 
 ## Debugging
 

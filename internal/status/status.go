@@ -26,6 +26,7 @@ type Session struct {
 	Vim            *VimInfo       `json:"vim,omitempty"`
 	Agent          *AgentInfo     `json:"agent,omitempty"`
 	Worktree       *WorktreeInfo  `json:"worktree,omitempty"`
+	PR             *PRInfo        `json:"pr,omitempty"`
 }
 
 // Parse parses JSON data into Session.
@@ -35,6 +36,26 @@ func Parse(data []byte) (*Session, error) {
 		return nil, err
 	}
 	return &s, nil
+}
+
+// WorkingDir returns the directory git and path widgets should operate in,
+// mirroring the upstream resolution order: workspace.current_dir, then cwd,
+// then workspace.project_dir. Empty when none are set, so callers fall back to
+// the process working directory.
+func (s *Session) WorkingDir() string {
+	if s == nil {
+		return ""
+	}
+	if s.Workspace != nil && s.Workspace.CurrentDir != "" {
+		return s.Workspace.CurrentDir
+	}
+	if s.Cwd != "" {
+		return s.Cwd
+	}
+	if s.Workspace != nil && s.Workspace.ProjectDir != "" {
+		return s.Workspace.ProjectDir
+	}
+	return ""
 }
 
 // ModelField handles the model field being either a string or an object.
@@ -97,6 +118,25 @@ type Workspace struct {
 	ProjectDir  string   `json:"project_dir,omitempty"`
 	AddedDirs   []string `json:"added_dirs,omitempty"`
 	GitWorktree string   `json:"git_worktree,omitempty"`
+	Repo        *Repo    `json:"repo,omitempty"`
+}
+
+// Repo holds repository identity parsed from the origin remote (for example
+// host "github.com", owner "anthropics", name "claude-code"). Absent outside a
+// git repository or when no origin remote is configured.
+type Repo struct {
+	Host  string `json:"host,omitempty"`
+	Owner string `json:"owner,omitempty"`
+	Name  string `json:"name,omitempty"`
+}
+
+// PRInfo holds the open pull request for the current branch. Absent until a PR
+// is found and removed once it merges or closes. ReviewState may be
+// independently absent even when PRInfo is present.
+type PRInfo struct {
+	Number      *int   `json:"number,omitempty"`
+	URL         string `json:"url,omitempty"`
+	ReviewState string `json:"review_state,omitempty"` // approved | pending | changes_requested | draft
 }
 
 // OutputStyle holds the output style configuration.
@@ -161,8 +201,10 @@ type EffortInfo struct {
 }
 
 // ThinkingInfo indicates whether extended thinking is enabled for the session.
+// Enabled has no omitempty so an explicit false survives a round-trip (the spec
+// treats thinking.enabled as a meaningful, always-present bool).
 type ThinkingInfo struct {
-	Enabled bool `json:"enabled,omitempty"`
+	Enabled bool `json:"enabled"`
 }
 
 // RateLimits holds Claude.ai subscription rate-limit windows. Present only for

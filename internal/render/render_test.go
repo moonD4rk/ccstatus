@@ -243,6 +243,28 @@ func TestRenderLine(t *testing.T) {
 				assert.Equal(t, "L R", result)
 			},
 		},
+		{
+			name: "two flex separators both expand (left/center/right)",
+			items: []config.WidgetItem{
+				{ID: "1", Type: "custom-text", CustomText: "L"},
+				{ID: "2", Type: "flex-separator"},
+				{ID: "3", Type: "custom-text", CustomText: "M"},
+				{ID: "4", Type: "flex-separator"},
+				{ID: "5", Type: "custom-text", CustomText: "R"},
+			},
+			settings:      config.Settings{ColorLevel: 0, DefaultPadding: " "},
+			data:          &status.Session{},
+			terminalWidth: 21,
+			check: func(t *testing.T, result string) {
+				t.Helper()
+				// width 21, content "LMR" (3) => 18 free split evenly: 9 + 9.
+				assert.Equal(t, 21, color.VisibleWidth(result))
+				assert.Len(t, result, 21) // no ANSI at colorLevel 0
+				assert.Equal(t, byte('L'), result[0])
+				assert.Equal(t, byte('M'), result[10])
+				assert.Equal(t, byte('R'), result[20])
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -371,6 +393,8 @@ func TestCalculateFlexWidth(t *testing.T) {
 		{"full-until-compact above threshold", 100, "full-until-compact", 60, 80, 60},
 		{"unknown mode returns detected", 100, "unknown", 60, 0, 100},
 		{"empty mode returns detected", 100, "", 60, 0, 100},
+		{"clamps to minimum when padding exceeds width", 30, "full-minus-40", 60, 0, minFlexWidth},
+		{"clamps small full width to minimum", 8, "full", 60, 0, minFlexWidth},
 	}
 
 	for _, tt := range tests {

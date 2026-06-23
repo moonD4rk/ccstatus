@@ -10,6 +10,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func ptr[T any](v T) *T { return &v }
+
+// readStatusLine reads settings.json at path and returns its statusLine block.
+func readStatusLine(t *testing.T, path string) map[string]any {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	var settings map[string]any
+	require.NoError(t, json.Unmarshal(data, &settings))
+	sl, ok := settings["statusLine"].(map[string]any)
+	require.True(t, ok, "statusLine should be a map")
+	return sl
+}
+
 func TestDir(t *testing.T) {
 	t.Run("default", func(t *testing.T) {
 		t.Setenv("CLAUDE_CONFIG_DIR", "")
@@ -34,7 +48,7 @@ func TestInstall(t *testing.T) {
 		tmpDir := t.TempDir()
 		t.Setenv("CLAUDE_CONFIG_DIR", tmpDir)
 
-		path, err := Install(0, false)
+		path, err := Install(InstallOptions{})
 		require.NoError(t, err)
 		assert.Equal(t, filepath.Join(tmpDir, "settings.json"), path)
 
@@ -59,7 +73,7 @@ func TestInstall(t *testing.T) {
 		tmpDir := t.TempDir()
 		t.Setenv("CLAUDE_CONFIG_DIR", tmpDir)
 
-		_, err := Install(5, true)
+		_, err := Install(InstallOptions{RefreshInterval: ptr(5), HideVimMode: ptr(true)})
 		require.NoError(t, err)
 
 		data, err := os.ReadFile(filepath.Join(tmpDir, "settings.json"))
@@ -74,6 +88,36 @@ func TestInstall(t *testing.T) {
 		assert.Equal(t, true, sl["hideVimModeIndicator"])
 	})
 
+	t.Run("--padding sets padding", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		t.Setenv("CLAUDE_CONFIG_DIR", tmpDir)
+
+		_, err := Install(InstallOptions{Padding: ptr(3)})
+		require.NoError(t, err)
+
+		sl := readStatusLine(t, filepath.Join(tmpDir, "settings.json"))
+		assert.InDelta(t, 3, sl["padding"], 0.01)
+	})
+
+	t.Run("re-install preserves hand-set padding and refreshInterval", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		t.Setenv("CLAUDE_CONFIG_DIR", tmpDir)
+
+		existing := `{
+  "statusLine": { "type": "command", "command": "ccstatus", "padding": 4, "refreshInterval": 7 }
+}
+`
+		require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "settings.json"), []byte(existing), 0o600))
+
+		// Re-install with no overrides must not clobber padding or refreshInterval.
+		_, err := Install(InstallOptions{})
+		require.NoError(t, err)
+
+		sl := readStatusLine(t, filepath.Join(tmpDir, "settings.json"))
+		assert.InDelta(t, 4, sl["padding"], 0.01)
+		assert.InDelta(t, 7, sl["refreshInterval"], 0.01)
+	})
+
 	t.Run("preserves existing fields", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		t.Setenv("CLAUDE_CONFIG_DIR", tmpDir)
@@ -85,7 +129,7 @@ func TestInstall(t *testing.T) {
 `
 		require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "settings.json"), []byte(existing), 0o600))
 
-		_, err := Install(0, false)
+		_, err := Install(InstallOptions{})
 		require.NoError(t, err)
 
 		data, err := os.ReadFile(filepath.Join(tmpDir, "settings.json"))
@@ -106,10 +150,10 @@ func TestInstall(t *testing.T) {
 		tmpDir := t.TempDir()
 		t.Setenv("CLAUDE_CONFIG_DIR", tmpDir)
 
-		_, err := Install(0, false)
+		_, err := Install(InstallOptions{})
 		require.NoError(t, err)
 
-		_, err = Install(0, false)
+		_, err = Install(InstallOptions{})
 		require.NoError(t, err)
 
 		data, err := os.ReadFile(filepath.Join(tmpDir, "settings.json"))
@@ -130,7 +174,7 @@ func TestInstallInvalidJSON(t *testing.T) {
 
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "settings.json"), []byte("{invalid}"), 0o600))
 
-	_, err := Install(0, false)
+	_, err := Install(InstallOptions{})
 	assert.Error(t, err)
 }
 
