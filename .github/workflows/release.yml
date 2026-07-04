@@ -37,6 +37,15 @@ jobs:
           git tag ${{ inputs.version }}
           git push origin ${{ inputs.version }}
 
+      - name: Mint homebrew-tap token
+        id: tap-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.MOOND4RK_CI_RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.MOOND4RK_CI_RELEASE_APP_PRIVATE_KEY }}
+          owner: moonD4rk
+          repositories: homebrew-tap
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v7
         with:
@@ -46,4 +55,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GORELEASER_CURRENT_TAG: ${{ inputs.version }}
-          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.MOOND4RK_HOMEBREW_TAP_GITHUB_TOKEN }}
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ steps.tap-token.outputs.token }}
