@@ -4,7 +4,7 @@ go 1.26.2
 
 require (
 	github.com/fatih/color v1.19.0
-	github.com/mattn/go-runewidth v0.0.24
+	github.com/mattn/go-runewidth v0.0.27
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/term v0.45.0
