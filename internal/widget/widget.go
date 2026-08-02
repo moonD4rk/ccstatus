@@ -275,13 +275,25 @@ var registry = map[string]Widget{
 		description:   "Extended thinking indicator",
 		defaultPrefix: "Think: ",
 	},
+	"fast-mode": &stringFieldWidget{
+		extract: func(data *status.Session) string {
+			if data.FastMode == nil || !*data.FastMode {
+				return ""
+			}
+			return "on"
+		},
+		defaultColor:  "yellow",
+		displayName:   "Fast Mode",
+		description:   "Fast mode indicator",
+		defaultPrefix: "Fast: ",
+	},
 	"session-name": &stringFieldWidget{
 		extract: func(data *status.Session) string {
 			return data.SessionName
 		},
 		defaultColor: defaultDimColor,
 		displayName:  "Session Name",
-		description:  "Custom session name set with --name or /rename",
+		description:  "Session name from --name or /rename, or the AI-generated title",
 	},
 	"exceeds-200k":   &Exceeds200KWidget{},
 	"terminal-width": &TerminalWidthWidget{},

@@ -12,6 +12,7 @@ type Session struct {
 	Cwd            string         `json:"cwd,omitempty"`
 	SessionID      string         `json:"session_id,omitempty"`
 	SessionName    string         `json:"session_name,omitempty"`
+	PromptID       string         `json:"prompt_id,omitempty"`
 	TranscriptPath string         `json:"transcript_path,omitempty"`
 	Model          ModelField     `json:"model,omitempty"`
 	Workspace      *Workspace     `json:"workspace,omitempty"`
@@ -20,6 +21,7 @@ type Session struct {
 	Cost           *CostInfo      `json:"cost,omitempty"`
 	ContextWindow  *ContextWindow `json:"context_window,omitempty"`
 	Exceeds200K    *bool          `json:"exceeds_200k_tokens,omitempty"`
+	FastMode       *bool          `json:"fast_mode,omitempty"`
 	Effort         *EffortInfo    `json:"effort,omitempty"`
 	Thinking       *ThinkingInfo  `json:"thinking,omitempty"`
 	RateLimits     *RateLimits    `json:"rate_limits,omitempty"`

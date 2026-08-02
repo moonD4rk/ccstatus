@@ -11,7 +11,7 @@ A customizable status line formatter for [Claude Code](https://code.claude.com/)
 ## Features
 
 - Single static binary with no runtime dependencies
-- 46 configurable widgets (model, tokens, context, git, cost, rate limits, and more)
+- 47 configurable widgets (model, tokens, context, git, cost, rate limits, and more)
 - Multi-line status line with flex separator layout
 - ANSI 16-color support via [fatih/color](https://github.com/fatih/color)
 - Configurable via `~/.config/ccstatus/settings.json`
@@ -239,7 +239,7 @@ To customize, edit the `lines` array in `settings.json` — e.g. swap `rate-limi
 | `model` | JSON | Current Claude model name | cyan |
 | `version` | JSON | Claude Code version | white |
 | `session-id` | JSON | Session ID (8-char short) | white |
-| `session-name` | JSON | Custom session name (`--name` / `/rename`) | white |
+| `session-name` | JSON | Session name (`--name` / `/rename`, or the AI-generated title) | white |
 | `session-cost` | JSON | Session cost in USD | green |
 | `session-clock` | JSON | Session duration | white |
 | `output-style` | JSON | Output style name | white |
@@ -268,7 +268,7 @@ To customize, edit the `lines` array in `settings.json` — e.g. swap `rate-limi
 | `transcript-path` | JSON | Transcript file path | white |
 | `added-dirs` | JSON | Directories added via `/add-dir` (`metadata.display`: `list` for names) | blue |
 | `repo` | JSON | Repository `owner/name` from the origin remote (raw: name only) | blue |
-| `pr` | JSON | Open PR number + review state, e.g. `#1234 approved` (raw: number) | cyan |
+| `pr` | JSON | Open PR number + review state, e.g. `#1234 approved`; the number is an OSC 8 link to the PR when `pr.url` is present (raw: number) | cyan |
 | `lines-changed` | Git | Lines changed (+N/-M) | green |
 | `lines-added` | Git | Lines added | green |
 | `lines-removed` | Git | Lines removed | red |
@@ -276,6 +276,7 @@ To customize, edit the `lines` array in `settings.json` — e.g. swap `rate-limi
 | `agent-name` | JSON | Agent name | cyan |
 | `effort` | JSON | Reasoning effort level | cyan |
 | `thinking` | JSON | Extended thinking indicator | magenta |
+| `fast-mode` | JSON | Fast mode indicator | yellow |
 | `exceeds-200k` | JSON | Warning at 200k tokens | red |
 | `terminal-width` | System | Terminal width in columns | white |
 | `custom-text` | - | User-defined static text | white |
