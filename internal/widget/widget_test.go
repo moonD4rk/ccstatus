@@ -83,6 +83,7 @@ func TestGet(t *testing.T) {
 		{"rate-limit-7d", false},
 		{"effort", false},
 		{"thinking", false},
+		{"fast-mode", false},
 		{"session-name", false},
 		{"added-dirs", false},
 		{"nonexistent", true},
@@ -715,8 +716,18 @@ func TestPRWidget(t *testing.T) {
 		ctx := RenderContext{Data: &status.Session{PR: &status.PRInfo{Number: &num}}}
 		assert.Equal(t, "#1234", w.Render(&config.WidgetItem{}, ctx, &settings))
 	})
+	t.Run("number is an OSC 8 hyperlink when url present", func(t *testing.T) {
+		url := "https://github.com/anthropics/claude-code/pull/1234"
+		ctx := RenderContext{Data: &status.Session{PR: &status.PRInfo{Number: &num, URL: url, ReviewState: "approved"}}}
+		want := "\x1b]8;;" + url + "\x07#1234\x1b]8;;\x07 approved"
+		assert.Equal(t, want, w.Render(&config.WidgetItem{}, ctx, &settings))
+	})
 	t.Run("raw value is the bare number", func(t *testing.T) {
 		ctx := RenderContext{Data: &status.Session{PR: &status.PRInfo{Number: &num, ReviewState: "approved"}}}
+		assert.Equal(t, "1234", w.Render(&config.WidgetItem{RawValue: true}, ctx, &settings))
+	})
+	t.Run("raw value ignores url", func(t *testing.T) {
+		ctx := RenderContext{Data: &status.Session{PR: &status.PRInfo{Number: &num, URL: "https://github.com/o/r/pull/1234"}}}
 		assert.Equal(t, "1234", w.Render(&config.WidgetItem{RawValue: true}, ctx, &settings))
 	})
 	t.Run("empty when no number", func(t *testing.T) {
@@ -770,9 +781,10 @@ func TestTypes(t *testing.T) {
 	assert.Contains(t, types, "rate-limit-7d")
 	assert.Contains(t, types, "effort")
 	assert.Contains(t, types, "thinking")
+	assert.Contains(t, types, "fast-mode")
 	assert.Contains(t, types, "session-name")
 	assert.Contains(t, types, "added-dirs")
-	assert.Len(t, types, 46)
+	assert.Len(t, types, 47)
 }
 
 func TestRemainingPercentageWidget(t *testing.T) {
@@ -1744,6 +1756,38 @@ func TestThinkingWidget(t *testing.T) {
 		ctx := RenderContext{Data: nil}
 		assert.Empty(t, w.Render(&item, ctx, &settings))
 	})
+}
+
+func TestFastModeWidget(t *testing.T) {
+	w := Get("fast-mode")
+	require.NotNil(t, w)
+	settings := config.DefaultSettings()
+	item := config.WidgetItem{}
+
+	t.Run("enabled returns indicator", func(t *testing.T) {
+		on := true
+		ctx := RenderContext{Data: &status.Session{FastMode: &on}}
+		assert.Equal(t, "on", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("disabled returns empty", func(t *testing.T) {
+		off := false
+		ctx := RenderContext{Data: &status.Session{FastMode: &off}}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("absent returns empty", func(t *testing.T) {
+		ctx := RenderContext{Data: &status.Session{}}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("nil data returns empty", func(t *testing.T) {
+		ctx := RenderContext{Data: nil}
+		assert.Empty(t, w.Render(&item, ctx, &settings))
+	})
+
+	assert.Equal(t, "yellow", w.DefaultColor())
+	assert.Equal(t, "Fast: ", w.DefaultPrefix())
 }
 
 func TestSessionNameWidget(t *testing.T) {

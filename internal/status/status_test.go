@@ -79,10 +79,14 @@ func TestParse(t *testing.T) {
 		},
 		{
 			name:  "new schema fields",
-			input: `{"session_name":"my-feature","model":{"id":"claude-opus-4-7","display_name":"Opus"},"workspace":{"current_dir":"/x","added_dirs":["/a","/b"],"git_worktree":"feat-1"},"effort":{"level":"high"},"thinking":{"enabled":true},"rate_limits":{"five_hour":{"used_percentage":45.5,"resets_at":1738425600},"seven_day":{"used_percentage":30,"resets_at":1738857600}}}`,
+			input: `{"session_name":"my-feature","prompt_id":"550e8400-e29b-41d4-a716-446655440000","fast_mode":true,"model":{"id":"claude-opus-4-7","display_name":"Opus"},"workspace":{"current_dir":"/x","added_dirs":["/a","/b"],"git_worktree":"feat-1"},"effort":{"level":"high"},"thinking":{"enabled":true},"rate_limits":{"five_hour":{"used_percentage":45.5,"resets_at":1738425600},"seven_day":{"used_percentage":30,"resets_at":1738857600}}}`,
 			check: func(t *testing.T, s *Session) {
 				t.Helper()
 				assert.Equal(t, "my-feature", s.SessionName)
+				assert.Equal(t, "550e8400-e29b-41d4-a716-446655440000", s.PromptID)
+
+				require.NotNil(t, s.FastMode)
+				assert.True(t, *s.FastMode)
 
 				require.NotNil(t, s.Workspace)
 				assert.Equal(t, []string{"/a", "/b"}, s.Workspace.AddedDirs)
@@ -135,6 +139,15 @@ func TestParse(t *testing.T) {
 			},
 		},
 		{
+			name:  "fast_mode explicitly false",
+			input: `{"fast_mode":false}`,
+			check: func(t *testing.T, s *Session) {
+				t.Helper()
+				require.NotNil(t, s.FastMode)
+				assert.False(t, *s.FastMode)
+			},
+		},
+		{
 			name:  "empty JSON object",
 			input: `{}`,
 			check: func(t *testing.T, s *Session) {
@@ -144,6 +157,8 @@ func TestParse(t *testing.T) {
 				assert.Nil(t, s.Vim)
 				assert.Nil(t, s.Agent)
 				assert.Empty(t, s.SessionName)
+				assert.Empty(t, s.PromptID)
+				assert.Nil(t, s.FastMode)
 				assert.Nil(t, s.Effort)
 				assert.Nil(t, s.Thinking)
 				assert.Nil(t, s.RateLimits)

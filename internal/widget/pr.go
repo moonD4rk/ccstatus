@@ -11,7 +11,9 @@ import (
 type PRWidget struct{ noAffix }
 
 // Render returns "#<number>" plus the review state when present (just the bare
-// number in raw mode), and empty when there is no open PR.
+// number in raw mode), and empty when there is no open PR. When pr.url is
+// present the number is wrapped in an OSC 8 hyperlink; terminals without
+// hyperlink support ignore the sequence and show plain text.
 func (w *PRWidget) Render(item *config.WidgetItem, ctx RenderContext, _ *config.Settings) string {
 	if ctx.Data == nil || ctx.Data.PR == nil || ctx.Data.PR.Number == nil {
 		return ""
@@ -22,6 +24,9 @@ func (w *PRWidget) Render(item *config.WidgetItem, ctx RenderContext, _ *config.
 		return number
 	}
 	out := "#" + number
+	if pr.URL != "" {
+		out = "\x1b]8;;" + pr.URL + "\x07" + out + "\x1b]8;;\x07"
+	}
 	if pr.ReviewState != "" {
 		out += " " + pr.ReviewState
 	}
