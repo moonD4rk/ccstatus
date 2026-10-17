@@ -24,9 +24,6 @@ golangci-lint run
 gofumpt -l -w .
 goimports -w -local github.com/moond4rk/ccstatus .
 
-# Spelling
-typos
-
 # Dependencies
 go mod tidy
 

@@ -142,6 +142,7 @@ linters:
 formatters:
   enable:
     - gofmt
+    - gofumpt
     - goimports
   settings:
     gofmt:

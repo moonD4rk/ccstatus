@@ -196,7 +196,7 @@ To customize, edit the `lines` array in `settings.json` — e.g. swap `rate-limi
 | `colorLevel` | int | `2` | `0` disables color; any value `>= 1` enables ANSI 16-color output |
 | `flexMode` | string | `"full-until-compact"` | How flex separator calculates available width |
 | `compactThreshold` | int | `90` | Context % at which `full-until-compact` switches to the wider (−40 col) right margin |
-| `terminalWidth` | int | (auto) | Force the status line width in columns. Claude Code runs the status line command with stdio piped, so width auto-detection often falls back to 80 regardless of terminal size — set this (e.g. `180`) to make ccstatus use your real width. Leave unset/`0` to auto-detect. |
+| `terminalWidth` | int | (auto) | Force the status line width in columns. Leave unset/`0` to auto-detect: ccstatus reads the `COLUMNS` variable that Claude Code (v2.1.153+) sets for status line commands, then falls back to the attached terminal, then 80. |
 | `defaultSeparator` | string | `"\|"` | Separator character between widgets |
 | `defaultPadding` | string | `" "` | Padding around separators |
 | `inheritSeparatorColors` | bool | `false` | Separators inherit color from adjacent widget |
