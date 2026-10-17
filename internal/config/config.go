@@ -1,7 +1,10 @@
 package config
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 )
@@ -84,21 +87,74 @@ func Path() string {
 	return filepath.Join(Dir(), configFileName)
 }
 
-// Load reads and parses the settings file. Returns defaults if the file does not exist.
+// Load reads the settings file over the defaults, so fields it omits keep their
+// default values; a missing file yields the defaults. On a read or decode error
+// it returns the defaults along with the error, so callers can still render.
 func Load() (Settings, error) {
-	path := Path()
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(Path())
 	if err != nil {
 		if os.IsNotExist(err) {
 			return DefaultSettings(), nil
 		}
-		return Settings{}, err
+		return DefaultSettings(), err
 	}
-	var s Settings
-	if err := json.Unmarshal(data, &s); err != nil {
-		return Settings{}, err
+	s, err := Parse(data)
+	if err != nil {
+		return DefaultSettings(), err
 	}
 	return s, nil
+}
+
+// Parse decodes settings JSON over the defaults. An absent or null "lines" keeps
+// the default layout, while an explicit empty list renders nothing. Decode
+// errors are returned as a *PositionError.
+func Parse(data []byte) (Settings, error) {
+	s := DefaultSettings()
+	s.Lines = nil
+	if err := json.Unmarshal(data, &s); err != nil {
+		return Settings{}, positionError(data, err)
+	}
+	if s.Lines == nil {
+		s.Lines = DefaultSettings().Lines
+	}
+	return s, nil
+}
+
+// PositionError is a settings decode error with the 1-based line and column at
+// which it was detected.
+type PositionError struct {
+	Line   int
+	Column int
+	Err    error
+}
+
+// Error formats the error as "line:column: message".
+func (e *PositionError) Error() string {
+	return fmt.Sprintf("%d:%d: %v", e.Line, e.Column, e.Err)
+}
+
+// Unwrap returns the underlying decode error.
+func (e *PositionError) Unwrap() error { return e.Err }
+
+// positionError attaches a line and column to JSON syntax and type errors.
+func positionError(data []byte, err error) error {
+	var offset int64
+	var syntaxErr *json.SyntaxError
+	var typeErr *json.UnmarshalTypeError
+	switch {
+	case errors.As(err, &syntaxErr):
+		offset = syntaxErr.Offset
+	case errors.As(err, &typeErr):
+		offset = typeErr.Offset
+	default:
+		return err
+	}
+	prefix := data[:min(max(offset, 0), int64(len(data)))]
+	return &PositionError{
+		Line:   bytes.Count(prefix, []byte("\n")) + 1,
+		Column: max(len(prefix)-bytes.LastIndexByte(prefix, '\n')-1, 1),
+		Err:    err,
+	}
 }
 
 // Save writes the settings to the configuration file.

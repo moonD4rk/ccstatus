@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -83,4 +84,75 @@ func TestRepoAgainstScratchRepo(t *testing.T) {
 		assert.Equal(t, "wt", Repo{Dir: wtPath}.Worktree())
 		assert.Equal(t, "feature", Repo{Dir: wtPath}.Branch())
 	})
+}
+
+func TestDiffSumsStagedAndUnstaged(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not installed")
+	}
+	isolateGit(t)
+
+	t.Run("with commits", func(t *testing.T) {
+		dir := t.TempDir()
+		gitExec(t, dir, "init", "-q")
+		writeFile(t, filepath.Join(dir, "a.txt"), "1\n2\n3\n")
+		writeFile(t, filepath.Join(dir, "b.txt"), "1\n")
+		gitExec(t, dir, "add", ".")
+		gitExec(t, dir, "commit", "-q", "-m", "init")
+
+		writeFile(t, filepath.Join(dir, "a.txt"), "1\n3\nnew\n") // staged: -1 +1
+		gitExec(t, dir, "add", "a.txt")
+		writeFile(t, filepath.Join(dir, "b.txt"), "1\n2\n3\n") // unstaged: +2
+		assert.Equal(t, DiffStat{Added: 3, Removed: 1}, Repo{Dir: dir}.Diff())
+	})
+
+	t.Run("unborn HEAD", func(t *testing.T) {
+		dir := t.TempDir()
+		gitExec(t, dir, "init", "-q")
+		writeFile(t, filepath.Join(dir, "a.txt"), "1\n2\n")
+		gitExec(t, dir, "add", "a.txt")                        // staged: +2
+		writeFile(t, filepath.Join(dir, "a.txt"), "1\n2\n3\n") // unstaged: +1
+		assert.Equal(t, DiffStat{Added: 3}, Repo{Dir: dir}.Diff())
+	})
+
+	t.Run("outside a repository", func(t *testing.T) {
+		assert.Equal(t, DiffStat{}, Repo{Dir: t.TempDir()}.Diff())
+	})
+}
+
+// TestLookupsNeverRewriteIndex guards against taking index.lock: git status and
+// porcelain diff refresh a stat-dirty index in place, which races the user's own
+// git commands while the status line renders.
+func TestLookupsNeverRewriteIndex(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not installed")
+	}
+	isolateGit(t)
+
+	dir := t.TempDir()
+	gitExec(t, dir, "init", "-q")
+	for _, name := range []string{"a.txt", "b.txt", "c.txt"} {
+		writeFile(t, filepath.Join(dir, name), name+"\n")
+	}
+	gitExec(t, dir, "add", ".")
+	gitExec(t, dir, "commit", "-q", "-m", "init")
+
+	// Make every entry stat-dirty and backdate the index so a rewrite would show.
+	later := time.Now().Add(time.Hour)
+	for _, name := range []string{"a.txt", "b.txt", "c.txt"} {
+		require.NoError(t, os.Chtimes(filepath.Join(dir, name), later, later))
+	}
+	index := filepath.Join(dir, ".git", "index")
+	past := time.Now().Add(-time.Hour).Truncate(time.Second)
+	require.NoError(t, os.Chtimes(index, past, past))
+
+	repo := Repo{Dir: dir}
+	repo.Branch()
+	repo.Changes()
+	repo.Diff()
+	repo.Worktree()
+
+	info, err := os.Stat(index)
+	require.NoError(t, err)
+	assert.True(t, info.ModTime().Equal(past), "index was rewritten at %v", info.ModTime())
 }

@@ -12,55 +12,38 @@ type DiffStat struct {
 }
 
 // Diff returns the number of lines added and removed in the working tree
-// (staged + unstaged) compared to HEAD. Returns zero values if not in a git
-// repository or on error.
+// (staged + unstaged) compared to HEAD. It uses plumbing that never rewrites the
+// index and --numstat, whose output is not localized. Returns zero values if not
+// in a git repository or on error.
 func (r Repo) Diff() DiffStat {
-	staged := r.diffShortStat("--cached") // index vs HEAD
-	unstaged := r.diffShortStat()         // working tree vs index
-	return DiffStat{
-		Added:   staged.Added + unstaged.Added,
-		Removed: staged.Removed + unstaged.Removed,
+	if out, ok := r.run("diff-index", "--numstat", "HEAD"); ok {
+		return parseNumStat(out)
 	}
-}
-
-// diffShortStat runs git diff --shortstat with optional extra args and parses the output.
-// Output format: " 3 files changed, 10 insertions(+), 5 deletions(-)"
-func (r Repo) diffShortStat(extraArgs ...string) DiffStat {
-	args := append([]string{"diff", "--shortstat"}, extraArgs...)
-	out, ok := r.run(args...)
+	// No commit yet (unborn HEAD): sum the unstaged and staged changes instead.
+	unstaged, ok := r.run("diff-files", "--numstat")
 	if !ok {
 		return DiffStat{}
 	}
-	return parseShortStat(out)
+	staged, _ := r.run("diff", "--cached", "--numstat")
+	u, s := parseNumStat(unstaged), parseNumStat(staged)
+	return DiffStat{Added: u.Added + s.Added, Removed: u.Removed + s.Removed}
 }
 
-// parseShortStat parses git diff --shortstat output.
-// Examples:
-//
-//	" 3 files changed, 10 insertions(+), 5 deletions(-)"
-//	" 1 file changed, 2 insertions(+)"
-//	" 1 file changed, 3 deletions(-)"
-//	""
-func parseShortStat(line string) DiffStat {
-	if line == "" {
-		return DiffStat{}
-	}
+// parseNumStat sums `git diff --numstat` output, one "<added>\t<removed>\t<path>"
+// line per file. Binary files report "-" and count as zero.
+func parseNumStat(out string) DiffStat {
 	var stat DiffStat
-	for part := range strings.SplitSeq(line, ",") {
-		part = strings.TrimSpace(part)
-		fields := strings.Fields(part)
-		if len(fields) < 2 {
+	for line := range strings.Lines(out) {
+		added, rest, ok := strings.Cut(line, "\t")
+		if !ok {
 			continue
 		}
-		n, err := strconv.Atoi(fields[0])
-		if err != nil {
-			continue
+		removed, _, _ := strings.Cut(rest, "\t")
+		if n, err := strconv.Atoi(added); err == nil {
+			stat.Added += n
 		}
-		switch {
-		case strings.Contains(fields[1], "insertion"):
-			stat.Added = n
-		case strings.Contains(fields[1], "deletion"):
-			stat.Removed = n
+		if n, err := strconv.Atoi(removed); err == nil {
+			stat.Removed += n
 		}
 	}
 	return stat

@@ -2,6 +2,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/moond4rk/ccstatus/internal/color"
 	"github.com/moond4rk/ccstatus/internal/config"
 	"github.com/moond4rk/ccstatus/internal/render"
 	"github.com/moond4rk/ccstatus/internal/status"
@@ -92,40 +94,72 @@ func newRootCmd() *cobra.Command {
 
 func runStatusLine(cmd *cobra.Command, _ []string) error {
 	data, err := io.ReadAll(cmd.InOrStdin())
-	if err != nil {
-		return fmt.Errorf("reading stdin: %w", err)
-	}
+	renderStatusLine(cmd.OutOrStdout(), cmd.ErrOrStderr(), data, err)
+	return nil
+}
 
-	statusData, err := status.Parse(data)
-	if err != nil {
-		return fmt.Errorf("parsing JSON: %w", err)
-	}
+// renderStatusLine writes the status line for the Claude Code payload in data.
+// It never fails: Claude Code blanks the whole status line when the command
+// exits non-zero, so problems are reported as a red line instead.
+func renderStatusLine(stdout, stderr io.Writer, data []byte, readErr error) {
+	settings, settingsErr := config.Load()
+	width := terminal.Width(settings.TerminalWidth)
 
-	settings, err := config.Load()
+	// Buffer all lines and write once to avoid partial reads when Claude Code
+	// reads from the pipe during rapid re-invocations.
+	var buf strings.Builder
+	defer func() { _, _ = io.WriteString(stdout, buf.String()) }()
+
+	if settingsErr != nil {
+		writeLine(&buf, errorLine(&settings, width, "settings.json:"+settingsErrorText(settingsErr)+" (run ccstatus validate)"))
+	}
+	if readErr != nil {
+		writeLine(&buf, errorLine(&settings, width, "reading stdin: "+readErr.Error()))
+		return
+	}
+	session, dropped, err := status.Parse(data)
 	if err != nil {
-		return fmt.Errorf("loading settings: %w", err)
+		writeLine(&buf, errorLine(&settings, width, "invalid input: "+err.Error()))
+		return
+	}
+	if len(dropped) > 0 {
+		fmt.Fprintf(stderr, "ccstatus: ignored fields with unexpected types: %s\n", strings.Join(dropped, ", "))
 	}
 
 	ctx := widget.RenderContext{
-		Data:          statusData,
-		TerminalWidth: terminal.Width(settings.TerminalWidth),
-		Git:           widget.NewGitCache(statusData.WorkingDir()),
+		Data:          session,
+		TerminalWidth: width,
+		Git:           widget.NewGitCache(session.WorkingDir()),
 		RawInput:      data,
 	}
-
-	// Buffer all lines and write atomically to avoid partial reads
-	// when Claude Code reads from the pipe during rapid re-invocations.
-	var buf strings.Builder
+	widget.PrefetchGit(settings.Lines, ctx)
 	for _, line := range settings.Lines {
-		rendered := render.RenderLine(line, &settings, ctx)
-		output := render.PostProcess(rendered)
-		if output != "" {
-			buf.WriteString(output)
-			buf.WriteByte('\n')
-		}
+		writeLine(&buf, render.PostProcess(render.RenderLine(line, &settings, ctx)))
 	}
-	if buf.Len() > 0 {
-		fmt.Fprint(cmd.OutOrStdout(), buf.String())
+}
+
+// settingsErrorText formats a settings load error after the "settings.json:"
+// label: decode errors already lead with "line:column:".
+func settingsErrorText(err error) string {
+	var posErr *config.PositionError
+	if errors.As(err, &posErr) {
+		return posErr.Error()
 	}
-	return nil
+	return " " + err.Error()
+}
+
+// errorLine renders msg as a red status line row, truncated to the width the
+// configured flex mode leaves for the status line.
+func errorLine(settings *config.Settings, width int, msg string) string {
+	text := color.Apply("ccstatus: "+msg, "red", "", false, settings.ColorLevel)
+	maxWidth := render.CalculateFlexWidth(width, settings.FlexMode, settings.CompactThreshold, 0)
+	return render.PostProcess(render.Truncate(text, maxWidth))
+}
+
+func writeLine(buf *strings.Builder, line string) {
+	if line == "" {
+		return
+	}
+	buf.WriteString(line)
+	buf.WriteByte('\n')
 }

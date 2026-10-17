@@ -22,6 +22,8 @@ func (w *GitBranchWidget) Render(item *config.WidgetItem, ctx RenderContext, _ *
 	return branch
 }
 
+func (w *GitBranchWidget) gitFacts(RenderContext) []gitFact { return []gitFact{factBranch} }
+
 // DefaultColor returns the default foreground color.
 func (w *GitBranchWidget) DefaultColor() string { return "magenta" }
 

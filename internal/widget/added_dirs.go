@@ -29,6 +29,8 @@ func (w *AddedDirsWidget) Render(item *config.WidgetItem, ctx RenderContext, _ *
 	return fmt.Sprintf("+%d", len(dirs))
 }
 
+func (w *AddedDirsWidget) displayModes() []string { return []string{"count", "list"} }
+
 // DefaultColor returns the default foreground color.
 func (w *AddedDirsWidget) DefaultColor() string { return "blue" }
 

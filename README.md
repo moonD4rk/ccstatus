@@ -116,7 +116,7 @@ Removes the ccstatus status line configuration from Claude Code's settings.
 ccstatus validate
 ```
 
-Checks `settings.json` for unknown widget types, missing or duplicate widget IDs, and invalid color names. Exits non-zero when any problem is found, so it works as a CI gate.
+Checks `settings.json` for JSON errors (reported as `path:line:column`), unknown widget types, missing or duplicate widget IDs, invalid color names, out-of-range `flexMode` / `colorLevel` / `compactThreshold`, and `metadata.display` values the widget does not support. Exits non-zero when any problem is found, so it works as a CI gate.
 
 #### `ccstatus dump`
 
@@ -297,6 +297,12 @@ For the full JSON schema, see the [official documentation](https://code.claude.c
 > **Not yet supported:** the separate [`subagentStatusLine`](https://code.claude.com/docs/en/statusline#subagent-status-lines) setting (a per-subagent row in the agent panel) has a different input/output contract and is tracked for a future release.
 
 ## Debugging
+
+ccstatus never exits non-zero while rendering, because Claude Code hides the whole status line when the command fails. Problems show up in the status line instead:
+
+- An invalid `settings.json` renders the default layout below a red `ccstatus: settings.json:LINE:COL: ...` line; run `ccstatus validate` for the full list.
+- Input that is not JSON renders a single red `ccstatus: invalid input: ...` line.
+- A field whose type changed in a newer Claude Code is coerced when that is unambiguous (a quoted number, a fractional epoch) or dropped otherwise, and the rest still renders; dropped fields are listed on stderr, which `claude --debug` logs.
 
 Use `ccstatus dump` to capture the raw JSON that Claude Code sends:
 

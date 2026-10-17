@@ -18,6 +18,8 @@ func (w *GitChangesWidget) Render(_ *config.WidgetItem, ctx RenderContext, _ *co
 	return strconv.Itoa(n)
 }
 
+func (w *GitChangesWidget) gitFacts(RenderContext) []gitFact { return []gitFact{factChanges} }
+
 // DefaultColor returns the default foreground color.
 func (w *GitChangesWidget) DefaultColor() string { return "yellow" }
 

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -84,8 +85,68 @@ func TestLoadInvalidJSON(t *testing.T) {
 	require.NoError(t, os.MkdirAll(dir, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "settings.json"), []byte("{invalid}"), 0o600))
 
-	_, err := Load()
-	assert.Error(t, err)
+	s, err := Load()
+	require.Error(t, err)
+	assert.Equal(t, DefaultSettings(), s, "callers still get a renderable config")
+}
+
+func TestParseMergesDefaults(t *testing.T) {
+	t.Run("omitted fields keep their defaults", func(t *testing.T) {
+		s, err := Parse([]byte(`{"lines":[[{"id":"1","type":"model"}]]}`))
+		require.NoError(t, err)
+		def := DefaultSettings()
+		assert.Equal(t, def.ColorLevel, s.ColorLevel)
+		assert.Equal(t, def.DefaultPadding, s.DefaultPadding)
+		assert.Equal(t, def.FlexMode, s.FlexMode)
+		assert.Equal(t, def.CompactThreshold, s.CompactThreshold)
+		assert.Equal(t, [][]WidgetItem{{{ID: "1", Type: "model"}}}, s.Lines)
+	})
+
+	t.Run("explicit values win, including zero", func(t *testing.T) {
+		s, err := Parse([]byte(`{"colorLevel":0,"defaultPadding":"","compactThreshold":50}`))
+		require.NoError(t, err)
+		assert.Equal(t, 0, s.ColorLevel)
+		assert.Empty(t, s.DefaultPadding)
+		assert.Equal(t, 50, s.CompactThreshold)
+	})
+
+	t.Run("absent or null lines keep the default layout", func(t *testing.T) {
+		for _, input := range []string{`{}`, `{"lines":null}`, `null`} {
+			s, err := Parse([]byte(input))
+			require.NoError(t, err)
+			assert.Equal(t, DefaultSettings().Lines, s.Lines, input)
+		}
+	})
+
+	t.Run("explicit empty lines render nothing", func(t *testing.T) {
+		s, err := Parse([]byte(`{"lines":[]}`))
+		require.NoError(t, err)
+		assert.Empty(t, s.Lines)
+	})
+}
+
+func TestParseReportsPosition(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		wantLine int
+		wantCol  int
+	}{
+		{"syntax error on one line", `{invalid}`, 1, 2},
+		{"trailing comma", "{\n  \"lines\": [\n    [{\"id\": \"1\", \"type\": \"model\"},]\n  ]\n}", 3, 35},
+		{"type error", "{\n  \"colorLevel\": \"high\"\n}", 2, 22},
+		{"truncated input", "{\n  \"lines\": [", 2, 12},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := Parse([]byte(tt.input))
+			var posErr *PositionError
+			require.ErrorAs(t, err, &posErr)
+			assert.Equal(t, tt.wantLine, posErr.Line)
+			assert.Equal(t, tt.wantCol, posErr.Column)
+			assert.Contains(t, err.Error(), fmt.Sprintf("%d:%d: ", tt.wantLine, tt.wantCol))
+		})
+	}
 }
 
 func TestWidgetItem_IsMerged(t *testing.T) {

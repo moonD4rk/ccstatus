@@ -1,7 +1,10 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"slices"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -9,6 +12,13 @@ import (
 	"github.com/moond4rk/ccstatus/internal/config"
 	"github.com/moond4rk/ccstatus/internal/widget"
 )
+
+const (
+	maxColorLevel       = 3
+	maxCompactThreshold = 100
+)
+
+var flexModes = []string{"full", "full-minus-40", "full-until-compact"}
 
 func newValidateCmd() *cobra.Command {
 	return &cobra.Command{
@@ -19,13 +29,19 @@ func newValidateCmd() *cobra.Command {
 	}
 }
 
-// runValidate checks the loaded settings for unknown widget types, missing or
-// duplicate widget IDs, and invalid color names. It reports every problem and
-// exits non-zero when any are found, so it is usable as a CI gate.
+// runValidate checks the loaded settings for decode errors (reported as
+// path:line:column), unknown widget types, missing or duplicate widget IDs,
+// invalid colors, out-of-range globals, and unsupported display modes. It
+// reports every problem and exits non-zero when any are found, so it is usable
+// as a CI gate.
 func runValidate(cmd *cobra.Command, _ []string) error {
 	settings, err := config.Load()
 	if err != nil {
-		return fmt.Errorf("invalid settings: %w", err)
+		var posErr *config.PositionError
+		if errors.As(err, &posErr) {
+			return fmt.Errorf("%s:%w", config.Path(), err)
+		}
+		return fmt.Errorf("reading settings: %w", err)
 	}
 
 	problems := collectProblems(&settings)
@@ -45,41 +61,75 @@ func runValidate(cmd *cobra.Command, _ []string) error {
 func collectProblems(settings *config.Settings) []string {
 	var problems []string
 	seen := make(map[string]bool)
-
-	checkColor := func(loc, kind, val string) {
-		if val != "" && !color.IsNamed(val) {
-			problems = append(problems, fmt.Sprintf("%s: invalid %s %q", loc, kind, val))
-		}
-	}
-
 	for li, line := range settings.Lines {
 		for i := range line {
-			item := &line[i]
 			loc := fmt.Sprintf("line %d widget %d", li+1, i+1)
-
-			switch {
-			case item.Type == "":
-				problems = append(problems, loc+": missing widget type")
-			case widget.Get(item.Type) == nil:
-				problems = append(problems, fmt.Sprintf("%s: unknown widget type %q", loc, item.Type))
-			}
-
-			switch {
-			case item.ID == "":
-				problems = append(problems, loc+": missing id")
-			case seen[item.ID]:
-				problems = append(problems, fmt.Sprintf("%s: duplicate id %q", loc, item.ID))
-			default:
-				seen[item.ID] = true
-			}
-
-			checkColor(loc, "color", item.Color)
-			checkColor(loc, "backgroundColor", item.BackgroundColor)
+			problems = append(problems, itemProblems(loc, &line[i], seen)...)
 		}
 	}
+	return append(problems, globalProblems(settings)...)
+}
 
-	checkColor("settings", "overrideForegroundColor", settings.OverrideForegroundColor)
-	checkColor("settings", "overrideBackgroundColor", settings.OverrideBackgroundColor)
+// itemProblems checks one widget item; seen tracks the IDs used so far.
+func itemProblems(loc string, item *config.WidgetItem, seen map[string]bool) []string {
+	var problems []string
+	known := false
+	switch {
+	case item.Type == "":
+		problems = append(problems, loc+": missing widget type")
+	case widget.Get(item.Type) == nil:
+		problems = append(problems, fmt.Sprintf("%s: unknown widget type %q", loc, item.Type))
+	default:
+		known = true
+	}
 
+	switch {
+	case item.ID == "":
+		problems = append(problems, loc+": missing id")
+	case seen[item.ID]:
+		problems = append(problems, fmt.Sprintf("%s: duplicate id %q", loc, item.ID))
+	default:
+		seen[item.ID] = true
+	}
+
+	problems = append(problems, colorProblem(loc, "color", item.Color)...)
+	problems = append(problems, colorProblem(loc, "backgroundColor", item.BackgroundColor)...)
+
+	if display, ok := item.Metadata["display"]; ok && known {
+		modes, hasModes := widget.DisplayModes(item.Type)
+		switch {
+		case !hasModes:
+			problems = append(problems, fmt.Sprintf("%s: %s does not use metadata.display", loc, item.Type))
+		case !slices.Contains(modes, display):
+			problems = append(problems, fmt.Sprintf("%s: invalid metadata.display %q (want one of %s)",
+				loc, display, strings.Join(modes, ", ")))
+		}
+	}
 	return problems
+}
+
+// globalProblems checks the top-level settings.
+func globalProblems(settings *config.Settings) []string {
+	problems := colorProblem("settings", "overrideForegroundColor", settings.OverrideForegroundColor)
+	problems = append(problems, colorProblem("settings", "overrideBackgroundColor", settings.OverrideBackgroundColor)...)
+	if !slices.Contains(flexModes, settings.FlexMode) {
+		problems = append(problems, fmt.Sprintf("settings: invalid flexMode %q (want one of %s)",
+			settings.FlexMode, strings.Join(flexModes, ", ")))
+	}
+	if settings.ColorLevel < 0 || settings.ColorLevel > maxColorLevel {
+		problems = append(problems, fmt.Sprintf("settings: colorLevel %d out of range 0-%d", settings.ColorLevel, maxColorLevel))
+	}
+	if settings.CompactThreshold < 0 || settings.CompactThreshold > maxCompactThreshold {
+		problems = append(problems, fmt.Sprintf("settings: compactThreshold %d out of range 0-%d",
+			settings.CompactThreshold, maxCompactThreshold))
+	}
+	return problems
+}
+
+// colorProblem reports a non-empty value that is not a named color.
+func colorProblem(loc, kind, val string) []string {
+	if val != "" && !color.IsNamed(val) {
+		return []string{fmt.Sprintf("%s: invalid %s %q", loc, kind, val)}
+	}
+	return nil
 }

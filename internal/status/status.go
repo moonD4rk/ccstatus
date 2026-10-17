@@ -3,6 +3,9 @@ package status
 
 import (
 	"encoding/json"
+	"reflect"
+	"slices"
+	"strconv"
 	"strings"
 )
 
@@ -31,13 +34,47 @@ type Session struct {
 	PR             *PRInfo        `json:"pr,omitempty"`
 }
 
-// Parse parses JSON data into Session.
-func Parse(data []byte) (*Session, error) {
+// Parse decodes the JSON payload piped from Claude Code. Input that is not a
+// JSON object (or null) is an error. A field of an unexpected type does not fail
+// the parse, so one schema change cannot blank the status line: it is coerced
+// when the intent is unambiguous and dropped otherwise, and the JSON paths of
+// dropped fields are returned.
+func Parse(data []byte) (session *Session, dropped []string, err error) {
 	var s Session
-	if err := json.Unmarshal(data, &s); err != nil {
-		return nil, err
+	err = json.Unmarshal(data, &s)
+	if err == nil {
+		return &s, nil, nil
 	}
-	return &s, nil
+	var fields map[string]json.RawMessage
+	if json.Unmarshal(data, &fields) != nil {
+		return nil, nil, err
+	}
+	s = Session{}
+	dropped = decodeLenient(data, reflect.ValueOf(&s).Elem(), "")
+	return &s, dropped, nil
+}
+
+// VersionAtLeast reports whether the Claude Code version that sent the payload
+// is at least major.minor.patch. An absent or unparsable version reports false.
+func (s *Session) VersionAtLeast(major, minor, patch int) bool {
+	if s == nil {
+		return false
+	}
+	parts := strings.SplitN(s.Version, ".", 3)
+	if len(parts) != 3 {
+		return false
+	}
+	got := make([]int, len(parts))
+	for i, p := range parts {
+		// Tolerate pre-release suffixes such as "2.1.302-beta".
+		digits := p[:len(p)-len(strings.TrimLeft(p, "0123456789"))]
+		n, err := strconv.Atoi(digits)
+		if err != nil {
+			return false
+		}
+		got[i] = n
+	}
+	return slices.Compare(got, []int{major, minor, patch}) >= 0
 }
 
 // WorkingDir returns the directory git and path widgets should operate in,

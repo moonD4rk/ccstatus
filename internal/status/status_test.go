@@ -184,13 +184,14 @@ func TestParse(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s, err := Parse([]byte(tt.input))
+			s, dropped, err := Parse([]byte(tt.input))
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
 			}
 			require.NoError(t, err)
 			require.NotNil(t, s)
+			assert.Empty(t, dropped)
 			if tt.check != nil {
 				tt.check(t, s)
 			}
