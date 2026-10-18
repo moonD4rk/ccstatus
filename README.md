@@ -182,9 +182,11 @@ Settings are stored at `~/.config/ccstatus/settings.json`. Edit manually to cust
 
 A lean 2-line layout. Widgets with nothing to show — `effort`, `git-worktree`, `rate-limits` — are dropped, so a plain session collapses to `model | Ctx% | branch | +/- | $` over `cwd | Session`.
 
-**Line 1:** `model · effort | context % | git branch + worktree | lines +/- | session cost` (context % turns yellow at 70% and red at 90%)
+**Line 1:** `model · effort | context % | git branch + worktree | lines +/- | session cost`
 
 **Line 2:** `working directory | rate limits (5h/7d, or the gateway spend limit) | session clock`
+
+Context %, rate limits and the subagent `task-context` share one color scale: gray below 30%, white from 30%, yellow from 60% and red from 90%.
 
 ```
 Opus 4.7 (1M context) · max | Ctx: 36% | main feat-x | +12 -3 | $0.34
@@ -215,9 +217,10 @@ To customize, edit the `lines` array in `settings.json` — e.g. swap `rate-limi
       {
         "id": "3",
         "type": "context-percentage",
-        "color": "green",
+        "color": "brightBlack",
         "thresholds": [
-          { "gte": 70, "color": "yellow" },
+          { "gte": 30, "color": "white" },
+          { "gte": 60, "color": "yellow" },
           { "gte": 90, "color": "red" }
         ]
       }
@@ -279,7 +282,7 @@ With `ccstatus install --subagent`, Claude Code runs `ccstatus subagent` for the
   { "id": "s4", "type": "separator" },
   { "id": "s5", "type": "task-model" },
   { "id": "s6", "type": "task-tokens" },
-  { "id": "s7", "type": "task-context", "thresholds": [{ "gte": 70, "color": "yellow" }, { "gte": 90, "color": "red" }] },
+  { "id": "s7", "type": "task-context", "color": "brightBlack", "thresholds": [{ "gte": 30, "color": "white" }, { "gte": 60, "color": "yellow" }, { "gte": 90, "color": "red" }] },
   { "id": "s8", "type": "task-sparkline" },
   { "id": "s9", "type": "separator" },
   { "id": "s10", "type": "task-label" }

@@ -51,10 +51,7 @@ func DefaultSettings() Settings {
 				{ID: "1", Type: "model", Color: "cyan"},
 				{ID: "2", Type: "effort", Color: "cyan", Prefix: "· "},
 				{ID: "3", Type: "separator"},
-				{ID: "4", Type: "context-percentage", Color: "green", Thresholds: []Threshold{
-					{GTE: 70, Color: "yellow"},
-					{GTE: 90, Color: "red"},
-				}},
+				{ID: "4", Type: "context-percentage", Color: "brightBlack", Thresholds: usageThresholds()},
 				{ID: "5", Type: "separator"},
 				{ID: "6", Type: "git-branch", Color: "magenta"},
 				{ID: "7", Type: "git-worktree", Color: "brightBlack"},
@@ -68,7 +65,7 @@ func DefaultSettings() Settings {
 				// current dir | rate limits (5h/7d) | session clock  (plain separator, left-aligned)
 				{ID: "13", Type: "current-working-dir", Color: "blue", RawValue: true},
 				{ID: "14", Type: "separator"},
-				{ID: "15", Type: "rate-limits", Color: "yellow"},
+				{ID: "15", Type: "rate-limits", Color: "brightBlack", Thresholds: usageThresholds()},
 				{ID: "16", Type: "separator"},
 				{ID: "17", Type: "session-clock", Color: "white"},
 			},
@@ -81,14 +78,20 @@ func DefaultSettings() Settings {
 			{ID: "s4", Type: "separator"},
 			{ID: "s5", Type: "task-model"},
 			{ID: "s6", Type: "task-tokens"},
-			{ID: "s7", Type: "task-context", Thresholds: []Threshold{
-				{GTE: 70, Color: "yellow"},
-				{GTE: 90, Color: "red"},
-			}},
+			{ID: "s7", Type: "task-context", Color: "brightBlack", Thresholds: usageThresholds()},
 			{ID: "s8", Type: "task-sparkline"},
 			{ID: "s9", Type: "separator"},
 			{ID: "s10", Type: "task-label"},
 		},
+	}
+}
+
+// usageThresholds keeps low usage dim and escalates only as it nears the limit.
+func usageThresholds() []Threshold {
+	return []Threshold{
+		{GTE: 30, Color: "white"},
+		{GTE: 60, Color: "yellow"},
+		{GTE: 90, Color: "red"},
 	}
 }
 

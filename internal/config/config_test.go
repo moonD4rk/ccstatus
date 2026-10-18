@@ -27,8 +27,9 @@ func TestDefaultSettings(t *testing.T) {
 	assert.Equal(t, "cyan", s.Lines[0][0].Color)
 	assert.Equal(t, "effort", s.Lines[0][1].Type)
 	assert.Equal(t, "context-percentage", s.Lines[0][3].Type)
-	assert.Equal(t, "green", s.Lines[0][3].Color)
-	assert.Equal(t, []Threshold{{GTE: 70, Color: "yellow"}, {GTE: 90, Color: "red"}}, s.Lines[0][3].Thresholds)
+	usage := []Threshold{{GTE: 30, Color: "white"}, {GTE: 60, Color: "yellow"}, {GTE: 90, Color: "red"}}
+	assert.Equal(t, "brightBlack", s.Lines[0][3].Color)
+	assert.Equal(t, usage, s.Lines[0][3].Thresholds)
 	assert.Equal(t, "git-branch", s.Lines[0][5].Type)
 	assert.Equal(t, "git-worktree", s.Lines[0][6].Type)
 	assert.Equal(t, "lines-added", s.Lines[0][8].Type)
@@ -44,6 +45,8 @@ func TestDefaultSettings(t *testing.T) {
 	assert.Equal(t, "separator", s.Lines[1][1].Type)
 	assert.Equal(t, "rate-limits", s.Lines[1][2].Type)
 	assert.Empty(t, s.Lines[1][2].Prefix) // uses the widget default ("Limit ")
+	assert.Equal(t, "brightBlack", s.Lines[1][2].Color)
+	assert.Equal(t, usage, s.Lines[1][2].Thresholds)
 	assert.Equal(t, "separator", s.Lines[1][3].Type)
 	assert.Equal(t, "session-clock", s.Lines[1][4].Type)
 
@@ -51,7 +54,8 @@ func TestDefaultSettings(t *testing.T) {
 	require.Len(t, s.SubagentLine, 10)
 	assert.Equal(t, "task-name", s.SubagentLine[0].Type)
 	assert.Equal(t, "task-context", s.SubagentLine[6].Type)
-	assert.Len(t, s.SubagentLine[6].Thresholds, 2)
+	assert.Equal(t, "brightBlack", s.SubagentLine[6].Color)
+	assert.Equal(t, usage, s.SubagentLine[6].Thresholds)
 	assert.Equal(t, "task-label", s.SubagentLine[9].Type)
 }
 

@@ -291,7 +291,7 @@ type Task struct {
   { "id": "s4", "type": "separator" },
   { "id": "s5", "type": "task-model" },
   { "id": "s6", "type": "task-tokens" },
-  { "id": "s7", "type": "task-context", "thresholds": [{ "gte": 70, "color": "yellow" }, { "gte": 90, "color": "red" }] },
+  { "id": "s7", "type": "task-context", "color": "brightBlack", "thresholds": [{ "gte": 30, "color": "white" }, { "gte": 60, "color": "yellow" }, { "gte": 90, "color": "red" }] },
   { "id": "s8", "type": "task-sparkline" },
   { "id": "s9", "type": "separator" },
   { "id": "s10", "type": "task-label" }
@@ -314,7 +314,7 @@ This renders like `reviewer running 1m23s | Sonnet 5.5 45.2k 23% ▅▄▆▇█
 
 ## Default Layout
 
-- v0.4.0: `context-percentage` uses a green base color with yellow at 70 and red at 90, replacing `brightBlack`. `rate-limits` picks up the spend limit automatically. `prompt-cache`, `spend-limit` and `session-lines` are opt-in.
+- v0.4.0: `context-percentage`, `rate-limits` and `task-context` share one scale: a `brightBlack` base, white at 30, yellow at 60 and red at 90. `rate-limits` picks up the spend limit automatically. `prompt-cache`, `spend-limit` and `session-lines` are opt-in.
 - v0.5.0: the `subagentLine` default from PR 3.
 
 ## Testing
