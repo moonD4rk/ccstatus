@@ -1,0 +1,40 @@
+{
+  "session_id": "abc123",
+  "transcript_path": "/path/to/transcript.jsonl",
+  "cwd": "/path/to/project",
+  "hook_event_name": "SubagentStatusLine",
+  "columns": 100,
+  "tasks": [
+    {
+      "id": "task-1",
+      "name": "reviewer",
+      "type": "local_agent",
+      "agentType": "code-reviewer",
+      "status": "running",
+      "description": "Review the auth changes",
+      "label": "Reading internal/auth/session.go",
+      "startTime": 1738425600000,
+      "model": "claude-sonnet-5-5",
+      "effort": "high",
+      "contextWindowSize": 200000,
+      "tokenCount": 45200,
+      "tokenSamples": [2100, 6400, 9800, 15200, 22000, 30100, 38700, 45200],
+      "cwd": "/path/to/project/.claude/worktrees/review"
+    },
+    {
+      "id": "task-2",
+      "type": "local_agent",
+      "agentType": "Explore",
+      "status": "completed",
+      "description": "Find every caller of Session.Refresh",
+      "label": "Find every caller of Session.Refresh",
+      "startTime": 1738425500000,
+      "model": "claude-haiku-5-5",
+      "effort": 16000,
+      "contextWindowSize": 200000,
+      "tokenCount": 18400,
+      "tokenSamples": [3000, 9100, 14800, 18400],
+      "cwd": "/path/to/project"
+    }
+  ]
+}

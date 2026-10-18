@@ -1,6 +1,6 @@
 # RFC 005: Robustness, Official Schema Parity, and Subagent Status Lines
 
-Status: Accepted Author: @moond4rk Date: 2026-10-17
+Status: Completed Author: @moond4rk Date: 2026-10-17
 
 ## Summary
 
@@ -232,16 +232,17 @@ The docs' full sample payload is checked in as `internal/status/testdata/statusl
 
 `subagentStatusLine` runs a command on every refresh tick with the base hook fields, `columns` and `tasks[]` on stdin. The command prints one JSON line per row it overrides, `{"id": "<task id>", "content": "<row>"}`. An omitted id keeps Claude Code's default row; an empty `content` hides the row.
 
-**Command.** `ccstatus subagent` reads the payload, renders `subagentLine` once per task at width `columns`, and prints the JSON lines. A task whose row renders empty is omitted, keeping the default row. On any error it prints nothing and exits 0, so Claude Code falls back to its default rows. It runs no git commands and reads no transcript.
+**Command.** `ccstatus subagent` reads the payload, renders `subagentLine` once per task at width `columns`, and prints the JSON lines. A task whose row renders empty is omitted, keeping the default row. On any error it prints nothing and exits 0, so Claude Code falls back to its default rows. It runs no git commands and reads no transcript. The payload goes through the same lenient decoder as the main status line, which now also decodes arrays element by element, so one malformed task drops only itself.
 
 **Input.**
 
 ```go
-type Payload struct {
-	SessionID string `json:"session_id,omitempty"`
-	Cwd       string `json:"cwd,omitempty"`
-	Columns   int    `json:"columns,omitempty"`
-	Tasks     []Task `json:"tasks"`
+type SubagentPayload struct {
+	SessionID      string `json:"session_id,omitempty"`
+	TranscriptPath string `json:"transcript_path,omitempty"`
+	Cwd            string `json:"cwd,omitempty"`
+	Columns        int    `json:"columns,omitempty"`
+	Tasks          []Task `json:"tasks"`
 }
 
 type Task struct {
@@ -254,7 +255,7 @@ type Task struct {
 	Label             string  `json:"label,omitempty"`
 	StartTime         int64   `json:"startTime,omitempty"` // epoch milliseconds
 	Model             string  `json:"model,omitempty"`
-	Effort            *Effort `json:"effort,omitempty"` // level string or numeric token budget
+	Effort            *TaskEffort `json:"effort,omitempty"` // level string or numeric token budget
 	ContextWindowSize *int    `json:"contextWindowSize,omitempty"`
 	TokenCount        int     `json:"tokenCount,omitempty"`
 	TokenSamples      []int   `json:"tokenSamples,omitempty"`
@@ -289,12 +290,15 @@ type Task struct {
   { "id": "s3", "type": "task-elapsed" },
   { "id": "s4", "type": "separator" },
   { "id": "s5", "type": "task-model" },
-  { "id": "s6", "type": "task-context" },
-  { "id": "s7", "type": "task-sparkline" }
+  { "id": "s6", "type": "task-tokens" },
+  { "id": "s7", "type": "task-context", "thresholds": [{ "gte": 70, "color": "yellow" }, { "gte": 90, "color": "red" }] },
+  { "id": "s8", "type": "task-sparkline" },
+  { "id": "s9", "type": "separator" },
+  { "id": "s10", "type": "task-label" }
 ]
 ```
 
-This renders like `Explore running 1m23s | Sonnet 5.5 23% ▂▃▅▇`.
+This renders like `reviewer running 1m23s | Sonnet 5.5 45.2k 23% ▁▁▂▃▄▅▆█ | Reading internal/auth/session.go`; the label comes last so truncation cuts it first.
 
 **Rendering.** A `render.RenderRow(items, settings, ctx, width)` entry point renders at exactly `width`, without a flex-mode margin since `columns` is already the usable width, and reuses separator cleanup, colors, thresholds, flex expansion and truncation.
 
@@ -302,11 +306,11 @@ This renders like `Explore running 1m23s | Sonnet 5.5 23% ▂▃▅▇`.
 
 #### Tooling
 
-- `install` and `uninstall` edit `~/.claude/settings.json` in place: the top-level object is decoded as ordered key and raw-value pairs, only `statusLine` / `subagentStatusLine` change, the order of keys and every other value are preserved, and the file is replaced atomically (temp file plus rename, keeping its mode).
+- `install` and `uninstall` edit `~/.claude/settings.json` in place: the top-level object is decoded as ordered key and raw-value pairs, only `statusLine` / `subagentStatusLine` change, the order of keys and every other value are preserved, and the file is replaced atomically (temp file plus rename, keeping its mode). A symlinked `settings.json`, common with dotfiles managers, is resolved first so the rename replaces the target and the link survives.
 - `uninstall` removes `statusLine` / `subagentStatusLine` only when their command runs ccstatus.
 - A fresh `install` writes `refreshInterval: 30`; an existing value is kept; `--refresh 0` removes it.
 - `dump --append` appends one JSON line per invocation (`ts`, `columns`, `lines`, `input`) instead of overwriting, so a whole session can be captured.
-- `preview` renders the current settings against an embedded sample payload (the docs' full schema) or `--input FILE`, at `--width N` or the terminal width; `preview --subagent` does the same for `subagentLine` with a sample task list.
+- `preview` renders the current settings against an embedded sample payload (the docs' full schema, from the new `internal/sample` package, with its timestamps moved to now) or `--input FILE`, at `--width N` or the terminal width; `preview --subagent` does the same for `subagentLine` with a sample task list. The docs payload moves from `internal/status/testdata` into `internal/sample` and stays the parser's test fixture.
 
 ## Default Layout
 

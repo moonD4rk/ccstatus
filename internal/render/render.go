@@ -41,7 +41,20 @@ func RenderLine(items []config.WidgetItem, settings *config.Settings, ctx widget
 		}
 		ctx.TerminalWidth = CalculateFlexWidth(ctx.TerminalWidth, settings.FlexMode, settings.CompactThreshold, contextPct)
 	}
+	return renderRow(items, settings, ctx)
+}
 
+// RenderRow renders items at exactly width columns, without the flex-mode
+// margin, for rows whose usable width is already known, such as the subagent
+// rows Claude Code sizes with its "columns" field. A width of 0 disables
+// truncation and flex expansion.
+func RenderRow(items []config.WidgetItem, settings *config.Settings, ctx widget.RenderContext, width int) string {
+	ctx.TerminalWidth = width
+	return renderRow(items, settings, ctx)
+}
+
+// renderRow renders items at ctx.TerminalWidth.
+func renderRow(items []config.WidgetItem, settings *config.Settings, ctx widget.RenderContext) string {
 	segments := renderWidgets(items, ctx, settings)
 	segments = cleanSeparators(segments)
 	if len(segments) == 0 {

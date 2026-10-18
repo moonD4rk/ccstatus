@@ -19,6 +19,9 @@ type RenderContext struct {
 	// custom commands so they see the full official schema (including fields
 	// ccstatus does not model yet). Nil when unavailable.
 	RawInput []byte
+	// Task is the subagent row `ccstatus subagent` is rendering. Nil on the main
+	// status line, where task widgets render empty.
+	Task *status.Task
 }
 
 // GitProvider supplies git repository facts for one render cycle.
@@ -369,6 +372,46 @@ var registry = map[string]Widget{
 	},
 	"exceeds-200k":   &Exceeds200KWidget{},
 	"terminal-width": &TerminalWidthWidget{},
+
+	// Subagent rows (subagentLine only)
+	"task-name": &taskFieldWidget{
+		extract: taskName, color: "cyan",
+		displayName: "Task Name", description: "Subagent name, else its agent type",
+	},
+	"task-type": &taskFieldWidget{
+		extract: func(t *status.Task, _ *config.WidgetItem) string { return t.AgentType }, color: "magenta",
+		displayName: "Task Agent Type", description: "Subagent type, such as Explore or a custom agent",
+	},
+	"task-status": &taskFieldWidget{
+		extract: func(t *status.Task, _ *config.WidgetItem) string { return t.Status }, colorFor: taskStatusColor,
+		color: defaultDimColor, displayName: "Task Status", description: "Subagent state, colored: running, completed, failed, killed",
+	},
+	"task-label": &taskFieldWidget{
+		extract: taskLabel, color: defaultDimColor,
+		displayName: "Task Label", description: "Subagent progress summary, else its description",
+	},
+	"task-elapsed": &taskFieldWidget{
+		extract: taskElapsed, color: defaultDimColor,
+		displayName: "Task Elapsed", description: "Running time of a running subagent",
+	},
+	"task-model": &taskFieldWidget{
+		extract: taskModel, color: "cyan", raw: true,
+		displayName: "Task Model", description: "Subagent model, e.g. Sonnet 5.5 (raw: model ID)",
+	},
+	"task-effort": &taskFieldWidget{
+		extract: taskEffort, color: "cyan",
+		displayName: "Task Effort", description: "Subagent effort level or token budget",
+	},
+	"task-tokens":  &TaskTokensWidget{},
+	"task-context": &TaskContextWidget{},
+	"task-sparkline": &taskFieldWidget{
+		extract: func(t *status.Task, _ *config.WidgetItem) string { return sparkline(t.TokenSamples) }, color: "cyan",
+		displayName: "Task Sparkline", description: "Subagent token growth over the last refresh ticks",
+	},
+	"task-cwd": &taskFieldWidget{
+		extract: taskCwd, color: "blue",
+		displayName: "Task Directory", description: "Base name of the subagent's working directory",
+	},
 
 	// User-defined
 	"custom-text":    &CustomTextWidget{},

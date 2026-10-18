@@ -88,22 +88,27 @@ func newRootCmd() *cobra.Command {
 		newUninstallCmd(),
 		newDumpCmd(),
 		newWidgetsCmd(),
+		newSubagentCmd(),
+		newPreviewCmd(),
 	)
 	return cmd
 }
 
 func runStatusLine(cmd *cobra.Command, _ []string) error {
 	data, err := io.ReadAll(cmd.InOrStdin())
-	renderStatusLine(cmd.OutOrStdout(), cmd.ErrOrStderr(), data, err)
+	renderStatusLine(cmd.OutOrStdout(), cmd.ErrOrStderr(), data, err, 0)
 	return nil
 }
 
-// renderStatusLine writes the status line for the Claude Code payload in data.
-// It never fails: Claude Code blanks the whole status line when the command
-// exits non-zero, so problems are reported as a red line instead.
-func renderStatusLine(stdout, stderr io.Writer, data []byte, readErr error) {
+// renderStatusLine writes the status line for the Claude Code payload in data,
+// at width columns or, when width is 0, the detected terminal width. It never
+// fails: Claude Code blanks the whole status line when the command exits
+// non-zero, so problems are reported as a red line instead.
+func renderStatusLine(stdout, stderr io.Writer, data []byte, readErr error, width int) {
 	settings, settingsErr := config.Load()
-	width := terminal.Width(settings.TerminalWidth)
+	if width <= 0 {
+		width = terminal.Width(settings.TerminalWidth)
+	}
 
 	// Buffer all lines and write once to avoid partial reads when Claude Code
 	// reads from the pipe during rapid re-invocations.

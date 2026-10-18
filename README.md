@@ -11,7 +11,8 @@ A customizable status line formatter for [Claude Code](https://code.claude.com/)
 ## Features
 
 - Single static binary with no runtime dependencies
-- 50 configurable widgets (model, tokens, context, git, cost, rate limits, prompt cache, and more)
+- 61 configurable widgets (model, tokens, context, git, cost, rate limits, prompt cache, and more)
+- Custom subagent rows in Claude Code's agent panel (`subagentStatusLine`)
 - Multi-line status line with flex separator layout
 - Threshold colors (e.g. context % turning yellow, then red) and progress bars
 - ANSI 16-color support via [fatih/color](https://github.com/fatih/color)
@@ -38,8 +39,11 @@ go install github.com/moond4rk/ccstatus/cmd/ccstatus@latest
 # Generate default settings
 ccstatus init
 
-# Register in Claude Code (re-run anytime to update; --refresh N / --hide-vim-indicator optional)
+# Register in Claude Code (re-run anytime to update; --subagent / --refresh N / --hide-vim-indicator optional)
 ccstatus install
+
+# Try your layout against sample data, without starting Claude Code
+ccstatus preview
 ```
 
 That's it. Claude Code will now display the status line after each assistant message.
@@ -56,9 +60,11 @@ ccstatus [command]
 | Command | Description |
 | --- | --- |
 | `init` | Generate default `settings.json` at the ccstatus config directory |
-| `install` | Register ccstatus as the status line command in Claude Code's `settings.json` |
-| `uninstall` | Remove ccstatus status line configuration from Claude Code's `settings.json` |
+| `install` | Register ccstatus as the status line (and, with `--subagent`, subagent row) command in Claude Code's `settings.json` |
+| `uninstall` | Remove the blocks that run ccstatus from Claude Code's `settings.json` |
 | `validate` | Validate `settings.json` for correctness |
+| `preview` | Render your settings against sample data (or `--input FILE`) |
+| `subagent` | Render subagent rows for Claude Code's `subagentStatusLine` (Claude Code runs it) |
 | `dump` | Save raw JSON input from Claude Code to a file for debugging |
 | `widgets` | List all registered widget types with descriptions and default colors |
 | `completion` | Generate shell autocompletion script (bash, zsh, fish, powershell) |
@@ -83,24 +89,28 @@ Generates a default `settings.json` at `~/.config/ccstatus/settings.json`. Use `
 #### `ccstatus install`
 
 ```bash
-ccstatus install
+ccstatus install [--subagent] [--refresh N] [--padding N] [--hide-vim-indicator]
 ```
 
-Registers ccstatus in Claude Code's `~/.claude/settings.json` (or `$CLAUDE_CONFIG_DIR/settings.json`) by adding:
+Registers ccstatus in Claude Code's `~/.claude/settings.json` (or `$CLAUDE_CONFIG_DIR/settings.json`). A fresh install adds:
 
 ```json
 {
   "statusLine": {
     "type": "command",
     "command": "ccstatus",
-    "padding": 0
+    "padding": 0,
+    "refreshInterval": 30
   }
 }
 ```
 
+Every other key keeps its position and value, the file is replaced atomically, and a symlinked `settings.json` (for example one managed by a dotfiles repo) stays a symlink. Re-running `install` keeps the values you set by hand.
+
 Optional flags:
 
-- `--refresh N` — also re-run the status line every `N` seconds (writes `refreshInterval`). Useful when you use time-based widgets (`session-clock`, `block-timer`, `api-duration`) or git widgets that change while a background subagent works. Omit to run only on Claude Code's events.
+- `--subagent` — also render subagent rows in the agent panel (writes `subagentStatusLine` running `ccstatus subagent`; `--subagent=false` removes it). See [Subagent Rows](#subagent-rows).
+- `--refresh N` — re-run the status line every `N` seconds (writes `refreshInterval`). A fresh install uses `30` so time-based widgets (`session-clock`, `block-timer`, `prompt-cache`) and git widgets keep moving while Claude Code is idle; `--refresh 0` removes it so the status line runs only on Claude Code's events.
 - `--hide-vim-indicator` — suppress Claude Code's built-in `-- INSERT --` line (writes `hideVimModeIndicator`). Set this if you use the `vim-mode` widget so the mode isn't shown twice.
 
 #### `ccstatus uninstall`
@@ -109,7 +119,7 @@ Optional flags:
 ccstatus uninstall
 ```
 
-Removes the ccstatus status line configuration from Claude Code's settings.
+Removes the `statusLine` and `subagentStatusLine` blocks whose command runs ccstatus. A block that runs another command is reported and left alone.
 
 #### `ccstatus validate`
 
@@ -117,15 +127,31 @@ Removes the ccstatus status line configuration from Claude Code's settings.
 ccstatus validate
 ```
 
-Checks `settings.json` for JSON errors (reported as `path:line:column`), unknown widget types, missing or duplicate widget IDs, invalid color names, out-of-range `flexMode` / `colorLevel` / `compactThreshold`, and `metadata.display` values the widget does not support. Exits non-zero when any problem is found, so it works as a CI gate.
+Checks `settings.json` for JSON errors (reported as `path:line:column`), unknown widget types, missing or duplicate widget IDs, invalid color names, out-of-range `flexMode` / `colorLevel` / `compactThreshold`, `metadata.display` values and `thresholds` the widget does not support, and widgets on the wrong kind of line (`task-*` widgets belong in `subagentLine`). Exits non-zero when any problem is found, so it works as a CI gate.
 
 #### `ccstatus dump`
 
 ```bash
-ccstatus dump [--output FILE]
+ccstatus dump [--output FILE] [--append]
 ```
 
-Reads JSON from stdin (same as normal mode), saves it to a file, and renders the status line. Default output: `/tmp/ccstatus-dump.json`. Useful for inspecting what Claude Code sends.
+Reads JSON from stdin (same as normal mode), saves it to a file, and renders the status line. Default output: `/tmp/ccstatus-dump.json`. Useful for inspecting what Claude Code sends. With `--append`, every invocation adds one JSON line — `{"ts", "columns", "lines", "input"}` — to `/tmp/ccstatus-dump.jsonl` (or `--output`), so a whole session can be captured.
+
+#### `ccstatus preview`
+
+```bash
+ccstatus preview [--input FILE] [--width N] [--subagent]
+```
+
+Renders your current `settings.json` against the full sample payload from the official docs, with its timestamps moved to now, so you can try a layout without starting Claude Code. `--input` renders a payload of your own (for example a `dump` capture); `--subagent` renders `subagentLine` for a sample task list.
+
+#### `ccstatus subagent`
+
+```bash
+ccstatus subagent
+```
+
+The `subagentStatusLine` command (set up by `ccstatus install --subagent`). Claude Code pipes the visible subagents as `{"columns", "tasks": [...]}`; ccstatus renders `subagentLine` for each task and prints one `{"id", "content"}` JSON line per row. Rows that render empty, and every row on any error, are left out so Claude Code keeps its default rendering.
 
 #### `ccstatus widgets`
 
@@ -143,6 +169,9 @@ echo '{"model":{"id":"claude-opus-4-7","display_name":"Opus"}}' | ccstatus
 
 # Replay captured dump data
 cat /tmp/ccstatus-dump.json | ccstatus
+
+# Preview the configured layout against sample data at 120 columns
+ccstatus preview --width 120
 ```
 
 ## Configuration
@@ -238,6 +267,32 @@ Thresholds work on widgets that render a number: the context and remaining perce
 | `full-minus-40` | Terminal width - 40 characters |
 | `full-until-compact` | Terminal width - 10, switching to - 40 once context % >= `compactThreshold` (default) |
 
+### Subagent Rows
+
+With `ccstatus install --subagent`, Claude Code runs `ccstatus subagent` for the agent panel below the prompt, and each subagent row renders `subagentLine` — one row of widget items, configured like a line in `lines`. When `subagentLine` is absent, this default applies:
+
+```json
+"subagentLine": [
+  { "id": "s1", "type": "task-name", "color": "cyan" },
+  { "id": "s2", "type": "task-status" },
+  { "id": "s3", "type": "task-elapsed" },
+  { "id": "s4", "type": "separator" },
+  { "id": "s5", "type": "task-model" },
+  { "id": "s6", "type": "task-tokens" },
+  { "id": "s7", "type": "task-context", "thresholds": [{ "gte": 70, "color": "yellow" }, { "gte": 90, "color": "red" }] },
+  { "id": "s8", "type": "task-sparkline" },
+  { "id": "s9", "type": "separator" },
+  { "id": "s10", "type": "task-label" }
+]
+```
+
+```
+reviewer running 1m23s | Sonnet 5.5 45.2k 23% ▁▁▂▃▄▅▆█ | Reading internal/auth/session.go
+Explore completed | Haiku 5.5 18.4k 9% ▂▄▆█ | Find every caller of Session.Refresh
+```
+
+Rows are sized to the width Claude Code reports, with no flex-mode margin. `subagentLine` takes the `task-*` widgets plus `separator`, `flex-separator` and `custom-text`; `ccstatus validate` flags anything else, and `task-*` widgets on the main lines. Try it with `ccstatus preview --subagent`.
+
 ### Available Colors
 
 8 basic: `black`, `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, `white`
@@ -299,6 +354,24 @@ Thresholds work on widgets that render a number: the context and remaining perce
 | `separator` | - | Visual separator | white |
 | `flex-separator` | - | Fills remaining width | - |
 
+### Subagent Row Widgets
+
+Usable only in `subagentLine`; each reads the task Claude Code passes for that row.
+
+| Widget | Description | Default Color |
+| --- | --- | --- |
+| `task-name` | Subagent name, else its agent type | cyan |
+| `task-type` | Agent type, e.g. `Explore` or a custom agent | magenta |
+| `task-status` | `running` / `completed` / `failed` / `killed`, colored yellow / green / red / dim | by state |
+| `task-label` | Progress summary, else the task description | white |
+| `task-elapsed` | Running time of a running subagent, e.g. `1m23s` | white |
+| `task-model` | Model, e.g. `Sonnet 5.5` (raw: model ID) | cyan |
+| `task-effort` | Configured effort level, or a token budget such as `32k` | cyan |
+| `task-tokens` | Running token count, e.g. `45.2k` | white |
+| `task-context` | Tokens as % of the model's context window (`bar` display, thresholds) | white |
+| `task-sparkline` | Token count over the last refresh ticks, e.g. `▁▂▄█` | cyan |
+| `task-cwd` | Base name of the subagent's working directory | blue |
+
 ## How It Works
 
 Claude Code pipes JSON session data to stdin on each update (after assistant messages, permission changes, vim mode toggles). ccstatus parses the JSON, renders widgets according to the configured layout, and outputs ANSI-colored text to stdout.
@@ -309,7 +382,7 @@ Claude Code  --[JSON]--> ccstatus --[ANSI text]--> status line
 
 For the full JSON schema, see the [official documentation](https://code.claude.com/docs/en/statusline).
 
-> **Not yet supported:** the separate [`subagentStatusLine`](https://code.claude.com/docs/en/statusline#subagent-status-lines) setting (a per-subagent row in the agent panel) has a different input/output contract and is tracked for a future release.
+The separate [`subagentStatusLine`](https://code.claude.com/docs/en/statusline#subagent-status-lines) command works the same way per subagent row, printing JSON lines instead of text; see [Subagent Rows](#subagent-rows).
 
 ## Debugging
 
@@ -323,13 +396,15 @@ Use `ccstatus dump` to capture the raw JSON that Claude Code sends:
 
 ```bash
 # Temporarily switch to dump mode in ~/.claude/settings.json:
-# "command": "ccstatus dump"
+# "command": "ccstatus dump"            (latest payload only)
+# "command": "ccstatus dump --append"   (every payload of the session, one JSON line each)
 
 # Then inspect the captured data:
 cat /tmp/ccstatus-dump.json | jq .
+jq -c '{ts, columns, model: .input.model.display_name}' /tmp/ccstatus-dump.jsonl
 
 # Replay captured data to test rendering:
-cat /tmp/ccstatus-dump.json | ccstatus
+ccstatus preview --input /tmp/ccstatus-dump.json
 ```
 
 ## References

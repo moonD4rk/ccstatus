@@ -55,6 +55,7 @@ dist/
 !rfcs/*.md
 !**/testdata/**/*.json
 !**/testdata/**/*.jsonl
+!internal/sample/*.json
 
 # Go module files
 !go.mod

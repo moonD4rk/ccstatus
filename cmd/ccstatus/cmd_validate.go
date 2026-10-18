@@ -31,7 +31,8 @@ func newValidateCmd() *cobra.Command {
 
 // runValidate checks the loaded settings for decode errors (reported as
 // path:line:column), unknown widget types, missing or duplicate widget IDs,
-// invalid colors, out-of-range globals, and unsupported display modes. It
+// invalid colors, out-of-range globals, unsupported display modes and
+// thresholds, and widgets used on the wrong kind of line. It
 // reports every problem and exits non-zero when any are found, so it is usable
 // as a CI gate.
 func runValidate(cmd *cobra.Command, _ []string) error {
@@ -65,6 +66,17 @@ func collectProblems(settings *config.Settings) []string {
 		for i := range line {
 			loc := fmt.Sprintf("line %d widget %d", li+1, i+1)
 			problems = append(problems, itemProblems(loc, &line[i], seen)...)
+			if widget.IsTaskWidget(line[i].Type) {
+				problems = append(problems, fmt.Sprintf("%s: %s only works in subagentLine", loc, line[i].Type))
+			}
+		}
+	}
+	for i := range settings.SubagentLine {
+		item := &settings.SubagentLine[i]
+		loc := fmt.Sprintf("subagentLine widget %d", i+1)
+		problems = append(problems, itemProblems(loc, item, seen)...)
+		if widget.Get(item.Type) != nil && !widget.IsTaskWidget(item.Type) && !widget.IsSharedWidget(item.Type) {
+			problems = append(problems, fmt.Sprintf("%s: %s only works on the main status line", loc, item.Type))
 		}
 	}
 	return append(problems, globalProblems(settings)...)

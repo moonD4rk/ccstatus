@@ -118,7 +118,7 @@ func TestRootCommandRegistersSubcommands(t *testing.T) {
 	for _, c := range cmd.Commands() {
 		got[c.Name()] = true
 	}
-	for _, want := range []string{"init", "validate", "install", "uninstall", "dump", "widgets"} {
+	for _, want := range []string{"init", "validate", "install", "uninstall", "dump", "widgets", "subagent", "preview"} {
 		assert.Truef(t, got[want], "subcommand %q should be registered", want)
 	}
 }

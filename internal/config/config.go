@@ -31,6 +31,9 @@ type Settings struct {
 	OverrideBackgroundColor string         `json:"overrideBackgroundColor,omitempty"`
 	OverrideForegroundColor string         `json:"overrideForegroundColor,omitempty"`
 	GlobalBold              bool           `json:"globalBold"`
+	// SubagentLine is the row `ccstatus subagent` renders for each subagent in
+	// Claude Code's agent panel.
+	SubagentLine []WidgetItem `json:"subagentLine,omitempty"`
 }
 
 // DefaultSettings returns the default ccstatus configuration.
@@ -69,6 +72,22 @@ func DefaultSettings() Settings {
 				{ID: "16", Type: "separator"},
 				{ID: "17", Type: "session-clock", Color: "white"},
 			},
+		},
+		// name status elapsed | model tokens context% sparkline | label
+		SubagentLine: []WidgetItem{
+			{ID: "s1", Type: "task-name", Color: "cyan"},
+			{ID: "s2", Type: "task-status"},
+			{ID: "s3", Type: "task-elapsed"},
+			{ID: "s4", Type: "separator"},
+			{ID: "s5", Type: "task-model"},
+			{ID: "s6", Type: "task-tokens"},
+			{ID: "s7", Type: "task-context", Thresholds: []Threshold{
+				{GTE: 70, Color: "yellow"},
+				{GTE: 90, Color: "red"},
+			}},
+			{ID: "s8", Type: "task-sparkline"},
+			{ID: "s9", Type: "separator"},
+			{ID: "s10", Type: "task-label"},
 		},
 	}
 }
@@ -109,16 +128,21 @@ func Load() (Settings, error) {
 }
 
 // Parse decodes settings JSON over the defaults. An absent or null "lines" keeps
-// the default layout, while an explicit empty list renders nothing. Decode
-// errors are returned as a *PositionError.
+// the default layout, while an explicit empty list renders nothing; the same
+// holds for "subagentLine". Decode errors are returned as a *PositionError.
 func Parse(data []byte) (Settings, error) {
 	s := DefaultSettings()
 	s.Lines = nil
+	s.SubagentLine = nil
 	if err := json.Unmarshal(data, &s); err != nil {
 		return Settings{}, positionError(data, err)
 	}
+	def := DefaultSettings()
 	if s.Lines == nil {
-		s.Lines = DefaultSettings().Lines
+		s.Lines = def.Lines
+	}
+	if s.SubagentLine == nil {
+		s.SubagentLine = def.SubagentLine
 	}
 	return s, nil
 }
