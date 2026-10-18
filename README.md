@@ -287,8 +287,8 @@ With `ccstatus install --subagent`, Claude Code runs `ccstatus subagent` for the
 ```
 
 ```
-reviewer running 1m23s | Sonnet 5.5 45.2k 23% ▁▁▂▃▄▅▆█ | Reading internal/auth/session.go
-Explore completed | Haiku 5.5 18.4k 9% ▂▄▆█ | Find every caller of Session.Refresh
+reviewer running 1m23s | Sonnet 5.5 45.2k 23% ▅▄▆▇██▇ | Reading internal/auth/session.go
+Explore completed | Haiku 5.5 18.4k 9% | Find every caller of Session.Refresh
 ```
 
 Rows are sized to the width Claude Code reports, with no flex-mode margin. `subagentLine` takes the `task-*` widgets plus `separator`, `flex-separator` and `custom-text`; `ccstatus validate` flags anything else, and `task-*` widgets on the main lines. Try it with `ccstatus preview --subagent`.
@@ -327,7 +327,7 @@ Rows are sized to the width Claude Code reports, with no flex-mode margin. `suba
 | `cache-hit-rate` | JSON | Session prompt cache hit ratio (`prompt_cache.hit_ratio`; older Claude Code: the last request's cache reads; `bar` display) | cyan |
 | `prompt-cache` | JSON | Prompt cache state, e.g. `warm 42m` / `cold` — green while warm, dim once cold (`metadata.display`: `status`/`ttl`/`hit`/`misses`/`full`, e.g. `warm 42m · 91% hit · 2 misses (tools_changed)`) | green |
 | `api-duration` | JSON | API response time | white |
-| `block-timer` | JSON/JSONL | 5-hour block timer (uses the rate-limit window when available) | white |
+| `block-timer` | JSON/JSONL | 5-hour block timer (uses the rate-limit window when available; `metadata.display`: `time`/`progress`/`percentage`) | white |
 | `rate-limits` | JSON | Combined limits, e.g. `5h: 3% / 7d: 12%` or `spend: $314.12/$500.00` behind a Claude apps gateway (each shown only when present) | yellow |
 | `spend-limit` | JSON | Claude apps gateway spend limit, e.g. `$314.12 / $500.00` (`63%` until the dollar amounts arrive; `metadata.display`: `amount`/`percent`/`bar`/`reset`/`full`) | yellow |
 | `rate-limit-5h` | JSON | 5-hour rate-limit usage (`metadata.display`: `percent`/`bar`/`reset`/`full`; `metadata.barWidth`) | yellow |
@@ -367,9 +367,9 @@ Usable only in `subagentLine`; each reads the task Claude Code passes for that r
 | `task-elapsed` | Running time of a running subagent, e.g. `1m23s` | white |
 | `task-model` | Model, e.g. `Sonnet 5.5` (raw: model ID) | cyan |
 | `task-effort` | Configured effort level, or a token budget such as `32k` | cyan |
-| `task-tokens` | Running token count, e.g. `45.2k` | white |
+| `task-tokens` | Running token count, e.g. `45.2k` (thresholds) | white |
 | `task-context` | Tokens as % of the model's context window (`bar` display, thresholds) | white |
-| `task-sparkline` | Token count over the last refresh ticks, e.g. `▁▂▄█` | cyan |
+| `task-sparkline` | Tokens a running subagent added per refresh tick, e.g. `▂▅█▁` (`▁` for none) | cyan |
 | `task-cwd` | Base name of the subagent's working directory | blue |
 
 ## How It Works

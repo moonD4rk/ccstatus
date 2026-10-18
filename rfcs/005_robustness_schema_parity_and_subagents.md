@@ -276,7 +276,7 @@ type Task struct {
 | `task-effort` | `high`, or a token budget such as `32k` |
 | `task-tokens` | `tokenCount` formatted like the token widgets (`45.2k`) |
 | `task-context` | `tokenCount / contextWindowSize` as a percentage; supports `bar` and thresholds |
-| `task-sparkline` | `tokenSamples` as `▁▂▃▅▇` |
+| `task-sparkline` | Tokens added between `tokenSamples` readings as `▂▅█▁`, running tasks only |
 | `task-cwd` | Base name of `cwd` |
 
 `separator`, `flex-separator` and `custom-text` work on both kinds of line. `validate` rejects main-line widgets in `subagentLine` and task widgets in `lines`.
@@ -298,7 +298,7 @@ type Task struct {
 ]
 ```
 
-This renders like `reviewer running 1m23s | Sonnet 5.5 45.2k 23% ▁▁▂▃▄▅▆█ | Reading internal/auth/session.go`; the label comes last so truncation cuts it first.
+This renders like `reviewer running 1m23s | Sonnet 5.5 45.2k 23% ▅▄▆▇██▇ | Reading internal/auth/session.go`; the label comes last so truncation cuts it first.
 
 **Rendering.** A `render.RenderRow(items, settings, ctx, width)` entry point renders at exactly `width`, without a flex-mode margin since `columns` is already the usable width, and reuses separator cleanup, colors, thresholds, flex expansion and truncation.
 

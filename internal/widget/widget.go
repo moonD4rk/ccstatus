@@ -405,8 +405,8 @@ var registry = map[string]Widget{
 	"task-tokens":  &TaskTokensWidget{},
 	"task-context": &TaskContextWidget{},
 	"task-sparkline": &taskFieldWidget{
-		extract: func(t *status.Task, _ *config.WidgetItem) string { return sparkline(t.TokenSamples) }, color: "cyan",
-		displayName: "Task Sparkline", description: "Subagent token growth over the last refresh ticks",
+		extract: taskSparkline, color: "cyan",
+		displayName: "Task Sparkline", description: "Tokens a running subagent added per refresh tick",
 	},
 	"task-cwd": &taskFieldWidget{
 		extract: taskCwd, color: "blue",

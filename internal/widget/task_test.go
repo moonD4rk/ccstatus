@@ -25,6 +25,7 @@ func TestTaskWidgets(t *testing.T) {
 		ID: "t2", Type: "local_agent", AgentType: "Explore", Status: "completed",
 		Description: "Find callers", StartTime: time.Now().Add(-time.Hour).UnixMilli(),
 		Model: "claude-haiku-5-5", Effort: &status.TaskEffort{Budget: 32_000}, TokenCount: 1200,
+		TokenSamples: []int{900, 1200, 1200},
 	}
 
 	tests := []struct {
@@ -50,7 +51,7 @@ func TestTaskWidgets(t *testing.T) {
 		{"task-context", running, config.WidgetItem{}, "23%"},
 		{"task-context", running, config.WidgetItem{Metadata: map[string]string{"display": "bar"}}, "▓▓░░░░░░░░ 23%"},
 		{"task-context", done, config.WidgetItem{}, ""},
-		{"task-sparkline", running, config.WidgetItem{}, "▁▂▄█"},
+		{"task-sparkline", running, config.WidgetItem{}, "▅▅█"},
 		{"task-sparkline", done, config.WidgetItem{}, ""},
 		{"task-cwd", running, config.WidgetItem{}, "review"},
 	}
@@ -126,11 +127,24 @@ func TestFormatElapsed(t *testing.T) {
 }
 
 func TestSparkline(t *testing.T) {
-	assert.Empty(t, sparkline(nil))
-	assert.Empty(t, sparkline([]int{5}))
-	assert.Equal(t, "▁▁▁", sparkline([]int{0, 0, 0}))
-	assert.Equal(t, "████", sparkline([]int{7, 7, 7, 7}))
-	assert.Equal(t, "▁▄█", sparkline([]int{0, 50, 100}))
+	tests := []struct {
+		name    string
+		samples []int
+		want    string
+	}{
+		{"no samples", nil, ""},
+		{"one sample has no step", []int{5}, ""},
+		{"no growth is flat", []int{7, 7, 7, 7}, "▁▁▁"},
+		{"steady growth is even", []int{0, 50, 100}, "██"},
+		{"an inherited context does not fill the bar", []int{200_000, 201_000, 203_000, 203_000}, "▅█▁"},
+		{"any growth sits above an idle tick", []int{0, 1, 1000}, "▂█"},
+		{"a compaction counts as no growth", []int{5000, 1000, 3000}, "▁█"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, sparkline(tt.samples))
+		})
+	}
 }
 
 func TestCompactTokens(t *testing.T) {

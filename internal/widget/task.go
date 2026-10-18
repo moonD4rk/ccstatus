@@ -94,9 +94,11 @@ func taskLabel(t *status.Task, _ *config.WidgetItem) string {
 	return t.Description
 }
 
+const taskRunning = "running"
+
 func taskStatusColor(t *status.Task) string {
 	switch t.Status {
-	case "running":
+	case taskRunning:
 		return "yellow"
 	case "completed":
 		return defaultGreenColor
@@ -112,7 +114,7 @@ func taskStatusColor(t *status.Task) string {
 // taskElapsed is empty unless the task is running: the payload has no end time,
 // so a finished task's age would keep growing.
 func taskElapsed(t *status.Task, _ *config.WidgetItem) string {
-	if t.Status != "running" || t.StartTime <= 0 {
+	if t.Status != taskRunning || t.StartTime <= 0 {
 		return ""
 	}
 	elapsed := time.Since(time.UnixMilli(t.StartTime))
@@ -208,19 +210,31 @@ func taskCwd(t *status.Task, _ *config.WidgetItem) string {
 // sparkBlocks are the eight block heights a sparkline steps through.
 var sparkBlocks = []rune("▁▂▃▄▅▆▇█")
 
-// sparkline renders samples as blocks scaled from zero to their maximum, so the
-// row shows how fast a subagent's token count grew. Fewer than two samples
-// render nothing.
+// taskSparkline is empty unless the task is running: a finished task's samples stop changing.
+func taskSparkline(t *status.Task, _ *config.WidgetItem) string {
+	if t.Status != taskRunning {
+		return ""
+	}
+	return sparkline(t.TokenSamples)
+}
+
+// sparkline draws the tokens added between samples, so a fork's inherited context does not
+// fill the bar. Fewer than two samples render nothing.
 func sparkline(samples []int) string {
 	if len(samples) < 2 {
 		return ""
 	}
-	hi := slices.Max(samples)
+	steps := make([]int, len(samples)-1)
+	for i := range steps {
+		steps[i] = max(samples[i+1]-samples[i], 0)
+	}
+	hi := slices.Max(steps)
+	top := len(sparkBlocks) - 1
 	var b strings.Builder
-	for _, s := range samples {
+	for _, s := range steps {
 		idx := 0
-		if hi > 0 && s > 0 {
-			idx = s * (len(sparkBlocks) - 1) / hi
+		if s > 0 {
+			idx = (s*top + hi - 1) / hi // round up so any growth sits above an idle tick
 		}
 		b.WriteRune(sparkBlocks[idx])
 	}
