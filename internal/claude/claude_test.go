@@ -63,8 +63,7 @@ func TestInstall(t *testing.T) {
 		assert.Equal(t, "command", sl["type"])
 		assert.Equal(t, "ccstatus", sl["command"])
 		assert.InDelta(t, 0, sl["padding"], 0.01)
-		_, hasRefresh := sl["refreshInterval"]
-		assert.False(t, hasRefresh, "refreshInterval should be omitted when 0")
+		assert.InDelta(t, DefaultRefreshInterval, sl["refreshInterval"], 0.01, "a fresh install keeps time-based widgets moving")
 		_, hasHideVim := sl["hideVimModeIndicator"]
 		assert.False(t, hasHideVim, "hideVimModeIndicator should be omitted when false")
 	})
@@ -194,11 +193,12 @@ func TestUninstall(t *testing.T) {
 `
 		require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "settings.json"), []byte(existing), 0o600))
 
-		path, err := Uninstall()
+		res, err := Uninstall()
 		require.NoError(t, err)
-		assert.Equal(t, filepath.Join(tmpDir, "settings.json"), path)
+		assert.Equal(t, filepath.Join(tmpDir, "settings.json"), res.Path)
+		assert.Equal(t, []string{"statusLine"}, res.Removed)
 
-		data, err := os.ReadFile(path)
+		data, err := os.ReadFile(res.Path)
 		require.NoError(t, err)
 
 		var settings map[string]any

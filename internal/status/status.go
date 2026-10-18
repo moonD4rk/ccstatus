@@ -3,7 +3,6 @@ package status
 
 import (
 	"encoding/json"
-	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -42,16 +41,10 @@ type Session struct {
 // dropped fields are returned.
 func Parse(data []byte) (session *Session, dropped []string, err error) {
 	var s Session
-	err = json.Unmarshal(data, &s)
-	if err == nil {
-		return &s, nil, nil
-	}
-	var fields map[string]json.RawMessage
-	if json.Unmarshal(data, &fields) != nil {
+	dropped, err = parseLenient(data, &s)
+	if err != nil {
 		return nil, nil, err
 	}
-	s = Session{}
-	dropped = decodeLenient(data, reflect.ValueOf(&s).Elem(), "")
 	return &s, dropped, nil
 }
 

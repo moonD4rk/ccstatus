@@ -77,11 +77,19 @@ func TestParseToleratesTypeDrift(t *testing.T) {
 			},
 		},
 		{
-			name:        "array where a list of strings is expected is dropped",
-			input:       `{"workspace":{"current_dir":"/repo","added_dirs":[1,2]}}`,
-			wantDropped: []string{"workspace.added_dirs"},
+			name:        "a bad array element drops only itself",
+			input:       `{"workspace":{"current_dir":"/repo","added_dirs":["/a",{"x":1},"/b"]}}`,
+			wantDropped: []string{"workspace.added_dirs[1]"},
 			check: func(t *testing.T, s *Session) {
 				assert.Equal(t, "/repo", s.Workspace.CurrentDir)
+				assert.Equal(t, []string{"/a", "/b"}, s.Workspace.AddedDirs)
+			},
+		},
+		{
+			name:        "a non-array where an array is expected is dropped",
+			input:       `{"workspace":{"current_dir":"/repo","added_dirs":"/a"}}`,
+			wantDropped: []string{"workspace.added_dirs"},
+			check: func(t *testing.T, s *Session) {
 				assert.Empty(t, s.Workspace.AddedDirs)
 			},
 		},

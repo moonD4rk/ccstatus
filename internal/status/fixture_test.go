@@ -2,20 +2,18 @@ package status
 
 import (
 	"encoding/json"
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/moond4rk/ccstatus/internal/sample"
 )
 
 // docsFixture is the full sample payload from the official status line docs.
 func docsFixture(t *testing.T) []byte {
 	t.Helper()
-	data, err := os.ReadFile(filepath.Join("testdata", "statusline_full.json"))
-	require.NoError(t, err)
-	return data
+	return sample.StatusLineDocs
 }
 
 func TestParseDocsFixture(t *testing.T) {

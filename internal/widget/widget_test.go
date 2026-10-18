@@ -745,49 +745,64 @@ func TestPRWidget(t *testing.T) {
 func TestTypes(t *testing.T) {
 	types := Types()
 	require.NotEmpty(t, types)
-	assert.Contains(t, types, "model")
-	assert.Contains(t, types, "separator")
-	assert.Contains(t, types, "tokens-input")
-	assert.Contains(t, types, "context-percentage")
-	assert.Contains(t, types, "flex-separator")
-	assert.Contains(t, types, "git-changes")
-	assert.Contains(t, types, "current-working-dir")
-	assert.Contains(t, types, "session-cost")
-	assert.Contains(t, types, "session-clock")
-	assert.Contains(t, types, "lines-changed")
-	assert.Contains(t, types, "lines-added")
-	assert.Contains(t, types, "lines-removed")
-	assert.Contains(t, types, "repo")
-	assert.Contains(t, types, "pr")
-	assert.Contains(t, types, "remaining-percentage")
-	assert.Contains(t, types, "cache-hit-rate")
-	assert.Contains(t, types, "api-duration")
-	assert.Contains(t, types, "project-dir")
-	assert.Contains(t, types, "transcript-path")
-	assert.Contains(t, types, "current-usage-input")
-	assert.Contains(t, types, "current-usage-output")
-	assert.Contains(t, types, "cache-creation")
-	assert.Contains(t, types, "output-style")
-	assert.Contains(t, types, "session-id")
-	assert.Contains(t, types, "terminal-width")
-	assert.Contains(t, types, "vim-mode")
-	assert.Contains(t, types, "agent-name")
-	assert.Contains(t, types, "exceeds-200k")
-	assert.Contains(t, types, "custom-command")
-	assert.Contains(t, types, "git-worktree")
-	assert.Contains(t, types, "block-timer")
-	assert.Contains(t, types, "rate-limits")
-	assert.Contains(t, types, "rate-limit-5h")
-	assert.Contains(t, types, "rate-limit-7d")
-	assert.Contains(t, types, "effort")
-	assert.Contains(t, types, "thinking")
-	assert.Contains(t, types, "fast-mode")
-	assert.Contains(t, types, "session-name")
-	assert.Contains(t, types, "added-dirs")
-	assert.Contains(t, types, "prompt-cache")
-	assert.Contains(t, types, "spend-limit")
-	assert.Contains(t, types, "session-lines")
-	assert.Len(t, types, 50)
+	for _, want := range []string{
+		"model",
+		"separator",
+		"tokens-input",
+		"context-percentage",
+		"flex-separator",
+		"git-changes",
+		"current-working-dir",
+		"session-cost",
+		"session-clock",
+		"lines-changed",
+		"lines-added",
+		"lines-removed",
+		"repo",
+		"pr",
+		"remaining-percentage",
+		"cache-hit-rate",
+		"api-duration",
+		"project-dir",
+		"transcript-path",
+		"current-usage-input",
+		"current-usage-output",
+		"cache-creation",
+		"output-style",
+		"session-id",
+		"terminal-width",
+		"vim-mode",
+		"agent-name",
+		"exceeds-200k",
+		"custom-command",
+		"git-worktree",
+		"block-timer",
+		"rate-limits",
+		"rate-limit-5h",
+		"rate-limit-7d",
+		"effort",
+		"thinking",
+		"fast-mode",
+		"session-name",
+		"added-dirs",
+		"prompt-cache",
+		"spend-limit",
+		"session-lines",
+		"task-name",
+		"task-type",
+		"task-status",
+		"task-label",
+		"task-elapsed",
+		"task-model",
+		"task-effort",
+		"task-tokens",
+		"task-context",
+		"task-sparkline",
+		"task-cwd",
+	} {
+		assert.Contains(t, types, want)
+	}
+	assert.Len(t, types, 61)
 }
 
 func TestRemainingPercentageWidget(t *testing.T) {
@@ -1858,10 +1873,16 @@ func TestAddedDirsWidget(t *testing.T) {
 }
 
 func TestDefaultConfigWidgetsRegistered(t *testing.T) {
-	for _, line := range config.DefaultSettings().Lines {
+	settings := config.DefaultSettings()
+	for _, line := range settings.Lines {
 		for _, item := range line {
 			assert.NotNilf(t, Get(item.Type), "default config references unregistered widget %q", item.Type)
+			assert.Falsef(t, IsTaskWidget(item.Type), "default main line uses task widget %q", item.Type)
 		}
+	}
+	for _, item := range settings.SubagentLine {
+		assert.NotNilf(t, Get(item.Type), "default subagentLine references unregistered widget %q", item.Type)
+		assert.Truef(t, IsTaskWidget(item.Type) || IsSharedWidget(item.Type), "default subagentLine uses main-line widget %q", item.Type)
 	}
 }
 

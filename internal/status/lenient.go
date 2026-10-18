@@ -3,6 +3,7 @@ package status
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"math"
 	"reflect"
 	"slices"
@@ -12,10 +13,27 @@ import (
 
 var unmarshalerType = reflect.TypeFor[json.Unmarshaler]()
 
+// parseLenient decodes the JSON object in data into the struct pointed to by v,
+// strictly when possible and otherwise through decodeLenient. Input that is not
+// a JSON object (or null) is an error.
+func parseLenient(data []byte, v any) (dropped []string, err error) {
+	err = json.Unmarshal(data, v)
+	if err == nil {
+		return nil, nil
+	}
+	var fields map[string]json.RawMessage
+	if json.Unmarshal(data, &fields) != nil {
+		return nil, err
+	}
+	rv := reflect.ValueOf(v).Elem()
+	rv.SetZero()
+	return decodeLenient(data, rv, ""), nil
+}
+
 // decodeLenient decodes raw into the addressable value v. A value that fails
 // strict decoding is coerced when the intent is unambiguous and dropped
-// otherwise; objects are decoded field by field so a bad field drops only
-// itself. It returns the JSON paths of dropped values.
+// otherwise; objects and arrays are decoded member by member so a bad member
+// drops only itself. It returns the JSON paths of dropped values.
 func decodeLenient(raw json.RawMessage, v reflect.Value, path string) []string {
 	if json.Unmarshal(raw, v.Addr().Interface()) == nil {
 		return nil
@@ -31,11 +49,35 @@ func decodeLenient(raw json.RawMessage, v reflect.Value, path string) []string {
 		return dropped
 	case v.Kind() == reflect.Struct && !reflect.PointerTo(v.Type()).Implements(unmarshalerType):
 		return decodeFields(raw, v, path)
+	case v.Kind() == reflect.Slice:
+		return decodeElements(raw, v, path)
 	case coerce(raw, v):
 		return nil
 	default:
 		return []string{path}
 	}
+}
+
+// decodeElements decodes a JSON array into the slice v one element at a time,
+// leaving out elements that cannot be decoded at all.
+func decodeElements(raw json.RawMessage, v reflect.Value, path string) []string {
+	var elems []json.RawMessage
+	if json.Unmarshal(raw, &elems) != nil {
+		return []string{path}
+	}
+	out := reflect.MakeSlice(v.Type(), 0, len(elems))
+	var dropped []string
+	for i, e := range elems {
+		elemPath := fmt.Sprintf("%s[%d]", path, i)
+		elem := reflect.New(v.Type().Elem()).Elem()
+		d := decodeLenient(e, elem, elemPath)
+		dropped = append(dropped, d...)
+		if !slices.Contains(d, elemPath) {
+			out = reflect.Append(out, elem)
+		}
+	}
+	v.Set(out)
+	return dropped
 }
 
 // decodeFields decodes a JSON object into the struct v one field at a time.

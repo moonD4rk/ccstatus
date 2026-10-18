@@ -46,6 +46,13 @@ func TestDefaultSettings(t *testing.T) {
 	assert.Empty(t, s.Lines[1][2].Prefix) // uses the widget default ("Limit ")
 	assert.Equal(t, "separator", s.Lines[1][3].Type)
 	assert.Equal(t, "session-clock", s.Lines[1][4].Type)
+
+	// Subagent row: name status elapsed | model tokens context% sparkline | label
+	require.Len(t, s.SubagentLine, 10)
+	assert.Equal(t, "task-name", s.SubagentLine[0].Type)
+	assert.Equal(t, "task-context", s.SubagentLine[6].Type)
+	assert.Len(t, s.SubagentLine[6].Thresholds, 2)
+	assert.Equal(t, "task-label", s.SubagentLine[9].Type)
 }
 
 func TestLoadMissingFile(t *testing.T) {
@@ -124,6 +131,20 @@ func TestParseMergesDefaults(t *testing.T) {
 		s, err := Parse([]byte(`{"lines":[]}`))
 		require.NoError(t, err)
 		assert.Empty(t, s.Lines)
+	})
+
+	t.Run("subagentLine defaults the same way", func(t *testing.T) {
+		s, err := Parse([]byte(`{"lines":[]}`))
+		require.NoError(t, err)
+		assert.Equal(t, DefaultSettings().SubagentLine, s.SubagentLine)
+
+		s, err = Parse([]byte(`{"subagentLine":[{"id":"a","type":"task-name"}]}`))
+		require.NoError(t, err)
+		assert.Equal(t, []WidgetItem{{ID: "a", Type: "task-name"}}, s.SubagentLine)
+
+		s, err = Parse([]byte(`{"subagentLine":[]}`))
+		require.NoError(t, err)
+		assert.Empty(t, s.SubagentLine)
 	})
 }
 
