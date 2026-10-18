@@ -24,9 +24,6 @@ golangci-lint run
 gofumpt -l -w .
 goimports -w -local github.com/moond4rk/ccstatus .
 
-# Spelling
-typos
-
 # Dependencies
 go mod tidy
 
@@ -38,6 +35,8 @@ echo '{"model":{"id":"claude-opus-4-7","display_name":"Opus"},"context_window":{
 
 Claude Code pipes session JSON to stdin. ccstatus parses it (`internal/status`), loads `~/.config/ccstatus/settings.json` (`internal/config`; `$XDG_CONFIG_HOME` respected), and for each configured row renders every widget via the registry, applies colors, expands `flex-separator` to fill the terminal width, truncates, then post-processes (spaces → U+00A0 for VSCode; prepend `\x1b[0m` since Claude Code dims the status area) — see `internal/render` and `internal/widget`.
 
+Render mode must never exit non-zero (Claude Code blanks the status line): bad settings render the defaults under a red error line, bad stdin renders only that line, and `status.Parse` coerces or drops mistyped fields instead of failing. Settings decode over `DefaultSettings()`, so omitted fields keep their defaults. Git lookups run concurrently up front (`widget.PrefetchGit`) and always with `GIT_OPTIONAL_LOCKS=0` through plumbing that never rewrites the index.
+
 Subcommands: `ccstatus init` (write default settings.json), `validate`, `install` / `uninstall` (manage the `statusLine` block in `~/.claude/settings.json`, or `$CLAUDE_CONFIG_DIR/`; `install` takes `--refresh N` and `--hide-vim-indicator`), `dump` (save the raw Claude Code JSON to `/tmp/ccstatus-dump.json`), `widgets` (list all widget types).
 
 ~47 widgets implement `Widget` (`Render` / `DefaultColor` / `DisplayName` / `Description` / `SupportsRawValue` / `DefaultPrefix` / `DefaultSuffix` — embed `noAffix` for empty affixes), registered in a map keyed by type string in `internal/widget/widget.go`; generic templates (`tokenWidget`, `percentageWidget`, `stringFieldWidget`, `RateLimitWidget`) back most of them. Data sources: Claude Code JSON, `git` commands (run in the session dir via the injectable `git.Repo`/`GitProvider`), the JSONL transcript (`block-timer` fallback only), the system. `ccstatus widgets` lists them all; `README.md` has per-widget detail.
@@ -47,9 +46,9 @@ Subcommands: `ccstatus init` (write default settings.json), `validate`, `install
 - **English only, no emoji** — code, comments, docs, commit messages. Never put local machine paths in code, tests, or docs.
 - **Breaking changes are fine** — prefer the best design over backward compatibility. No Powerline rendering. No interactive TUI.
 - **Doc comments** — every exported type and function has a Go doc comment that starts with the identifier name.
-- **Comments** — only when they earn their keep; one short line, the *why* not the *what*.
+- **Comments** — only when they earn their keep; one short line, the _why_ not the _what_.
 - **Naming** — exported `PascalCase` (`Settings`, `Widget`); internal `camelCase` (`registry`).
-- **Tests** — table-driven with `testify`; cover valid *and* malformed JSON; never hardcode local paths.
+- **Tests** — table-driven with `testify`; cover valid _and_ malformed JSON; never hardcode local paths.
 
 ## Reference
 

@@ -73,18 +73,25 @@ func rateLimitPercent(window *status.RateLimitWindow, raw bool) string {
 	if window.UsedPercentage == nil {
 		return ""
 	}
+	pct := clampPercent(*window.UsedPercentage)
 	if raw {
-		return fmt.Sprintf("%.1f", *window.UsedPercentage)
+		return fmt.Sprintf("%.1f", pct)
 	}
-	return fmt.Sprintf("%.0f%%", *window.UsedPercentage)
+	return fmt.Sprintf("%.0f%%", pct)
 }
 
 func rateLimitBar(window *status.RateLimitWindow, width int) string {
 	if window.UsedPercentage == nil {
 		return ""
 	}
-	pct := *window.UsedPercentage
+	pct := clampPercent(*window.UsedPercentage)
 	return formatBlockBar(pct, width) + fmt.Sprintf(" %.0f%%", pct)
+}
+
+// clampPercent bounds a subscription window's usage to 0-100; Claude Code has
+// briefly reported values above 100.
+func clampPercent(pct float64) float64 {
+	return min(max(pct, 0), 100)
 }
 
 // formatBlockBar renders a fixed-width bar like "▓▓▓░░░░░░░" for the given percentage.
@@ -139,6 +146,8 @@ func sevenDayWindow(data *status.Session) *status.RateLimitWindow {
 	return data.RateLimits.SevenDay
 }
 
+func (w *RateLimitWidget) displayModes() []string { return []string{"percent", "bar", "reset", "full"} }
+
 // DefaultColor returns the default foreground color.
 func (w *RateLimitWidget) DefaultColor() string { return "yellow" }
 
@@ -170,10 +179,10 @@ func (w *RateLimitsWidget) Render(_ *config.WidgetItem, ctx RenderContext, _ *co
 	}
 	var parts []string
 	if win := ctx.Data.RateLimits.FiveHour; win != nil && win.UsedPercentage != nil {
-		parts = append(parts, fmt.Sprintf("5h: %.0f%%", *win.UsedPercentage))
+		parts = append(parts, fmt.Sprintf("5h: %.0f%%", clampPercent(*win.UsedPercentage)))
 	}
 	if win := ctx.Data.RateLimits.SevenDay; win != nil && win.UsedPercentage != nil {
-		parts = append(parts, fmt.Sprintf("7d: %.0f%%", *win.UsedPercentage))
+		parts = append(parts, fmt.Sprintf("7d: %.0f%%", clampPercent(*win.UsedPercentage)))
 	}
 	return strings.Join(parts, " / ")
 }

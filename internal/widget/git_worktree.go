@@ -2,6 +2,7 @@ package widget
 
 import (
 	"github.com/moond4rk/ccstatus/internal/config"
+	"github.com/moond4rk/ccstatus/internal/status"
 )
 
 // GitWorktreeWidget displays the current git worktree name.
@@ -9,17 +10,36 @@ type GitWorktreeWidget struct{ noAffix }
 
 // Render returns the worktree name if in a linked worktree, empty otherwise.
 // Source order: workspace.git_worktree (any linked worktree), worktree.name
-// (--worktree sessions only), then a `git rev-parse --git-dir` heuristic.
+// (--worktree sessions only), then `git rev-parse --absolute-git-dir` for
+// Claude Code versions whose payload cannot be trusted to name the worktree.
 func (w *GitWorktreeWidget) Render(_ *config.WidgetItem, ctx RenderContext, _ *config.Settings) string {
-	if ctx.Data != nil {
-		if ctx.Data.Workspace != nil && ctx.Data.Workspace.GitWorktree != "" {
-			return ctx.Data.Workspace.GitWorktree
-		}
-		if ctx.Data.Worktree != nil && ctx.Data.Worktree.Name != "" {
-			return ctx.Data.Worktree.Name
-		}
+	if name, ok := worktreeFromJSON(ctx.Data); ok {
+		return name
 	}
 	return ctx.Git.Worktree()
+}
+
+func (w *GitWorktreeWidget) gitFacts(ctx RenderContext) []gitFact {
+	if _, ok := worktreeFromJSON(ctx.Data); ok {
+		return nil
+	}
+	return []gitFact{factWorktree}
+}
+
+// worktreeFromJSON returns the worktree name from the payload and whether the
+// payload settles the question. Claude Code v2.1.98+ sets workspace.git_worktree
+// whenever the directory is inside a linked worktree, so its absence means none.
+func worktreeFromJSON(data *status.Session) (string, bool) {
+	if data == nil {
+		return "", false
+	}
+	if data.Workspace != nil && data.Workspace.GitWorktree != "" {
+		return data.Workspace.GitWorktree, true
+	}
+	if data.Worktree != nil && data.Worktree.Name != "" {
+		return data.Worktree.Name, true
+	}
+	return "", data.VersionAtLeast(2, 1, 98)
 }
 
 // DefaultColor returns the default foreground color.

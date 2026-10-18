@@ -44,7 +44,6 @@ dist/
 
 # CICD Config
 !.gitignore
-!.typos.toml
 !.golangci.yml
 !.github/*.yml
 !.codecov.yml

@@ -2,6 +2,8 @@
 package widget
 
 import (
+	"sync"
+
 	"github.com/moond4rk/ccstatus/internal/config"
 	"github.com/moond4rk/ccstatus/internal/git"
 	"github.com/moond4rk/ccstatus/internal/status"
@@ -29,13 +31,18 @@ type GitProvider interface {
 }
 
 // GitCache memoizes GitProvider results for a single render cycle so each git
-// command runs at most once. A nil cache yields zero values.
+// command runs at most once, even when prefetched concurrently. A nil cache
+// yields zero values.
 type GitCache struct {
-	provider GitProvider
-	branch   *string
-	changes  *int
-	worktree *string
-	diff     *git.DiffStat
+	provider     GitProvider
+	branchOnce   sync.Once
+	changesOnce  sync.Once
+	worktreeOnce sync.Once
+	diffOnce     sync.Once
+	branch       string
+	changes      int
+	worktree     string
+	diff         git.DiffStat
 }
 
 // NewGitCache creates a cache whose git commands run in dir (empty = the
@@ -54,11 +61,8 @@ func (c *GitCache) Branch() string {
 	if c == nil || c.provider == nil {
 		return ""
 	}
-	if c.branch == nil {
-		b := c.provider.Branch()
-		c.branch = &b
-	}
-	return *c.branch
+	c.branchOnce.Do(func() { c.branch = c.provider.Branch() })
+	return c.branch
 }
 
 // Changes returns the uncommitted change count, caching the result.
@@ -66,11 +70,8 @@ func (c *GitCache) Changes() int {
 	if c == nil || c.provider == nil {
 		return 0
 	}
-	if c.changes == nil {
-		n := c.provider.Changes()
-		c.changes = &n
-	}
-	return *c.changes
+	c.changesOnce.Do(func() { c.changes = c.provider.Changes() })
+	return c.changes
 }
 
 // Worktree returns the worktree name, caching the result.
@@ -78,11 +79,8 @@ func (c *GitCache) Worktree() string {
 	if c == nil || c.provider == nil {
 		return ""
 	}
-	if c.worktree == nil {
-		w := c.provider.Worktree()
-		c.worktree = &w
-	}
-	return *c.worktree
+	c.worktreeOnce.Do(func() { c.worktree = c.provider.Worktree() })
+	return c.worktree
 }
 
 // Diff returns the line-level diff stats, caching the result.
@@ -90,11 +88,61 @@ func (c *GitCache) Diff() git.DiffStat {
 	if c == nil || c.provider == nil {
 		return git.DiffStat{}
 	}
-	if c.diff == nil {
-		d := c.provider.Diff()
-		c.diff = &d
+	c.diffOnce.Do(func() { c.diff = c.provider.Diff() })
+	return c.diff
+}
+
+// gitFact names one GitCache lookup.
+type gitFact int
+
+const (
+	factBranch gitFact = iota
+	factChanges
+	factWorktree
+	factDiff
+)
+
+// load runs the lookup for f through the cache.
+func (c *GitCache) load(f gitFact) {
+	switch f {
+	case factBranch:
+		c.Branch()
+	case factChanges:
+		c.Changes()
+	case factWorktree:
+		c.Worktree()
+	case factDiff:
+		c.Diff()
 	}
-	return *c.diff
+}
+
+// gitWidget is implemented by widgets that read git state, so their lookups can
+// be prefetched before rendering.
+type gitWidget interface {
+	gitFacts(ctx RenderContext) []gitFact
+}
+
+// PrefetchGit runs the git lookups needed by the widgets in lines concurrently,
+// so a render waits for the slowest lookup rather than the sum of them all.
+func PrefetchGit(lines [][]config.WidgetItem, ctx RenderContext) {
+	if ctx.Git == nil || ctx.Git.provider == nil {
+		return
+	}
+	needed := make(map[gitFact]bool)
+	for _, line := range lines {
+		for i := range line {
+			if w, ok := Get(line[i].Type).(gitWidget); ok {
+				for _, f := range w.gitFacts(ctx) {
+					needed[f] = true
+				}
+			}
+		}
+	}
+	var wg sync.WaitGroup
+	for f := range needed {
+		wg.Go(func() { ctx.Git.load(f) })
+	}
+	wg.Wait()
 }
 
 // Widget defines the contract for all status line widgets.
@@ -318,6 +366,20 @@ func (noAffix) DefaultSuffix() string { return "" }
 // Get returns the widget for the given type string, or nil if unknown.
 func Get(widgetType string) Widget {
 	return registry[widgetType]
+}
+
+// displayModer is implemented by widgets that read metadata["display"].
+type displayModer interface {
+	displayModes() []string
+}
+
+// DisplayModes returns the metadata.display values the widget type accepts, or
+// false when the type has no display modes.
+func DisplayModes(widgetType string) ([]string, bool) {
+	if w, ok := Get(widgetType).(displayModer); ok {
+		return w.displayModes(), true
+	}
+	return nil, false
 }
 
 // Types returns all registered widget type names.

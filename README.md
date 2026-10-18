@@ -116,7 +116,7 @@ Removes the ccstatus status line configuration from Claude Code's settings.
 ccstatus validate
 ```
 
-Checks `settings.json` for unknown widget types, missing or duplicate widget IDs, and invalid color names. Exits non-zero when any problem is found, so it works as a CI gate.
+Checks `settings.json` for JSON errors (reported as `path:line:column`), unknown widget types, missing or duplicate widget IDs, invalid color names, out-of-range `flexMode` / `colorLevel` / `compactThreshold`, and `metadata.display` values the widget does not support. Exits non-zero when any problem is found, so it works as a CI gate.
 
 #### `ccstatus dump`
 
@@ -196,7 +196,7 @@ To customize, edit the `lines` array in `settings.json` — e.g. swap `rate-limi
 | `colorLevel` | int | `2` | `0` disables color; any value `>= 1` enables ANSI 16-color output |
 | `flexMode` | string | `"full-until-compact"` | How flex separator calculates available width |
 | `compactThreshold` | int | `90` | Context % at which `full-until-compact` switches to the wider (−40 col) right margin |
-| `terminalWidth` | int | (auto) | Force the status line width in columns. Claude Code runs the status line command with stdio piped, so width auto-detection often falls back to 80 regardless of terminal size — set this (e.g. `180`) to make ccstatus use your real width. Leave unset/`0` to auto-detect. |
+| `terminalWidth` | int | (auto) | Force the status line width in columns. Leave unset/`0` to auto-detect: ccstatus reads the `COLUMNS` variable that Claude Code (v2.1.153+) sets for status line commands, then falls back to the attached terminal, then 80. |
 | `defaultSeparator` | string | `"\|"` | Separator character between widgets |
 | `defaultPadding` | string | `" "` | Padding around separators |
 | `inheritSeparatorColors` | bool | `false` | Separators inherit color from adjacent widget |
@@ -297,6 +297,12 @@ For the full JSON schema, see the [official documentation](https://code.claude.c
 > **Not yet supported:** the separate [`subagentStatusLine`](https://code.claude.com/docs/en/statusline#subagent-status-lines) setting (a per-subagent row in the agent panel) has a different input/output contract and is tracked for a future release.
 
 ## Debugging
+
+ccstatus never exits non-zero while rendering, because Claude Code hides the whole status line when the command fails. Problems show up in the status line instead:
+
+- An invalid `settings.json` renders the default layout below a red `ccstatus: settings.json:LINE:COL: ...` line; run `ccstatus validate` for the full list.
+- Input that is not JSON renders a single red `ccstatus: invalid input: ...` line.
+- A field whose type changed in a newer Claude Code is coerced when that is unambiguous (a quoted number, a fractional epoch) or dropped otherwise, and the rest still renders; dropped fields are listed on stderr, which `claude --debug` logs.
 
 Use `ccstatus dump` to capture the raw JSON that Claude Code sends:
 

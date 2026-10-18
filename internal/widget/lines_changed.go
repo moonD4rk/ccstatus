@@ -18,6 +18,8 @@ func (w *LinesChangedWidget) Render(_ *config.WidgetItem, ctx RenderContext, _ *
 	return fmt.Sprintf("+%d/-%d", stat.Added, stat.Removed)
 }
 
+func (w *LinesChangedWidget) gitFacts(RenderContext) []gitFact { return []gitFact{factDiff} }
+
 // DefaultColor returns the default foreground color.
 func (w *LinesChangedWidget) DefaultColor() string { return defaultGreenColor }
 
@@ -44,6 +46,8 @@ func (w *LinesAddedWidget) Render(_ *config.WidgetItem, ctx RenderContext, _ *co
 	return fmt.Sprintf("+%d", stat.Added)
 }
 
+func (w *LinesAddedWidget) gitFacts(RenderContext) []gitFact { return []gitFact{factDiff} }
+
 // DefaultColor returns the default foreground color.
 func (w *LinesAddedWidget) DefaultColor() string { return defaultGreenColor }
 
@@ -67,6 +71,8 @@ func (w *LinesRemovedWidget) Render(_ *config.WidgetItem, ctx RenderContext, _ *
 	}
 	return fmt.Sprintf("-%d", stat.Removed)
 }
+
+func (w *LinesRemovedWidget) gitFacts(RenderContext) []gitFact { return []gitFact{factDiff} }
 
 // DefaultColor returns the default foreground color.
 func (w *LinesRemovedWidget) DefaultColor() string { return "red" }

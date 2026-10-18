@@ -3,12 +3,13 @@ package git
 
 import (
 	"context"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
 )
 
-const gitTimeout = 5 * time.Second
+const gitTimeout = 2 * time.Second
 
 // Repo runs git commands against a working directory. The zero value runs git
 // in the process's own current working directory; set Dir to the session
@@ -27,6 +28,8 @@ func (r Repo) run(args ...string) (string, bool) {
 	if r.Dir != "" {
 		cmd.Dir = r.Dir
 	}
+	// Never take index.lock: the status line runs while Claude runs its own git commands.
+	cmd.Env = append(os.Environ(), "GIT_OPTIONAL_LOCKS=0")
 	out, err := cmd.Output()
 	if err != nil {
 		return "", false

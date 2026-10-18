@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -21,6 +23,7 @@ func runRoot(t *testing.T, stdin string) (string, error) {
 	cmd.SetIn(strings.NewReader(stdin))
 	var out bytes.Buffer
 	cmd.SetOut(&out)
+	cmd.SetErr(&bytes.Buffer{})
 	cmd.SetArgs([]string{})
 	err := cmd.Execute()
 	normalized := strings.ReplaceAll(color.StripANSI(out.String()), " ", " ")
@@ -60,10 +63,53 @@ func TestRunStatusLineEndToEnd(t *testing.T) {
 		assert.Empty(t, out)
 	})
 
-	t.Run("empty stdin errors without panicking", func(t *testing.T) {
-		_, err := runRoot(t, "")
-		assert.Error(t, err)
+	t.Run("invalid input renders an error line and exits 0", func(t *testing.T) {
+		out, err := runRoot(t, "")
+		require.NoError(t, err)
+		assert.Equal(t, "ccstatus: invalid input: unexpected end of JSON input\n", out)
 	})
+
+	t.Run("a field of the wrong type does not blank the line", func(t *testing.T) {
+		in := `{"model":{"id":"m","display_name":"Opus"},"context_window":{"used_percentage":"25"},"cost":{"total_cost_usd":[]}}`
+		out, err := runRoot(t, in)
+		require.NoError(t, err)
+		assert.Equal(t, "Opus | Ctx: 25%\n", out)
+	})
+}
+
+func TestRunStatusLineWithBrokenSettings(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+	t.Setenv("COLUMNS", "300")
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "ccstatus"), 0o755))
+	broken := "{\n  \"lines\": [[{\"id\": \"1\", \"type\": \"model\"},]]\n}"
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "ccstatus", "settings.json"), []byte(broken), 0o600))
+
+	out, err := runRoot(t, `{"model":{"id":"m","display_name":"Opus"}}`)
+	require.NoError(t, err)
+	lines := strings.Split(strings.TrimSuffix(out, "\n"), "\n")
+	require.GreaterOrEqual(t, len(lines), 2, "error line plus the default layout")
+	assert.Equal(t, `ccstatus: settings.json:2:43: invalid character ']' looking for beginning of value (run ccstatus validate)`, lines[0])
+	assert.True(t, strings.HasPrefix(lines[1], "Opus"), "default layout still renders: %q", lines[1])
+}
+
+func TestDumpWritesPayloadAndRenders(t *testing.T) {
+	writeDeterministicConfig(t)
+	path := filepath.Join(t.TempDir(), "dump.json")
+
+	cmd := newRootCmd()
+	cmd.SetArgs([]string{"dump", "-o", path})
+	cmd.SetIn(strings.NewReader(`{"model":{"id":"m","display_name":"Opus"}}`))
+	var out, errOut bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetErr(&errOut)
+	require.NoError(t, cmd.Execute())
+
+	assert.Equal(t, "Opus\n", strings.ReplaceAll(color.StripANSI(out.String()), " ", " "))
+	assert.Contains(t, errOut.String(), "Dumped JSON to "+path)
+	dumped, err := os.ReadFile(path)
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"model":{"id":"m","display_name":"Opus"}}`, string(dumped))
 }
 
 func TestRootCommandRegistersSubcommands(t *testing.T) {

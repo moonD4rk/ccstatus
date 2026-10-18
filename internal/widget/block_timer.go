@@ -125,6 +125,8 @@ func formatProgressBar(pct float64) string {
 	return b.String()
 }
 
+func (w *BlockTimerWidget) displayModes() []string { return []string{"time", "progress", "percentage"} }
+
 // DefaultColor returns the default foreground color.
 func (w *BlockTimerWidget) DefaultColor() string { return defaultDimColor }
 

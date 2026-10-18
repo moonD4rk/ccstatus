@@ -1,6 +1,7 @@
 package render
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -461,4 +462,75 @@ func TestTruncate(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestTruncateClosesHyperlinks(t *testing.T) {
+	const linkOpen = "\x1b]8;;https://example.com/pull/1234\x07"
+	tests := []struct {
+		name     string
+		line     string
+		maxWidth int
+		want     string
+	}{
+		{
+			name:     "cut inside a link closes it before the suffix",
+			line:     "Opus " + linkOpen + "#1234" + hyperlinkClose + " pending",
+			maxWidth: 9,
+			want:     "Opus " + linkOpen + "#" + hyperlinkClose + "\x1b[0m...",
+		},
+		{
+			name:     "cut after a closed link adds no extra close",
+			line:     linkOpen + "#1" + hyperlinkClose + " pending review",
+			maxWidth: 8,
+			want:     linkOpen + "#1" + hyperlinkClose + " pe\x1b[0m...",
+		},
+		{
+			name:     "ST-terminated link is tracked too",
+			line:     "\x1b]8;;https://example.com\x1b\\linktext\x1b]8;;\x1b\\",
+			maxWidth: 5,
+			want:     "\x1b]8;;https://example.com\x1b\\li" + hyperlinkClose + "\x1b[0m...",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, Truncate(tt.line, tt.maxWidth))
+		})
+	}
+}
+
+func FuzzTruncate(f *testing.F) {
+	f.Add("Opus \x1b]8;;https://example.com/pull/1\x07#1234\x1b]8;;\x07 pending", 9)
+	f.Add("\x1b[36m中文宽字符 and emoji \x1b[0m tail", 7)
+	f.Add("plain text that is long enough to be cut", 12)
+	f.Fuzz(func(t *testing.T, line string, maxWidth int) {
+		if maxWidth < 0 || maxWidth > 500 {
+			return
+		}
+		out := Truncate(line, maxWidth)
+		if w := color.VisibleWidth(out); w > maxWidth {
+			t.Fatalf("width %d exceeds %d: %q", w, maxWidth, out)
+		}
+		if color.VisibleWidth(line) > maxWidth && strings.Contains(line, "\x1b]8;") {
+			if _, opens := lastHyperlinkState(out); opens {
+				t.Fatalf("truncated output leaves a hyperlink open: %q", out)
+			}
+		}
+	})
+}
+
+// lastHyperlinkState reports whether s contains an OSC 8 sequence and whether
+// the last one opens a link.
+func lastHyperlinkState(s string) (found, opens bool) {
+	for i := 0; i < len(s); {
+		if s[i] != '\x1b' {
+			i++
+			continue
+		}
+		j := color.ScanEscape(s, i)
+		if isLink, o := hyperlinkState(s[i:j]); isLink {
+			found, opens = true, o
+		}
+		i = j
+	}
+	return found, opens
 }
