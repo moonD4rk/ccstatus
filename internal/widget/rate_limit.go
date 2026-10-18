@@ -41,14 +41,7 @@ func (w *RateLimitWidget) Render(item *config.WidgetItem, ctx RenderContext, _ *
 		return ""
 	}
 
-	mode := "percent"
-	if item.Metadata != nil {
-		if m, ok := item.Metadata["display"]; ok {
-			mode = m
-		}
-	}
-
-	switch mode {
+	switch displayMode(item, "percent") {
 	case "bar":
 		return rateLimitBar(window, barWidthFor(item))
 	case "reset":
@@ -166,25 +159,75 @@ func (w *RateLimitWidget) DefaultPrefix() string { return w.defaultPrefix }
 // DefaultSuffix returns the default suffix for this widget.
 func (w *RateLimitWidget) DefaultSuffix() string { return "" }
 
-// RateLimitsWidget displays both Claude.ai rate-limit windows compactly, e.g.
-// "5h: 3% / 7d: 12%". Each window is shown only when it has a used_percentage;
-// the widget renders empty (and so is omitted, prefix included) when neither
-// window has data — non-Pro/Max accounts, or before the first API response.
+// RateLimitsWidget displays the Claude.ai rate-limit windows and the gateway
+// spend limit compactly, e.g. "5h: 3% / 7d: 12%" or "spend: $314.12/$500.00".
+// Each limit is shown only when it has data; the widget renders empty (and so is
+// omitted, prefix included) when none does — before the first API response, or
+// for accounts with no limits.
 type RateLimitsWidget struct{}
 
-// Render returns "5h: x% / 7d: y%" for whichever windows have data.
+// Render returns "5h: x% / 7d: y% / spend: $u/$l" for whichever limits have data.
 func (w *RateLimitsWidget) Render(_ *config.WidgetItem, ctx RenderContext, _ *config.Settings) string {
 	if ctx.Data == nil || ctx.Data.RateLimits == nil {
 		return ""
 	}
+	rl := ctx.Data.RateLimits
 	var parts []string
-	if win := ctx.Data.RateLimits.FiveHour; win != nil && win.UsedPercentage != nil {
+	if win := rl.FiveHour; win != nil && win.UsedPercentage != nil {
 		parts = append(parts, fmt.Sprintf("5h: %.0f%%", clampPercent(*win.UsedPercentage)))
 	}
-	if win := ctx.Data.RateLimits.SevenDay; win != nil && win.UsedPercentage != nil {
+	if win := rl.SevenDay; win != nil && win.UsedPercentage != nil {
 		parts = append(parts, fmt.Sprintf("7d: %.0f%%", clampPercent(*win.UsedPercentage)))
 	}
+	if rl.SpendLimit != nil {
+		if spend := spendAmount(rl.SpendLimit, "/"); spend != "" {
+			parts = append(parts, "spend: "+spend)
+		}
+	}
 	return strings.Join(parts, " / ")
+}
+
+// Value returns the highest usage across the limits shown, for threshold colors.
+func (w *RateLimitsWidget) Value(_ *config.WidgetItem, ctx RenderContext) (float64, bool) {
+	if ctx.Data == nil || ctx.Data.RateLimits == nil {
+		return 0, false
+	}
+	rl := ctx.Data.RateLimits
+	best, found := 0.0, false
+	consider := func(pct *float64, clamp bool) {
+		if pct == nil {
+			return
+		}
+		v := *pct
+		if clamp {
+			v = clampPercent(v)
+		}
+		if !found || v > best {
+			best, found = v, true
+		}
+	}
+	if rl.FiveHour != nil {
+		consider(rl.FiveHour.UsedPercentage, true)
+	}
+	if rl.SevenDay != nil {
+		consider(rl.SevenDay.UsedPercentage, true)
+	}
+	if rl.SpendLimit != nil {
+		consider(rl.SpendLimit.UsedPercentage, false)
+	}
+	return best, found
+}
+
+// Value returns the window's used percentage, clamped to 0-100.
+func (w *RateLimitWidget) Value(_ *config.WidgetItem, ctx RenderContext) (float64, bool) {
+	if ctx.Data == nil {
+		return 0, false
+	}
+	window := w.extract(ctx.Data)
+	if window == nil || window.UsedPercentage == nil {
+		return 0, false
+	}
+	return clampPercent(*window.UsedPercentage), true
 }
 
 // DefaultColor returns the default foreground color.
@@ -194,7 +237,9 @@ func (w *RateLimitsWidget) DefaultColor() string { return "yellow" }
 func (w *RateLimitsWidget) DisplayName() string { return "Rate Limits" }
 
 // Description returns what this widget shows.
-func (w *RateLimitsWidget) Description() string { return "Combined 5h/7d rate-limit usage" }
+func (w *RateLimitsWidget) Description() string {
+	return "Combined 5h/7d rate-limit usage and gateway spend limit"
+}
 
 // SupportsRawValue returns false since this widget has no compact mode.
 func (w *RateLimitsWidget) SupportsRawValue() bool { return false }

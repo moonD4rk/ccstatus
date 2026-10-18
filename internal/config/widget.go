@@ -19,9 +19,33 @@ type WidgetItem struct {
 	Timeout         int               `json:"timeout,omitempty"`
 	Merge           any               `json:"merge,omitempty"`
 	Metadata        map[string]string `json:"metadata,omitempty"`
+	Thresholds      []Threshold       `json:"thresholds,omitempty"`
 }
 
-// IsMerged returns true if this widget should merge with the adjacent widget.
+// Threshold restyles a numeric widget once its value reaches GTE. Empty colors
+// keep the widget's normal colors.
+type Threshold struct {
+	GTE             float64 `json:"gte"`
+	Color           string  `json:"color,omitempty"`
+	BackgroundColor string  `json:"backgroundColor,omitempty"`
+	Bold            bool    `json:"bold,omitempty"`
+}
+
+// ThresholdFor returns the threshold with the highest GTE that value reaches,
+// and false when value is below every threshold.
+func (w *WidgetItem) ThresholdFor(value float64) (Threshold, bool) {
+	var best Threshold
+	found := false
+	for _, t := range w.Thresholds {
+		if value >= t.GTE && (!found || t.GTE >= best.GTE) {
+			best, found = t, true
+		}
+	}
+	return best, found
+}
+
+// IsMerged reports whether this widget joins the next one without padding.
+// true and the legacy "no-padding" mean the same thing.
 func (w *WidgetItem) IsMerged() bool {
 	if w.Merge == nil {
 		return false
@@ -33,10 +57,4 @@ func (w *WidgetItem) IsMerged() bool {
 		return s == "no-padding"
 	}
 	return false
-}
-
-// MergeNoPadding returns true if merge mode is "no-padding".
-func (w *WidgetItem) MergeNoPadding() bool {
-	s, ok := w.Merge.(string)
-	return ok && s == "no-padding"
 }

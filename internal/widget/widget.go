@@ -172,6 +172,26 @@ type Widget interface {
 	DefaultSuffix() string
 }
 
+// Valuer is implemented by numeric widgets: Value exposes the number the widget
+// renders, which selects the item's threshold colors.
+type Valuer interface {
+	Value(item *config.WidgetItem, ctx RenderContext) (float64, bool)
+}
+
+// DynamicDefaultColor is implemented by widgets whose default color depends on
+// the data; the renderer consults it when the item sets no color.
+type DynamicDefaultColor interface {
+	DefaultColorFor(ctx RenderContext) string
+}
+
+// displayMode returns item's metadata["display"], or def when unset.
+func displayMode(item *config.WidgetItem, def string) string {
+	if m, ok := item.Metadata["display"]; ok && m != "" {
+		return m
+	}
+	return def
+}
+
 var registry = map[string]Widget{
 	// Model and session
 	"model":         &ModelWidget{},
@@ -231,9 +251,11 @@ var registry = map[string]Widget{
 		defaultPrefix: "Rem: ",
 	},
 	"cache-hit-rate": &percentageWidget{
-		extract: status.CacheHitRate, displayName: "Cache Hit Rate", description: "Cache read token ratio as percentage",
+		extract: status.CacheHitRate, displayName: "Cache Hit Rate",
+		description:   "Session prompt cache hit ratio (falls back to the last request's cache reads)",
 		defaultPrefix: "Cache: ", defaultColor: "cyan",
 	},
+	"prompt-cache": &PromptCacheWidget{},
 
 	// Environment
 	"current-working-dir": &CurrentDirWidget{},
@@ -245,6 +267,7 @@ var registry = map[string]Widget{
 	"lines-changed":       &LinesChangedWidget{},
 	"lines-added":         &LinesAddedWidget{},
 	"lines-removed":       &LinesRemovedWidget{},
+	"session-lines":       &SessionLinesWidget{},
 
 	// Cost and duration
 	"api-duration": &APIDurationWidget{},
@@ -260,6 +283,7 @@ var registry = map[string]Widget{
 		extract: sevenDayWindow, displayName: "7d Rate Limit", description: "7-day rate-limit usage",
 		defaultPrefix: "7d limit: ",
 	},
+	"spend-limit": &SpendLimitWidget{},
 
 	// Session info
 	"session-id": &SessionIDWidget{},

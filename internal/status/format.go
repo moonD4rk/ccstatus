@@ -113,11 +113,16 @@ func RemainingPercentage(data *Session) (float64, bool) {
 	return remaining, true
 }
 
-// CacheHitRate returns the cache read ratio as a percentage.
-// Formula: cache_read_input_tokens / (input_tokens + cache_creation_input_tokens + cache_read_input_tokens) * 100
-// It needs the per-component current_usage breakdown, so it returns ok=false
-// when current_usage is absent (e.g. just after /compact) or the total is 0.
+// CacheHitRate returns the prompt cache hit ratio as a percentage. It prefers the
+// session-wide prompt_cache.hit_ratio (Claude Code v2.1.251+). Older versions
+// fall back to the last request's ratio:
+// cache_read_input_tokens / (input_tokens + cache_creation_input_tokens + cache_read_input_tokens) * 100,
+// which returns ok=false when current_usage is absent (e.g. just after /compact)
+// or the total is 0.
 func CacheHitRate(data *Session) (float64, bool) {
+	if data.PromptCache != nil && data.PromptCache.HitRatio != nil {
+		return *data.PromptCache.HitRatio * 100, true
+	}
 	if data.ContextWindow == nil || data.ContextWindow.CurrentUsage == nil {
 		return 0, false
 	}

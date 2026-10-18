@@ -48,7 +48,10 @@ func DefaultSettings() Settings {
 				{ID: "1", Type: "model", Color: "cyan"},
 				{ID: "2", Type: "effort", Color: "cyan", Prefix: "· "},
 				{ID: "3", Type: "separator"},
-				{ID: "4", Type: "context-percentage", Color: "brightBlack"},
+				{ID: "4", Type: "context-percentage", Color: "green", Thresholds: []Threshold{
+					{GTE: 70, Color: "yellow"},
+					{GTE: 90, Color: "red"},
+				}},
 				{ID: "5", Type: "separator"},
 				{ID: "6", Type: "git-branch", Color: "magenta"},
 				{ID: "7", Type: "git-worktree", Color: "brightBlack"},
