@@ -290,15 +290,16 @@ type Task struct {
   { "id": "s3", "type": "task-elapsed" },
   { "id": "s4", "type": "separator" },
   { "id": "s5", "type": "task-model" },
-  { "id": "s6", "type": "task-tokens" },
-  { "id": "s7", "type": "task-context", "color": "brightBlack", "thresholds": [{ "gte": 30, "color": "white" }, { "gte": 60, "color": "yellow" }, { "gte": 90, "color": "red" }] },
-  { "id": "s8", "type": "task-sparkline" },
-  { "id": "s9", "type": "separator" },
-  { "id": "s10", "type": "task-label" }
+  { "id": "s6", "type": "task-effort", "prefix": "· " },
+  { "id": "s7", "type": "task-tokens" },
+  { "id": "s8", "type": "task-context", "color": "brightBlack", "thresholds": [{ "gte": 30, "color": "white" }, { "gte": 60, "color": "yellow" }, { "gte": 90, "color": "red" }] },
+  { "id": "s9", "type": "task-sparkline" },
+  { "id": "s10", "type": "separator" },
+  { "id": "s11", "type": "task-label" }
 ]
 ```
 
-This renders like `reviewer running 1m23s | Sonnet 5.5 45.2k 23% ▅▄▆▇██▇ | Reading internal/auth/session.go`; the label comes last so truncation cuts it first.
+This renders like `reviewer running 1m23s | Sonnet 5.5 · high 45.2k 23% ▅▄▆▇██▇ | Reading internal/auth/session.go`; the label comes last so truncation cuts it first.
 
 **Rendering.** A `render.RenderRow(items, settings, ctx, width)` entry point renders at exactly `width`, without a flex-mode margin since `columns` is already the usable width, and reuses separator cleanup, colors, thresholds, flex expansion and truncation.
 
@@ -314,7 +315,7 @@ This renders like `reviewer running 1m23s | Sonnet 5.5 45.2k 23% ▅▄▆▇█
 
 ## Default Layout
 
-- v0.4.0: `context-percentage`, `rate-limits` and `task-context` share one scale: a `brightBlack` base, white at 30, yellow at 60 and red at 90. `rate-limits` picks up the spend limit automatically. `prompt-cache`, `spend-limit` and `session-lines` are opt-in.
+- v0.4.0: `context-percentage` and `task-context` share one scale: a `brightBlack` base, white at 30, yellow at 60 and red at 90; `rate-limits` takes the same steps a shade brighter (white, then bright white at 30). Line 1 gains `fast-mode` after the effort and line 2 ends with `session-name` capped at 30 columns. `rate-limits` picks up the spend limit automatically. `prompt-cache`, `spend-limit` and `session-lines` are opt-in.
 - v0.5.0: the `subagentLine` default from PR 3.
 
 ## Testing

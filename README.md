@@ -180,17 +180,17 @@ Settings are stored at `~/.config/ccstatus/settings.json`. Edit manually to cust
 
 ### Default Layout
 
-A lean 2-line layout. Widgets with nothing to show — `effort`, `git-worktree`, `rate-limits` — are dropped, so a plain session collapses to `model | Ctx% | branch | +/- | $` over `cwd | Session`.
+A lean 2-line layout. Widgets with nothing to show — `effort`, `fast-mode`, `git-worktree`, `rate-limits`, `session-name` — are dropped, so a plain session collapses to `model | Ctx% | branch | +/- | $` over `cwd | Session`.
 
-**Line 1:** `model · effort | context % | git branch + worktree | lines +/- | session cost`
+**Line 1:** `model · effort | Fast | context % | git branch + worktree | lines +/- | session cost` (`Fast` only while fast mode is on)
 
-**Line 2:** `working directory | rate limits (5h/7d, or the gateway spend limit) | session clock`
+**Line 2:** `working directory | rate limits (5h/7d, or the gateway spend limit) | session clock | session name` (the name is capped at 30 columns)
 
-Context %, rate limits and the subagent `task-context` share one color scale: gray below 30%, white from 30%, yellow from 60% and red from 90%.
+Context % and the subagent `task-context` share one color scale: gray below 30%, white from 30%, yellow from 60% and red from 90%. Rate limits follow the same steps a shade brighter: white, then bright white from 30%.
 
 ```
-Opus 4.7 (1M context) · max | Ctx: 36% | main feat-x | +12 -3 | $0.34
-~/dev/myproj | Limit 5h: 3% / 7d: 12% | Session: 2h15m
+Opus 4.7 (1M context) · max | Fast | Ctx: 36% | main feat-x | +12 -3 | $0.34
+~/dev/myproj | Limit 5h: 3% / 7d: 12% | Session: 2h15m | Fix login redirect
 
 Sonnet | Ctx: 12% | main | +4 | $0.05
 ~/dev/myproj | Session: 30m
@@ -282,17 +282,18 @@ With `ccstatus install --subagent`, Claude Code runs `ccstatus subagent` for the
   { "id": "s3", "type": "task-elapsed" },
   { "id": "s4", "type": "separator" },
   { "id": "s5", "type": "task-model" },
-  { "id": "s6", "type": "task-tokens" },
-  { "id": "s7", "type": "task-context", "color": "brightBlack", "thresholds": [{ "gte": 30, "color": "white" }, { "gte": 60, "color": "yellow" }, { "gte": 90, "color": "red" }] },
-  { "id": "s8", "type": "task-sparkline" },
-  { "id": "s9", "type": "separator" },
-  { "id": "s10", "type": "task-label" }
+  { "id": "s6", "type": "task-effort", "prefix": "· " },
+  { "id": "s7", "type": "task-tokens" },
+  { "id": "s8", "type": "task-context", "color": "brightBlack", "thresholds": [{ "gte": 30, "color": "white" }, { "gte": 60, "color": "yellow" }, { "gte": 90, "color": "red" }] },
+  { "id": "s9", "type": "task-sparkline" },
+  { "id": "s10", "type": "separator" },
+  { "id": "s11", "type": "task-label" }
 ]
 ```
 
 ```
-reviewer running 1m23s | Sonnet 5.5 45.2k 23% ▅▄▆▇██▇ | Reading internal/auth/session.go
-Explore completed | Haiku 5.5 18.4k 9% | Find every caller of Session.Refresh
+reviewer running 1m23s | Sonnet 5.5 · high 45.2k 23% ▅▄▆▇██▇ | Reading internal/auth/session.go
+Explore completed | Haiku 5.5 · 16k 18.4k 9% | Find every caller of Session.Refresh
 ```
 
 Rows are sized to the width Claude Code reports, with no flex-mode margin. `subagentLine` takes the `task-*` widgets plus `separator`, `flex-separator` and `custom-text`; `ccstatus validate` flags anything else, and `task-*` widgets on the main lines. Try it with `ccstatus preview --subagent`.
