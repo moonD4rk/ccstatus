@@ -256,6 +256,7 @@ To customize, edit the `lines` array in `settings.json` — e.g. swap `rate-limi
 | `suffix` | string | Text after widget output |
 | `character` | string | Special character (e.g., branch icon) |
 | `rawValue` | bool | Use compact/raw output mode |
+| `maxWidth` | number | Cap the widget's text at this many columns, ending it with `…` (the prefix and suffix are not counted; wide characters count as two) |
 | `merge` | bool/string | Join this widget to the next one without `defaultPadding` (`true`, or the legacy `"no-padding"`) |
 | `metadata` | object | Widget-specific metadata, such as `display` and `barWidth` |
 | `thresholds` | array | Restyle a numeric widget by value: `[{ "gte": 70, "color": "yellow" }, { "gte": 90, "color": "red", "bold": true }]`. The highest `gte` reached wins; below the first, `color` applies. Each entry may set `color`, `backgroundColor`, `bold` |
@@ -349,7 +350,7 @@ Rows are sized to the width Claude Code reports, with no flex-mode margin. `suba
 | `agent-name` | JSON | Agent name | cyan |
 | `effort` | JSON | Reasoning effort level | cyan |
 | `thinking` | JSON | Extended thinking indicator | magenta |
-| `fast-mode` | JSON | Fast mode indicator | yellow |
+| `fast-mode` | JSON | `Fast` while fast mode is on | yellow |
 | `exceeds-200k` | JSON | Warning at 200k tokens | red |
 | `terminal-width` | System | Terminal width in columns | white |
 | `custom-text` | - | User-defined static text | white |

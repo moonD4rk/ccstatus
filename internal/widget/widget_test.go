@@ -1785,7 +1785,7 @@ func TestFastModeWidget(t *testing.T) {
 	t.Run("enabled returns indicator", func(t *testing.T) {
 		on := true
 		ctx := RenderContext{Data: &status.Session{FastMode: &on}}
-		assert.Equal(t, "on", w.Render(&item, ctx, &settings))
+		assert.Equal(t, "Fast", w.Render(&item, ctx, &settings))
 	})
 
 	t.Run("disabled returns empty", func(t *testing.T) {
@@ -1805,7 +1805,7 @@ func TestFastModeWidget(t *testing.T) {
 	})
 
 	assert.Equal(t, "yellow", w.DefaultColor())
-	assert.Equal(t, "Fast: ", w.DefaultPrefix())
+	assert.Empty(t, w.DefaultPrefix())
 }
 
 func TestSessionNameWidget(t *testing.T) {

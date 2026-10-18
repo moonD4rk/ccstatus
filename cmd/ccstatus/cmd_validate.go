@@ -106,6 +106,9 @@ func itemProblems(loc string, item *config.WidgetItem, seen map[string]bool) []s
 
 	problems = append(problems, colorProblem(loc, "color", item.Color)...)
 	problems = append(problems, colorProblem(loc, "backgroundColor", item.BackgroundColor)...)
+	if item.MaxWidth < 0 {
+		problems = append(problems, loc+": maxWidth must not be negative")
+	}
 	if known {
 		problems = append(problems, thresholdProblems(loc, item)...)
 	}

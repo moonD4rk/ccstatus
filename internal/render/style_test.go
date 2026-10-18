@@ -70,6 +70,36 @@ func TestRenderLineDynamicDefaultColor(t *testing.T) {
 	assert.Equal(t, color.Apply("Cache: cold", "magenta", "", false, 2), RenderLine(explicit, &settings, coldCtx))
 }
 
+func TestRenderLineMaxWidth(t *testing.T) {
+	settings := config.Settings{ColorLevel: 0, DefaultPadding: " ", DefaultSeparator: "|"}
+	ctx := widget.RenderContext{Data: &status.Session{}}
+	tests := []struct {
+		name string
+		item config.WidgetItem
+		want string
+	}{
+		{"short text is untouched", config.WidgetItem{Type: "custom-text", CustomText: "main", MaxWidth: 10}, "main"},
+		{"long text ends in an ellipsis", config.WidgetItem{Type: "custom-text", CustomText: "feat/window-redesign", MaxWidth: 10}, "feat/wind…"},
+		{"wide runes count as two columns", config.WidgetItem{Type: "custom-text", CustomText: "Terraform 中的 badgebar 仓库", MaxWidth: 16}, "Terraform 中的…"},
+		{"the prefix is not counted", config.WidgetItem{Type: "custom-text", CustomText: "abcdef", Prefix: "S: ", MaxWidth: 4}, "S: abc…"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.item.ID = "1"
+			assert.Equal(t, tt.want, RenderLine([]config.WidgetItem{tt.item}, &settings, ctx))
+		})
+	}
+}
+
+func TestTruncateWidget(t *testing.T) {
+	assert.Equal(t, "abc", truncateWidget("abc", 0), "0 means no limit")
+	assert.Equal(t, "abc", truncateWidget("abc", 3))
+	assert.Equal(t, "…", truncateWidget("abc", 1))
+	link := "\x1b]8;;https://example.com/pull/1234\x07#1234\x1b]8;;\x07"
+	assert.Equal(t, "\x1b]8;;https://example.com/pull/1234\x07#1\x1b]8;;\x07…", truncateWidget(link, 3),
+		"a cut link is closed before the ellipsis")
+}
+
 func TestRenderLineMerge(t *testing.T) {
 	settings := config.Settings{ColorLevel: 0, DefaultPadding: " ", DefaultSeparator: "|"}
 	ctx := widget.RenderContext{Data: &status.Session{

@@ -8,8 +8,9 @@ import (
 )
 
 const (
-	truncSuffix    = "..."
-	hyperlinkClose = "\x1b]8;;\x07"
+	truncSuffix       = "..."
+	widgetTruncSuffix = "…"
+	hyperlinkClose    = "\x1b]8;;\x07"
 )
 
 // Truncate shortens a line to fit within maxWidth display columns. ANSI escape
@@ -29,10 +30,24 @@ func Truncate(line string, maxWidth int) string {
 	if target <= 0 {
 		return truncSuffix[:maxWidth]
 	}
+	return cut(line, target) + "\x1b[0m" + truncSuffix
+}
 
+// truncateWidget caps one widget's text at maxWidth columns, ending it with a one-column "…";
+// the segment's own colors still apply, so no reset is added.
+func truncateWidget(text string, maxWidth int) string {
+	if maxWidth <= 0 || color.VisibleWidth(text) <= maxWidth {
+		return text
+	}
+	return strings.TrimRight(cut(text, maxWidth-color.VisibleWidth(widgetTruncSuffix)), " ") + widgetTruncSuffix
+}
+
+// cut keeps the longest prefix of line that fits in width columns, copying escape
+// sequences through and closing a hyperlink it cuts mid-text.
+func cut(line string, width int) string {
 	var b strings.Builder
 	b.Grow(len(line))
-	width := 0
+	used := 0
 	linkOpen := false
 	i := 0
 	for i < len(line) {
@@ -48,20 +63,17 @@ func Truncate(line string, maxWidth int) string {
 		}
 		r, size := utf8.DecodeRuneInString(line[i:])
 		rw := color.RuneWidth(r)
-		if width+rw > target {
+		if used+rw > width {
 			break
 		}
 		b.WriteString(line[i : i+size])
-		width += rw
+		used += rw
 		i += size
 	}
 
-	// Close a hyperlink cut mid-text, then reset colors before the suffix.
 	if linkOpen {
 		b.WriteString(hyperlinkClose)
 	}
-	b.WriteString("\x1b[0m")
-	b.WriteString(truncSuffix)
 	return b.String()
 }
 

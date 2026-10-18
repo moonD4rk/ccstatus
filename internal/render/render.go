@@ -191,6 +191,7 @@ func renderWidgets(items []config.WidgetItem, ctx widget.RenderContext, settings
 			isSep: items[i].Type == separatorType,
 		}
 		if seg.text != "" {
+			seg.text = truncateWidget(seg.text, items[i].MaxWidth)
 			prefix := items[i].Prefix
 			suffix := items[i].Suffix
 			if prefix == "" {

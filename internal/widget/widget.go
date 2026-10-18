@@ -355,12 +355,11 @@ var registry = map[string]Widget{
 			if data.FastMode == nil || !*data.FastMode {
 				return ""
 			}
-			return "on"
+			return "Fast"
 		},
-		defaultColor:  "yellow",
-		displayName:   "Fast Mode",
-		description:   "Fast mode indicator",
-		defaultPrefix: "Fast: ",
+		defaultColor: "yellow",
+		displayName:  "Fast Mode",
+		description:  "Shows Fast while fast mode is on",
 	},
 	"session-name": &stringFieldWidget{
 		extract: func(data *status.Session) string {
