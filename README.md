@@ -11,8 +11,9 @@ A customizable status line formatter for [Claude Code](https://code.claude.com/)
 ## Features
 
 - Single static binary with no runtime dependencies
-- 47 configurable widgets (model, tokens, context, git, cost, rate limits, and more)
+- 50 configurable widgets (model, tokens, context, git, cost, rate limits, prompt cache, and more)
 - Multi-line status line with flex separator layout
+- Threshold colors (e.g. context % turning yellow, then red) and progress bars
 - ANSI 16-color support via [fatih/color](https://github.com/fatih/color)
 - Configurable via `~/.config/ccstatus/settings.json`
 - Automatic Claude Code integration via `install`/`uninstall` commands
@@ -152,9 +153,9 @@ Settings are stored at `~/.config/ccstatus/settings.json`. Edit manually to cust
 
 A lean 2-line layout. Widgets with nothing to show — `effort`, `git-worktree`, `rate-limits` — are dropped, so a plain session collapses to `model | Ctx% | branch | +/- | $` over `cwd | Session`.
 
-**Line 1:** `model · effort | context % | git branch + worktree | lines +/- | session cost`
+**Line 1:** `model · effort | context % | git branch + worktree | lines +/- | session cost` (context % turns yellow at 70% and red at 90%)
 
-**Line 2:** `working directory | rate limits (5h/7d) | session clock`
+**Line 2:** `working directory | rate limits (5h/7d, or the gateway spend limit) | session clock`
 
 ```
 Opus 4.7 (1M context) · max | Ctx: 36% | main feat-x | +12 -3 | $0.34
@@ -164,7 +165,7 @@ Sonnet | Ctx: 12% | main | +4 | $0.05
 ~/dev/myproj | Session: 30m
 ```
 
-To customize, edit the `lines` array in `settings.json` — e.g. swap `rate-limits` for the per-window `rate-limit-5h` (`metadata.display`: `bar`/`reset`/`full`), or add `cache-hit-rate`. (If line 1 is getting truncated with `...`, see `terminalWidth` below.)
+To customize, edit the `lines` array in `settings.json` — e.g. swap `rate-limits` for the per-window `rate-limit-5h` (`metadata.display`: `bar`/`reset`/`full`), or add `prompt-cache` / `cache-hit-rate`. Fields you leave out of `settings.json` keep their defaults. (If line 1 is getting truncated with `...`, see `terminalWidth` below.)
 
 ### Settings Reference
 
@@ -182,7 +183,15 @@ To customize, edit the `lines` array in `settings.json` — e.g. swap `rate-limi
     [
       { "id": "1", "type": "model", "color": "cyan" },
       { "id": "2", "type": "separator" },
-      { "id": "3", "type": "context-percentage", "color": "brightBlack" }
+      {
+        "id": "3",
+        "type": "context-percentage",
+        "color": "green",
+        "thresholds": [
+          { "gte": 70, "color": "yellow" },
+          { "gte": 90, "color": "red" }
+        ]
+      }
     ]
   ]
 }
@@ -215,8 +224,11 @@ To customize, edit the `lines` array in `settings.json` — e.g. swap `rate-limi
 | `suffix` | string | Text after widget output |
 | `character` | string | Special character (e.g., branch icon) |
 | `rawValue` | bool | Use compact/raw output mode |
-| `merge` | bool/string | Merge with adjacent widget (`true` or `"no-padding"`) |
-| `metadata` | object | Widget-specific metadata |
+| `merge` | bool/string | Join this widget to the next one without `defaultPadding` (`true`, or the legacy `"no-padding"`) |
+| `metadata` | object | Widget-specific metadata, such as `display` and `barWidth` |
+| `thresholds` | array | Restyle a numeric widget by value: `[{ "gte": 70, "color": "yellow" }, { "gte": 90, "color": "red", "bold": true }]`. The highest `gte` reached wins; below the first, `color` applies. Each entry may set `color`, `backgroundColor`, `bold` |
+
+Thresholds work on widgets that render a number: the context and remaining percentages, `cache-hit-rate`, the rate-limit widgets (`rate-limits` uses the highest of its limits), `spend-limit`, `prompt-cache` (minutes until cold, or the hit percentage in `hit` mode), `session-cost`, `context-length`, and the token counts. `ccstatus validate` flags thresholds on any other widget.
 
 ### Flex Modes
 
@@ -254,13 +266,15 @@ To customize, edit the `lines` array in `settings.json` — e.g. swap `rate-limi
 | `current-usage-output` | JSON | Current round output tokens | white |
 | `cache-creation` | JSON | Cache creation tokens | white |
 | `context-length` | JSON | Context usage in tokens | white |
-| `context-percentage` | JSON | Context usage % | white |
-| `context-percentage-usable` | JSON | Usable context % (heuristic: 80% of max, leaving auto-compact headroom) | white |
-| `remaining-percentage` | JSON | Remaining context % | white |
-| `cache-hit-rate` | JSON | Cache read ratio % | cyan |
+| `context-percentage` | JSON | Context usage % (`metadata.display`: `bar` for `▓▓▓░░░░░░░ 32%`) | white |
+| `context-percentage-usable` | JSON | Usable context % (heuristic: 80% of max, leaving auto-compact headroom; `bar` display) | white |
+| `remaining-percentage` | JSON | Remaining context % (`bar` display) | white |
+| `cache-hit-rate` | JSON | Session prompt cache hit ratio (`prompt_cache.hit_ratio`; older Claude Code: the last request's cache reads; `bar` display) | cyan |
+| `prompt-cache` | JSON | Prompt cache state, e.g. `warm 42m` / `cold` — green while warm, dim once cold (`metadata.display`: `status`/`ttl`/`hit`/`misses`/`full`, e.g. `warm 42m · 91% hit · 2 misses (tools_changed)`) | green |
 | `api-duration` | JSON | API response time | white |
 | `block-timer` | JSON/JSONL | 5-hour block timer (uses the rate-limit window when available) | white |
-| `rate-limits` | JSON | Combined 5h/7d rate-limit usage, e.g. `5h: 3% / 7d: 12%` (each shown only when present) | yellow |
+| `rate-limits` | JSON | Combined limits, e.g. `5h: 3% / 7d: 12%` or `spend: $314.12/$500.00` behind a Claude apps gateway (each shown only when present) | yellow |
+| `spend-limit` | JSON | Claude apps gateway spend limit, e.g. `$314.12 / $500.00` (`63%` until the dollar amounts arrive; `metadata.display`: `amount`/`percent`/`bar`/`reset`/`full`) | yellow |
 | `rate-limit-5h` | JSON | 5-hour rate-limit usage (`metadata.display`: `percent`/`bar`/`reset`/`full`; `metadata.barWidth`) | yellow |
 | `rate-limit-7d` | JSON | 7-day rate-limit usage (`metadata.display`: `percent`/`bar`/`reset`/`full`; `metadata.barWidth`) | yellow |
 | `current-working-dir` | JSON | Current directory | blue |
@@ -268,10 +282,11 @@ To customize, edit the `lines` array in `settings.json` — e.g. swap `rate-limi
 | `transcript-path` | JSON | Transcript file path | white |
 | `added-dirs` | JSON | Directories added via `/add-dir` (`metadata.display`: `list` for names) | blue |
 | `repo` | JSON | Repository `owner/name` from the origin remote (raw: name only) | blue |
-| `pr` | JSON | Open PR number + review state, e.g. `#1234 approved`; the number is an OSC 8 link to the PR when `pr.url` is present (raw: number) | cyan |
-| `lines-changed` | Git | Lines changed (+N/-M) | green |
-| `lines-added` | Git | Lines added | green |
-| `lines-removed` | Git | Lines removed | red |
+| `pr` | JSON | Open PR number + review state, e.g. `#1234 approved`, or `!1234` for a GitLab merge request; the number is an OSC 8 link when `pr.url` is present (raw: number) | cyan |
+| `lines-changed` | Git | Uncommitted lines changed (+N/-M) | green |
+| `lines-added` | Git | Uncommitted lines added | green |
+| `lines-removed` | Git | Uncommitted lines removed | red |
+| `session-lines` | JSON | Lines Claude added and removed this session (+N/-M) | green |
 | `vim-mode` | JSON | Vim mode indicator | yellow |
 | `agent-name` | JSON | Agent name | cyan |
 | `effort` | JSON | Reasoning effort level | cyan |

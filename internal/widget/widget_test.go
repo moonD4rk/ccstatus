@@ -784,7 +784,10 @@ func TestTypes(t *testing.T) {
 	assert.Contains(t, types, "fast-mode")
 	assert.Contains(t, types, "session-name")
 	assert.Contains(t, types, "added-dirs")
-	assert.Len(t, types, 47)
+	assert.Contains(t, types, "prompt-cache")
+	assert.Contains(t, types, "spend-limit")
+	assert.Contains(t, types, "session-lines")
+	assert.Len(t, types, 50)
 }
 
 func TestRemainingPercentageWidget(t *testing.T) {

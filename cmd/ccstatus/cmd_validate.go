@@ -94,6 +94,9 @@ func itemProblems(loc string, item *config.WidgetItem, seen map[string]bool) []s
 
 	problems = append(problems, colorProblem(loc, "color", item.Color)...)
 	problems = append(problems, colorProblem(loc, "backgroundColor", item.BackgroundColor)...)
+	if known {
+		problems = append(problems, thresholdProblems(loc, item)...)
+	}
 
 	if display, ok := item.Metadata["display"]; ok && known {
 		modes, hasModes := widget.DisplayModes(item.Type)
@@ -104,6 +107,24 @@ func itemProblems(loc string, item *config.WidgetItem, seen map[string]bool) []s
 			problems = append(problems, fmt.Sprintf("%s: invalid metadata.display %q (want one of %s)",
 				loc, display, strings.Join(modes, ", ")))
 		}
+	}
+	return problems
+}
+
+// thresholdProblems checks that thresholds sit on a numeric widget and name
+// valid colors.
+func thresholdProblems(loc string, item *config.WidgetItem) []string {
+	if len(item.Thresholds) == 0 {
+		return nil
+	}
+	if _, ok := widget.Get(item.Type).(widget.Valuer); !ok {
+		return []string{fmt.Sprintf("%s: %s does not support thresholds", loc, item.Type)}
+	}
+	var problems []string
+	for i, t := range item.Thresholds {
+		tloc := fmt.Sprintf("%s threshold %d", loc, i+1)
+		problems = append(problems, colorProblem(tloc, "color", t.Color)...)
+		problems = append(problems, colorProblem(tloc, "backgroundColor", t.BackgroundColor)...)
 	}
 	return problems
 }

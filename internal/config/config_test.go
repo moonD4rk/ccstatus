@@ -27,6 +27,8 @@ func TestDefaultSettings(t *testing.T) {
 	assert.Equal(t, "cyan", s.Lines[0][0].Color)
 	assert.Equal(t, "effort", s.Lines[0][1].Type)
 	assert.Equal(t, "context-percentage", s.Lines[0][3].Type)
+	assert.Equal(t, "green", s.Lines[0][3].Color)
+	assert.Equal(t, []Threshold{{GTE: 70, Color: "yellow"}, {GTE: 90, Color: "red"}}, s.Lines[0][3].Thresholds)
 	assert.Equal(t, "git-branch", s.Lines[0][5].Type)
 	assert.Equal(t, "git-worktree", s.Lines[0][6].Type)
 	assert.Equal(t, "lines-added", s.Lines[0][8].Type)
@@ -154,20 +156,45 @@ func TestWidgetItem_IsMerged(t *testing.T) {
 		name  string
 		merge any
 		want  bool
-		noPad bool
 	}{
-		{name: "nil merge", merge: nil, want: false, noPad: false},
-		{name: "true merge", merge: true, want: true, noPad: false},
-		{name: "false merge", merge: false, want: false, noPad: false},
-		{name: "no-padding merge", merge: "no-padding", want: true, noPad: true},
-		{name: "unknown string", merge: "unknown", want: false, noPad: false},
+		{name: "nil merge", merge: nil, want: false},
+		{name: "true merge", merge: true, want: true},
+		{name: "false merge", merge: false, want: false},
+		{name: "no-padding merge", merge: "no-padding", want: true},
+		{name: "unknown string", merge: "unknown", want: false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			w := WidgetItem{Merge: tt.merge}
 			assert.Equal(t, tt.want, w.IsMerged())
-			assert.Equal(t, tt.noPad, w.MergeNoPadding())
 		})
 	}
+}
+
+func TestWidgetItem_ThresholdFor(t *testing.T) {
+	item := WidgetItem{Thresholds: []Threshold{
+		{GTE: 90, Color: "red", Bold: true},
+		{GTE: 70, Color: "yellow"},
+	}}
+	tests := []struct {
+		value     float64
+		wantColor string
+		wantOK    bool
+	}{
+		{value: 12, wantOK: false},
+		{value: 70, wantColor: "yellow", wantOK: true},
+		{value: 89.9, wantColor: "yellow", wantOK: true},
+		{value: 90, wantColor: "red", wantOK: true},
+		{value: 140, wantColor: "red", wantOK: true},
+	}
+	for _, tt := range tests {
+		got, ok := item.ThresholdFor(tt.value)
+		assert.Equal(t, tt.wantOK, ok, tt.value)
+		assert.Equal(t, tt.wantColor, got.Color, tt.value)
+	}
+
+	none := WidgetItem{}
+	_, ok := none.ThresholdFor(100)
+	assert.False(t, ok)
 }

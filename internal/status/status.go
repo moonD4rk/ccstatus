@@ -28,6 +28,7 @@ type Session struct {
 	Effort         *EffortInfo    `json:"effort,omitempty"`
 	Thinking       *ThinkingInfo  `json:"thinking,omitempty"`
 	RateLimits     *RateLimits    `json:"rate_limits,omitempty"`
+	PromptCache    *PromptCache   `json:"prompt_cache,omitempty"`
 	Vim            *VimInfo       `json:"vim,omitempty"`
 	Agent          *AgentInfo     `json:"agent,omitempty"`
 	Worktree       *WorktreeInfo  `json:"worktree,omitempty"`
@@ -169,13 +170,19 @@ type Repo struct {
 	Name  string `json:"name,omitempty"`
 }
 
-// PRInfo holds the open pull request for the current branch. Absent until a PR
-// is found and removed once it merges or closes. ReviewState may be
-// independently absent even when PRInfo is present.
+// PRInfo holds the open pull request for the current branch, or the open GitLab
+// merge request when Kind is "mr". Absent until one is found and removed once it
+// merges or closes. ReviewState and Kind may be independently absent.
 type PRInfo struct {
 	Number      *int   `json:"number,omitempty"`
 	URL         string `json:"url,omitempty"`
 	ReviewState string `json:"review_state,omitempty"` // approved | pending | changes_requested | draft
+	Kind        string `json:"kind,omitempty"`         // "mr" for GitLab merge requests, absent for GitHub
+}
+
+// IsMergeRequest reports whether the PR is a GitLab merge request.
+func (p *PRInfo) IsMergeRequest() bool {
+	return p != nil && p.Kind == "mr"
 }
 
 // OutputStyle holds the output style configuration.
@@ -246,15 +253,54 @@ type ThinkingInfo struct {
 	Enabled bool `json:"enabled"`
 }
 
-// RateLimits holds Claude.ai subscription rate-limit windows. Present only for
-// Pro/Max subscribers after the first API response; each window may be absent.
+// RateLimits holds Claude.ai subscription rate-limit windows and the Claude apps
+// gateway spend limit. Present for Pro/Max subscribers or behind a gateway with a
+// spend limit, after the first API response; each window may be absent.
 type RateLimits struct {
-	FiveHour *RateLimitWindow `json:"five_hour,omitempty"`
-	SevenDay *RateLimitWindow `json:"seven_day,omitempty"`
+	FiveHour   *RateLimitWindow `json:"five_hour,omitempty"`
+	SevenDay   *RateLimitWindow `json:"seven_day,omitempty"`
+	SpendLimit *SpendLimit      `json:"spend_limit,omitempty"`
 }
 
 // RateLimitWindow holds usage data for a single rate-limit window.
 type RateLimitWindow struct {
 	UsedPercentage *float64 `json:"used_percentage,omitempty"` // 0-100
 	ResetsAt       *int64   `json:"resets_at,omitempty"`       // Unix epoch seconds
+}
+
+// SpendLimit is the Claude apps gateway spend limit. UsedPercentage can exceed
+// 100; the USD fields and Period arrive on a separate schedule and may be absent.
+type SpendLimit struct {
+	RateLimitWindow
+	UsedUSD  *float64 `json:"used_usd,omitempty"`
+	LimitUSD *float64 `json:"limit_usd,omitempty"`
+	Period   string   `json:"period,omitempty"` // daily | weekly | monthly
+}
+
+// PromptCache summarizes the main conversation's prompt cache. Absent until the
+// first API response. Timestamps are Unix epoch seconds; nullable fields are
+// pointers.
+type PromptCache struct {
+	Warm                *bool          `json:"warm,omitempty"`
+	CachingObserved     *bool          `json:"caching_observed,omitempty"`
+	TTL                 string         `json:"ttl,omitempty"` // "5m" | "1h"
+	ExpiresAt           *int64         `json:"expires_at,omitempty"`
+	Requests            *int           `json:"requests,omitempty"`
+	Misses              *int           `json:"misses,omitempty"`
+	ExpectedRebuilds    *int           `json:"expected_rebuilds,omitempty"`
+	HitRatio            *float64       `json:"hit_ratio,omitempty"` // 0-1
+	CacheWriteTokens    *int           `json:"cache_write_tokens,omitempty"`
+	MissRecacheTokens   *int           `json:"miss_recache_tokens,omitempty"`
+	LastMissAt          *int64         `json:"last_miss_at,omitempty"`
+	LastMissCause       *MissCause     `json:"last_miss_cause,omitempty"`
+	MissCauses          map[string]int `json:"miss_causes,omitempty"`
+	RecacheTokensIfCold *int           `json:"recache_tokens_if_cold,omitempty"`
+}
+
+// MissCause is the likely cause of the most recent prompt cache miss.
+type MissCause struct {
+	Causes          []string `json:"causes,omitempty"` // tools_changed, system_prompt_changed, ttl_expired_5m, likely_server_side, ...
+	ToolsAdded      *int     `json:"tools_added,omitempty"`
+	ToolsRemoved    *int     `json:"tools_removed,omitempty"`
+	SystemCharDelta *int     `json:"system_char_delta,omitempty"`
 }

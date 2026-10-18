@@ -35,6 +35,15 @@ func (w *tokenWidget) Render(_ *config.WidgetItem, ctx RenderContext, _ *config.
 	return status.FormatTokens(count)
 }
 
+// Value returns the token count, for threshold colors.
+func (w *tokenWidget) Value(_ *config.WidgetItem, ctx RenderContext) (float64, bool) {
+	if ctx.Data == nil {
+		return 0, false
+	}
+	count, ok := w.extract(ctx.Data)
+	return float64(count), ok && count > 0
+}
+
 func (w *tokenWidget) DefaultColor() string   { return defaultDimColor }
 func (w *tokenWidget) DisplayName() string    { return w.displayName }
 func (w *tokenWidget) Description() string    { return w.description }

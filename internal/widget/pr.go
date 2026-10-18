@@ -10,10 +10,11 @@ import (
 // as Claude Code's PR badge).
 type PRWidget struct{ noAffix }
 
-// Render returns "#<number>" plus the review state when present (just the bare
-// number in raw mode), and empty when there is no open PR. When pr.url is
-// present the number is wrapped in an OSC 8 hyperlink; terminals without
-// hyperlink support ignore the sequence and show plain text.
+// Render returns "#<number>" (or "!<number>" for a GitLab merge request) plus the
+// review state when present (just the bare number in raw mode), and empty when
+// there is no open PR. When pr.url is present the number is wrapped in an OSC 8
+// hyperlink; terminals without hyperlink support ignore the sequence and show
+// plain text.
 func (w *PRWidget) Render(item *config.WidgetItem, ctx RenderContext, _ *config.Settings) string {
 	if ctx.Data == nil || ctx.Data.PR == nil || ctx.Data.PR.Number == nil {
 		return ""
@@ -23,7 +24,11 @@ func (w *PRWidget) Render(item *config.WidgetItem, ctx RenderContext, _ *config.
 	if item.RawValue {
 		return number
 	}
-	out := "#" + number
+	sigil := "#"
+	if pr.IsMergeRequest() {
+		sigil = "!"
+	}
+	out := sigil + number
 	if pr.URL != "" {
 		out = "\x1b]8;;" + pr.URL + "\x07" + out + "\x1b]8;;\x07"
 	}
@@ -40,7 +45,9 @@ func (w *PRWidget) DefaultColor() string { return "cyan" }
 func (w *PRWidget) DisplayName() string { return "Pull Request" }
 
 // Description returns what this widget shows.
-func (w *PRWidget) Description() string { return "Open PR number and review state" }
+func (w *PRWidget) Description() string {
+	return "Open PR (#N) or GitLab merge request (!N) and review state"
+}
 
 // SupportsRawValue returns true (raw mode shows the bare number).
 func (w *PRWidget) SupportsRawValue() bool { return true }

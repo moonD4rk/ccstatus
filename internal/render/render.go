@@ -21,11 +21,14 @@ const (
 	minFlexWidth = 1
 )
 
-// segment holds a rendered widget's text and metadata for the pipeline.
+// segment holds a rendered widget's text and metadata for the pipeline. value is
+// the widget's number when the item has thresholds and the widget exposes one.
 type segment struct {
-	text  string
-	item  *config.WidgetItem
-	isSep bool
+	text     string
+	item     *config.WidgetItem
+	isSep    bool
+	value    float64
+	hasValue bool
 }
 
 // RenderLine renders a single line of widgets into an ANSI-colored string.
@@ -45,7 +48,7 @@ func RenderLine(items []config.WidgetItem, settings *config.Settings, ctx widget
 		return ""
 	}
 
-	colored := applyColors(segments, settings)
+	colored := applyColors(segments, settings, ctx)
 	line := joinWithFlex(colored, segments, settings, ctx)
 
 	if ctx.TerminalWidth > 0 {
@@ -102,17 +105,17 @@ func joinWithFlex(colored []string, segments []segment, settings *config.Setting
 		}
 	}
 	if len(flexIdx) == 0 {
-		return strings.Join(colored, settings.DefaultPadding)
+		return joinPadded(colored, segments, settings.DefaultPadding)
 	}
 
 	// Split into the groups between flex separators, each padding-joined.
 	groups := make([]string, 0, len(flexIdx)+1)
 	prev := 0
 	for _, idx := range flexIdx {
-		groups = append(groups, strings.Join(colored[prev:idx], settings.DefaultPadding))
+		groups = append(groups, joinPadded(colored[prev:idx], segments[prev:idx], settings.DefaultPadding))
 		prev = idx + 1
 	}
-	groups = append(groups, strings.Join(colored[prev:], settings.DefaultPadding))
+	groups = append(groups, joinPadded(colored[prev:], segments[prev:], settings.DefaultPadding))
 	gaps := len(flexIdx)
 
 	totalWidth := ctx.TerminalWidth
@@ -148,6 +151,19 @@ func joinWithFlex(colored []string, segments []segment, settings *config.Setting
 	return b.String()
 }
 
+// joinPadded joins colored segments with padding, except after a segment whose
+// item sets merge.
+func joinPadded(colored []string, segments []segment, padding string) string {
+	var b strings.Builder
+	for i, c := range colored {
+		if i > 0 && !segments[i-1].item.IsMerged() {
+			b.WriteString(padding)
+		}
+		b.WriteString(c)
+	}
+	return b.String()
+}
+
 // renderWidgets renders each widget item and collects segments.
 func renderWidgets(items []config.WidgetItem, ctx widget.RenderContext, settings *config.Settings) []segment {
 	var segments []segment
@@ -156,8 +172,12 @@ func renderWidgets(items []config.WidgetItem, ctx widget.RenderContext, settings
 		if w == nil {
 			continue
 		}
-		text := w.Render(&items[i], ctx, settings)
-		if text != "" {
+		seg := segment{
+			text:  w.Render(&items[i], ctx, settings),
+			item:  &items[i],
+			isSep: items[i].Type == separatorType,
+		}
+		if seg.text != "" {
 			prefix := items[i].Prefix
 			suffix := items[i].Suffix
 			if prefix == "" {
@@ -166,13 +186,12 @@ func renderWidgets(items []config.WidgetItem, ctx widget.RenderContext, settings
 			if suffix == "" {
 				suffix = w.DefaultSuffix()
 			}
-			text = prefix + text + suffix
+			seg.text = prefix + seg.text + suffix
+			if v, ok := w.(widget.Valuer); ok && len(items[i].Thresholds) > 0 {
+				seg.value, seg.hasValue = v.Value(&items[i], ctx)
+			}
 		}
-		segments = append(segments, segment{
-			text:  text,
-			item:  &items[i],
-			isSep: items[i].Type == separatorType,
-		})
+		segments = append(segments, seg)
 	}
 	return segments
 }
@@ -209,9 +228,10 @@ func cleanSeparators(segments []segment) []segment {
 	return result
 }
 
-// applyColors wraps each segment text with ANSI color codes.
-// Flex separators are not colored (they are invisible spacing).
-func applyColors(segments []segment, settings *config.Settings) []string {
+// applyColors wraps each segment text with ANSI color codes. A threshold the
+// segment's value reaches restyles it; the global overrides still win. Flex
+// separators are not colored (they are invisible spacing).
+func applyColors(segments []segment, settings *config.Settings, ctx widget.RenderContext) []string {
 	result := make([]string, 0, len(segments))
 	for i, seg := range segments {
 		if seg.item.Type == flexSeparatorType {
@@ -219,9 +239,21 @@ func applyColors(segments []segment, settings *config.Settings) []string {
 			continue
 		}
 
-		fg := resolveColor(seg, segments, i, settings)
+		fg := resolveColor(seg, segments, i, settings, ctx)
 		bg := seg.item.BackgroundColor
 		bold := seg.item.Bold || settings.GlobalBold
+
+		if seg.hasValue {
+			if t, ok := seg.item.ThresholdFor(seg.value); ok {
+				if t.Color != "" {
+					fg = t.Color
+				}
+				if t.BackgroundColor != "" {
+					bg = t.BackgroundColor
+				}
+				bold = bold || t.Bold
+			}
+		}
 
 		if settings.OverrideForegroundColor != "" {
 			fg = settings.OverrideForegroundColor
@@ -237,30 +269,40 @@ func applyColors(segments []segment, settings *config.Settings) []string {
 }
 
 // resolveColor determines the foreground color for a segment.
-func resolveColor(seg segment, segments []segment, idx int, settings *config.Settings) string {
+func resolveColor(seg segment, segments []segment, idx int, settings *config.Settings, ctx widget.RenderContext) string {
 	if seg.item.Color != "" {
 		return seg.item.Color
 	}
 	if seg.isSep && settings.InheritSeparatorColors {
-		return inheritColor(segments, idx)
+		return inheritColor(segments, idx, ctx)
 	}
-	if w := widget.Get(seg.item.Type); w != nil {
-		return w.DefaultColor()
-	}
-	return ""
+	return defaultColor(seg.item.Type, ctx)
 }
 
 // inheritColor finds the color from the nearest non-separator widget before the separator.
-func inheritColor(segments []segment, sepIdx int) string {
+func inheritColor(segments []segment, sepIdx int, ctx widget.RenderContext) string {
 	for i := sepIdx - 1; i >= 0; i-- {
 		if !segments[i].isSep {
 			if segments[i].item.Color != "" {
 				return segments[i].item.Color
 			}
-			if w := widget.Get(segments[i].item.Type); w != nil {
-				return w.DefaultColor()
-			}
+			return defaultColor(segments[i].item.Type, ctx)
 		}
 	}
 	return ""
+}
+
+// defaultColor returns a widget type's default color, preferring the
+// data-dependent one when the widget provides it.
+func defaultColor(widgetType string, ctx widget.RenderContext) string {
+	w := widget.Get(widgetType)
+	if w == nil {
+		return ""
+	}
+	if dyn, ok := w.(widget.DynamicDefaultColor); ok {
+		if c := dyn.DefaultColorFor(ctx); c != "" {
+			return c
+		}
+	}
+	return w.DefaultColor()
 }

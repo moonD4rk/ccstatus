@@ -267,6 +267,26 @@ func TestCacheHitRate(t *testing.T) {
 			want:   0,
 			wantOK: false,
 		},
+		{
+			name: "session hit ratio wins over the last request",
+			data: &Session{
+				PromptCache: &PromptCache{HitRatio: ptr(0.91)},
+				ContextWindow: &ContextWindow{
+					CurrentUsage: &CurrentUsage{InputTokens: 8500, CacheCreationInputTokens: 5000, CacheReadInputTokens: 2000},
+				},
+			},
+			want: 91, wantOK: true,
+		},
+		{
+			name: "null hit ratio falls back to the last request",
+			data: &Session{
+				PromptCache: &PromptCache{},
+				ContextWindow: &ContextWindow{
+					CurrentUsage: &CurrentUsage{InputTokens: 2000, CacheCreationInputTokens: 1000, CacheReadInputTokens: 7000},
+				},
+			},
+			want: 70, wantOK: true,
+		},
 	}
 
 	for _, tt := range tests {

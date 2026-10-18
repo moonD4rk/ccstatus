@@ -23,17 +23,34 @@ type percentageWidget struct {
 }
 
 func (w *percentageWidget) Render(item *config.WidgetItem, ctx RenderContext, _ *config.Settings) string {
-	if ctx.Data == nil {
-		return ""
-	}
-	pct, ok := w.extract(ctx.Data)
+	pct, ok := w.Value(item, ctx)
 	if !ok {
 		return ""
 	}
-	if item.RawValue {
-		return fmt.Sprintf("%.1f", pct)
+	return formatPercentage(item, pct)
+}
+
+// Value returns the rendered percentage, for threshold colors.
+func (w *percentageWidget) Value(_ *config.WidgetItem, ctx RenderContext) (float64, bool) {
+	if ctx.Data == nil {
+		return 0, false
 	}
-	return fmt.Sprintf("%.0f%%", pct)
+	return w.extract(ctx.Data)
+}
+
+func (w *percentageWidget) displayModes() []string { return []string{"percent", "bar"} }
+
+// formatPercentage renders pct as "45%", "45.0" in raw mode, or a block bar
+// such as "▓▓▓▓░░░░░░ 45%" with metadata.display "bar".
+func formatPercentage(item *config.WidgetItem, pct float64) string {
+	switch {
+	case displayMode(item, "percent") == "bar":
+		return formatBlockBar(pct, barWidthFor(item)) + fmt.Sprintf(" %.0f%%", pct)
+	case item.RawValue:
+		return fmt.Sprintf("%.1f", pct)
+	default:
+		return fmt.Sprintf("%.0f%%", pct)
+	}
 }
 
 func (w *percentageWidget) DefaultColor() string {

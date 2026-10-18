@@ -1,8 +1,6 @@
 package widget
 
 import (
-	"fmt"
-
 	"github.com/moond4rk/ccstatus/internal/config"
 	"github.com/moond4rk/ccstatus/internal/status"
 )
@@ -12,26 +10,30 @@ type ContextPercentageUsableWidget struct{}
 
 // Render returns the usable context usage percentage string.
 func (w *ContextPercentageUsableWidget) Render(item *config.WidgetItem, ctx RenderContext, _ *config.Settings) string {
-	if ctx.Data == nil {
+	pct, ok := w.Value(item, ctx)
+	if !ok {
 		return ""
+	}
+	return formatPercentage(item, pct)
+}
+
+// Value returns the usable-window percentage, capped at 100, for threshold colors.
+func (w *ContextPercentageUsableWidget) Value(_ *config.WidgetItem, ctx RenderContext) (float64, bool) {
+	if ctx.Data == nil {
+		return 0, false
 	}
 	length := status.ContextLength(ctx.Data)
 	if length == 0 {
-		return ""
+		return 0, false
 	}
 	cfg := status.ContextConfig(ctx.Data)
 	if cfg.UsableTokens == 0 {
-		return ""
+		return 0, false
 	}
-	pct := float64(length) / float64(cfg.UsableTokens) * 100
-	if pct > 100 {
-		pct = 100
-	}
-	if item.RawValue {
-		return fmt.Sprintf("%.1f", pct)
-	}
-	return fmt.Sprintf("%.0f%%", pct)
+	return min(float64(length)/float64(cfg.UsableTokens)*100, 100), true
 }
+
+func (w *ContextPercentageUsableWidget) displayModes() []string { return []string{"percent", "bar"} }
 
 // DefaultColor returns the default foreground color.
 func (w *ContextPercentageUsableWidget) DefaultColor() string { return defaultDimColor }

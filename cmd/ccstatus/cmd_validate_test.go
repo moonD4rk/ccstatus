@@ -99,6 +99,19 @@ func TestValidate(t *testing.T) {
 		assert.NotContains(t, errOut, "widget 3")
 	})
 
+	t.Run("thresholds need a numeric widget and valid colors", func(t *testing.T) {
+		saveConfigWithLines(t, [][]config.WidgetItem{{
+			{ID: "1", Type: "model", Thresholds: []config.Threshold{{GTE: 1, Color: "red"}}},
+			{ID: "2", Type: "context-percentage", Thresholds: []config.Threshold{{GTE: 70, Color: "amber"}}},
+			{ID: "3", Type: "spend-limit", Thresholds: []config.Threshold{{GTE: 100, Color: "red", BackgroundColor: "white"}}},
+		}})
+		_, errOut, err := execValidate(t)
+		require.Error(t, err)
+		assert.Contains(t, errOut, "line 1 widget 1: model does not support thresholds")
+		assert.Contains(t, errOut, `line 1 widget 2 threshold 1: invalid color "amber"`)
+		assert.NotContains(t, errOut, "widget 3")
+	})
+
 	t.Run("malformed JSON reports path, line and column", func(t *testing.T) {
 		dir := t.TempDir()
 		t.Setenv("XDG_CONFIG_HOME", dir)

@@ -189,7 +189,7 @@ The docs' full sample payload is checked in as `internal/status/testdata/statusl
 - `prompt-cache` is hidden when `prompt_cache` is absent or `caching_observed` is false. `status` shows `warm <time until expires_at>` (just `warm` when `expires_at` is null) or `cold`; a countdown that has run out renders `cold`. `misses` renders `2 misses (tools_changed)` from `last_miss_cause.causes`; `full` joins status, hit ratio and misses with `·`. The countdown only advances with a `refreshInterval`, but Claude Code re-runs the command at `expires_at` itself, so the warm-to-cold flip is immediate.
 - `spend-limit` reuses the percent, bar and reset rendering of `RateLimitWidget` through the embedded `RateLimitWindow`, never clamps (being over the limit is meaningful), and adds the period in `full` mode (`$314.12 / $500.00 monthly, resets 12d`).
 - `session-lines` counts Claude's edits this session; the existing `lines-*` widgets keep showing the uncommitted git diff.
-- Durations of a day or more render with days (`4d15h`) in every reset countdown.
+- Durations of a day or more render with days (`4d15h`): reset countdowns, the session clock and API time share one formatter.
 
 #### Rendering
 
@@ -220,7 +220,7 @@ The docs' full sample payload is checked in as `internal/status/testdata/statusl
   Implemented by the percentage widgets, the rate-limit widgets, `spend-limit`, `prompt-cache` (hit percentage in `hit` mode, minutes left otherwise), `session-cost`, `context-length`, the token widgets, and later `task-context`.
 
 - The renderer applies the threshold with the highest `gte` that is at most the value; below the first threshold the item's normal color applies. `overrideForegroundColor` and `overrideBackgroundColor` still win.
-- Widgets whose default color depends on state (such as `task-status`) implement an optional `DefaultColorFor(ctx RenderContext) string`, consulted when the item sets no color.
+- Widgets whose default color depends on state implement the optional `DynamicDefaultColor` interface (`DefaultColorFor(ctx RenderContext) string`), consulted when the item sets no color: `prompt-cache` is green while warm and `brightBlack` once cold, and `task-status` (PR 3) colors by task state.
 
 **Bars.** `context-percentage`, `remaining-percentage`, `context-percentage-usable` and `cache-hit-rate` accept `metadata.display: "bar"` (`▓▓▓░░░░░░░ 32%`, width from `metadata.barWidth`), sharing one bar helper with the rate-limit widgets.
 

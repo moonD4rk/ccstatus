@@ -10,6 +10,7 @@ const (
 	msPerSecond = 1000
 	msPerMinute = 60 * msPerSecond
 	msPerHour   = 60 * msPerMinute
+	msPerDay    = 24 * msPerHour
 )
 
 // SessionClockWidget displays the session duration.
@@ -27,20 +28,27 @@ func (w *SessionClockWidget) Render(item *config.WidgetItem, ctx RenderContext, 
 	return formatDuration(ms)
 }
 
+// formatDuration renders a duration compactly: "<1m", "42m", "2h13m", and with
+// days from 24h up ("4d15h"), where minutes are dropped.
 func formatDuration(ms float64) string {
 	totalMs := int(ms)
-	hours := totalMs / msPerHour
+	days := totalMs / msPerDay
+	hours := (totalMs % msPerDay) / msPerHour
 	mins := (totalMs % msPerHour) / msPerMinute
-	if hours == 0 && mins == 0 {
+	switch {
+	case days > 0 && hours > 0:
+		return fmt.Sprintf("%dd%dh", days, hours)
+	case days > 0:
+		return fmt.Sprintf("%dd", days)
+	case hours == 0 && mins == 0:
 		return "<1m"
-	}
-	if hours == 0 {
+	case hours == 0:
 		return fmt.Sprintf("%dm", mins)
-	}
-	if mins == 0 {
+	case mins == 0:
 		return fmt.Sprintf("%dh", hours)
+	default:
+		return fmt.Sprintf("%dh%dm", hours, mins)
 	}
-	return fmt.Sprintf("%dh%dm", hours, mins)
 }
 
 // DefaultColor returns the default foreground color.

@@ -20,6 +20,15 @@ func (w *ContextLengthWidget) Render(_ *config.WidgetItem, ctx RenderContext, _ 
 	return status.FormatTokens(length)
 }
 
+// Value returns the context length in tokens, for threshold colors.
+func (w *ContextLengthWidget) Value(_ *config.WidgetItem, ctx RenderContext) (float64, bool) {
+	if ctx.Data == nil {
+		return 0, false
+	}
+	length := status.ContextLength(ctx.Data)
+	return float64(length), length > 0
+}
+
 // DefaultColor returns the default foreground color.
 func (w *ContextLengthWidget) DefaultColor() string { return defaultDimColor }
 

@@ -23,6 +23,14 @@ func (w *SessionCostWidget) Render(item *config.WidgetItem, ctx RenderContext, _
 	return "$" + formatCost(cost)
 }
 
+// Value returns the session cost in USD, for threshold colors.
+func (w *SessionCostWidget) Value(_ *config.WidgetItem, ctx RenderContext) (float64, bool) {
+	if ctx.Data == nil || ctx.Data.Cost == nil || ctx.Data.Cost.TotalCostUSD == nil {
+		return 0, false
+	}
+	return *ctx.Data.Cost.TotalCostUSD, true
+}
+
 func formatCost(cost float64) string {
 	if cost < costPrecisionThreshold {
 		return fmt.Sprintf("%.4f", cost)
