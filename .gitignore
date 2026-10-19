@@ -52,7 +52,7 @@ dist/
 # Whitelist
 !*.go
 !*.md
-!rfcs/*.md
+!docs/rfcs/*.md
 !**/testdata/**/*.json
 !**/testdata/**/*.jsonl
 !internal/sample/*.json
