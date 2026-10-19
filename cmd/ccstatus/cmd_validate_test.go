@@ -112,6 +112,17 @@ func TestValidate(t *testing.T) {
 		assert.NotContains(t, errOut, "widget 3")
 	})
 
+	t.Run("maxWidth must not be negative", func(t *testing.T) {
+		saveConfigWithLines(t, [][]config.WidgetItem{{
+			{ID: "1", Type: "session-name", MaxWidth: -1},
+			{ID: "2", Type: "current-working-dir", MaxWidth: 20},
+		}})
+		_, errOut, err := execValidate(t)
+		require.Error(t, err)
+		assert.Contains(t, errOut, "line 1 widget 1: maxWidth must not be negative")
+		assert.NotContains(t, errOut, "widget 2")
+	})
+
 	t.Run("malformed JSON reports path, line and column", func(t *testing.T) {
 		dir := t.TempDir()
 		t.Setenv("XDG_CONFIG_HOME", dir)

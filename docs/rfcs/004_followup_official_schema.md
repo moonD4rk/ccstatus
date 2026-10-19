@@ -1,8 +1,8 @@
 # RFC 004: Follow Up the Latest Claude Code Statusline Schema
 
-Status: Completed
-Author: @moond4rk
-Date: 2026-05-12
+- Status: Completed
+- Author: @moond4rk
+- Date: 2026-05-12
 
 ## Summary
 
@@ -33,19 +33,19 @@ No crash, no wrong number -- but the labels/docs need to reflect reality.
 ### 3. New JSON fields with no widget
 
 | Field | Meaning | Availability |
-|-------|---------|--------------|
+| --- | --- | --- |
 | `rate_limits.five_hour.{used_percentage,resets_at}` | 5-hour rate-limit % used (0-100) + reset epoch | Pro/Max only, after first API response; window may be independently absent |
 | `rate_limits.seven_day.{used_percentage,resets_at}` | weekly rate-limit % used + reset epoch | same |
 | `effort.level` | reasoning effort: `low`/`medium`/`high`/`xhigh`/`max` (live; reflects `/effort`) | absent when the model doesn't support effort |
 | `thinking.enabled` | extended thinking on/off | always present |
 | `session_name` | custom name from `--name` / `/rename` | absent if no custom name set |
 | `workspace.added_dirs` | dirs added via `/add-dir` / `--add-dir` (string array) | empty array if none |
-| `workspace.git_worktree` | worktree name for *any* linked worktree | absent in the main working tree |
+| `workspace.git_worktree` | worktree name for _any_ linked worktree | absent in the main working tree |
 | `worktree.{path,branch,original_cwd,original_branch}` | extra `--worktree` session info | already parsed into `WorktreeInfo`, no widget exposes them |
 
 ### 4. New `statusLine` config options
 
-- `refreshInterval` (int, min 1): re-runs the status line command every N seconds *in addition to* event-driven updates. Recommended when the status line shows time-based data or when background subagents change git state while the main session is idle. ccstatus ships `session-clock`, `block-timer`, `api-duration`, plus git widgets -- all benefit.
+- `refreshInterval` (int, min 1): re-runs the status line command every N seconds _in addition to_ event-driven updates. Recommended when the status line shows time-based data or when background subagents change git state while the main session is idle. ccstatus ships `session-clock`, `block-timer`, `api-duration`, plus git widgets -- all benefit.
 - `hideVimModeIndicator` (bool): suppresses Claude Code's built-in `-- INSERT --` line. Users who enable ccstatus's `vim-mode` widget should set this so the mode isn't shown twice.
 
 ccstatus's `install` command currently writes only `{type, command, padding: 0}`.
@@ -139,7 +139,7 @@ Reset-countdown math (`resets_at` -> "2h13m") stays in the widget layer, consist
 A `RateLimitWidget` parameterized by window (`five_hour` / `seven_day`). Display modes via `metadata["display"]` (mirrors `block-timer`):
 
 | mode | output | source |
-|------|--------|--------|
+| --- | --- | --- |
 | `percent` (default) | `45%` | `used_percentage` |
 | `bar` | `▓▓▓▓░░░░░░ 45%` (width via `metadata["barWidth"]`, default 10) | `used_percentage` |
 | `reset` | `2h13m` | `resets_at - now`, clamped to >= 0 |
@@ -165,7 +165,7 @@ Hidden (`""`) when the window or `used_percentage` is absent. `SupportsRawValue(
 2. `cost.total_duration_ms` (current behavior) -- fallback when `rate_limits` is absent.
 3. JSONL transcript first-entry timestamp -- last-ditch fallback (unchanged).
 
-`block-timer` stays a *time* widget ("how far into the current 5-hour window, by time"). *Usage* % is the new `rate-limit-5h` widget's job -- keeping them separate avoids changing `block-timer`'s output meaning. Update the docstring and `Description()` to say it now prefers the official 5-hour window. (Note: there is some overlap between `block-timer`'s `reset`-ish behavior and `rate-limit-5h`'s `reset` mode -- that's acceptable; `block-timer` also serves non-Pro/Max users via fallbacks.)
+`block-timer` stays a _time_ widget ("how far into the current 5-hour window, by time"). _Usage_ % is the new `rate-limit-5h` widget's job -- keeping them separate avoids changing `block-timer`'s output meaning. Update the docstring and `Description()` to say it now prefers the official 5-hour window. (Note: there is some overlap between `block-timer`'s `reset`-ish behavior and `rate-limit-5h`'s `reset` mode -- that's acceptable; `block-timer` also serves non-Pro/Max users via fallbacks.)
 
 ### 4.5 `git-worktree`: add `workspace.git_worktree` source -- `internal/widget/git_worktree.go`
 
@@ -206,7 +206,7 @@ func Install(refreshInterval int, hideVimMode bool) (string, error) { ... }
 
 ### 4.8 No settings schema version bump
 
-`config.CurrentVersion` stays `4`. Adding new widget *types* is additive -- a `version: 4` config that references only existing widgets remains valid; the new widgets are opt-in. (RFC 003 added widgets the same way without a bump.) The `install` / `StatusLine` changes touch *Claude Code's* settings.json, not ccstatus's, and are additive there too.
+`config.CurrentVersion` stays `4`. Adding new widget _types_ is additive -- a `version: 4` config that references only existing widgets remains valid; the new widgets are opt-in. (RFC 003 added widgets the same way without a bump.) The `install` / `StatusLine` changes touch _Claude Code's_ settings.json, not ccstatus's, and are additive there too.
 
 ## Configuration Compatibility
 
@@ -266,6 +266,7 @@ The default config and a few widget details were iterated on after the design ab
 - Added a combined `rate-limits` widget — `5h: 3% / 7d: 12%`, each window shown only when present, default prefix `Limit ` — alongside the per-window `rate-limit-5h` / `rate-limit-7d` (default prefixes `5h limit: ` / `7d limit: `, plus a `bar` display mode via `metadata.barWidth`). Registry: 37 → 44 widgets.
 - `session-name` is intentionally not in the default config (a `--name` / `/rename` value can be long enough to overflow a line).
 - Terminal-width detection — the `terminalWidth` setting and an ancestor-TTY fallback — was handled separately in #22, since Claude Code does not pass the column width to the main status line command.
+- The rate-limit widgets read their windows through `fiveHourWindow` / `sevenDayWindow` inside `RateLimitWidget` instead of the `FiveHourLimitPercent` / `SevenDayLimitPercent` extractors of 4.2, and reuse `formatDuration` instead of a new `formatShortDuration`.
 
 ## References
 

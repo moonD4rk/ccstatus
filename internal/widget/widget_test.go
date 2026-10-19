@@ -4,7 +4,6 @@ import (
 	"os"
 	"testing"
 	"time"
-	"unicode/utf8"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -1333,20 +1332,10 @@ func TestCustomCommandWidget(t *testing.T) {
 		assert.Equal(t, "line1", w.Render(&item, ctx, &settings))
 	})
 
-	t.Run("applies maxWidth", func(t *testing.T) {
+	t.Run("leaves maxWidth to the renderer", func(t *testing.T) {
 		item := config.WidgetItem{CommandPath: "echo longstring", MaxWidth: 4}
 		ctx := RenderContext{Data: &status.Session{}}
-		assert.Equal(t, "long", w.Render(&item, ctx, &settings))
-	})
-
-	t.Run("maxWidth truncates by rune, not byte", func(t *testing.T) {
-		// printf emits "aéb" (é = UTF-8 C3 A9); maxWidth 2 must yield "aé",
-		// never a mid-codepoint byte cut.
-		item := config.WidgetItem{CommandPath: `printf 'a\303\251b'`, MaxWidth: 2}
-		ctx := RenderContext{Data: &status.Session{}}
-		got := w.Render(&item, ctx, &settings)
-		assert.Equal(t, "aé", got)
-		assert.True(t, utf8.ValidString(got))
+		assert.Equal(t, "longstring", w.Render(&item, ctx, &settings))
 	})
 
 	t.Run("strips ANSI by default", func(t *testing.T) {
@@ -1785,7 +1774,7 @@ func TestFastModeWidget(t *testing.T) {
 	t.Run("enabled returns indicator", func(t *testing.T) {
 		on := true
 		ctx := RenderContext{Data: &status.Session{FastMode: &on}}
-		assert.Equal(t, "on", w.Render(&item, ctx, &settings))
+		assert.Equal(t, "Fast", w.Render(&item, ctx, &settings))
 	})
 
 	t.Run("disabled returns empty", func(t *testing.T) {
@@ -1805,7 +1794,7 @@ func TestFastModeWidget(t *testing.T) {
 	})
 
 	assert.Equal(t, "yellow", w.DefaultColor())
-	assert.Equal(t, "Fast: ", w.DefaultPrefix())
+	assert.Empty(t, w.DefaultPrefix())
 }
 
 func TestSessionNameWidget(t *testing.T) {

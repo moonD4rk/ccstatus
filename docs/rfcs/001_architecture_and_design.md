@@ -1,8 +1,8 @@
 # RFC 001: ccstatus Architecture and Design
 
-Status: Completed
-Author: @moond4rk
-Date: 2026-02-14
+- Status: Completed
+- Author: @moond4rk
+- Date: 2026-02-14
 
 ## Summary
 
@@ -44,15 +44,11 @@ Reference: https://code.claude.com/docs/en/statusline
 
 ### How It Works
 
-Claude Code runs the configured command and pipes JSON session data to stdin. The command
-reads JSON, renders output, and prints ANSI-colored text to stdout. Claude Code displays
-whatever the command prints.
+Claude Code runs the configured command and pipes JSON session data to stdin. The command reads JSON, renders output, and prints ANSI-colored text to stdout. Claude Code displays whatever the command prints.
 
 ### Update Timing
 
-The command runs after each new assistant message, when permission mode changes, or when
-vim mode toggles. Updates are debounced at 300ms. If a new update triggers while the command
-is still running, the in-flight execution is cancelled.
+The command runs after each new assistant message, when permission mode changes, or when vim mode toggles. Updates are debounced at 300ms. If a new update triggers while the command is still running, the in-flight execution is cancelled.
 
 ### Output Protocol
 
@@ -67,28 +63,19 @@ is still running, the in-flight execution is cancelled.
 
 **Practical workarounds** (from ccstatusline, not officially documented but address real issues):
 
-7. Replace all regular spaces (0x20) with non-breaking spaces (U+00A0) to prevent VSCode
-   from trimming trailing whitespace. Without this, status lines with trailing padding may
-   render incorrectly in VSCode terminals.
-8. Prepend `\x1b[0m` (ANSI reset) to each output line. Claude Code applies a dim attribute
-   to the status area; without an explicit reset, all text appears dimmed.
-9. Skip empty lines (lines containing only ANSI codes with no visible text) to avoid blank
-   rows in the status area.
+7. Replace all regular spaces (0x20) with non-breaking spaces (U+00A0) to prevent VSCode from trimming trailing whitespace. Without this, status lines with trailing padding may render incorrectly in VSCode terminals.
+8. Prepend `\x1b[0m` (ANSI reset) to each output line. Claude Code applies a dim attribute to the status area; without an explicit reset, all text appears dimmed.
+9. Skip empty lines (lines containing only ANSI codes with no visible text) to avoid blank rows in the status area.
 
-Note: Items 7-9 are enabled by default in ccstatus. They solve practical rendering issues
-observed in real usage but are not part of the official protocol.
+Note: Items 7-9 are enabled by default in ccstatus. They solve practical rendering issues observed in real usage but are not part of the official protocol.
 
 ### Notifications
 
-System notifications (MCP server errors, auto-updates, token warnings) display on the right
-side of the same row as the status line. On narrow terminals, these may truncate status line
-output. The `padding` setting in Claude Code's settings.json controls additional horizontal
-spacing.
+System notifications (MCP server errors, auto-updates, token warnings) display on the right side of the same row as the status line. On narrow terminals, these may truncate status line output. The `padding` setting in Claude Code's settings.json controls additional horizontal spacing.
 
 ### Official JSON Input Schema
 
-Claude Code sends the following JSON to stdin. **All fields are optional** and may be absent
-or null. The full schema from the official documentation:
+Claude Code sends the following JSON to stdin. **All fields are optional** and may be absent or null. The full schema from the official documentation:
 
 ```json
 {
@@ -140,7 +127,7 @@ or null. The full schema from the official documentation:
 ### Field Availability Notes
 
 | Field | Notes |
-|-------|-------|
+| --- | --- |
 | `model` | Object with `id` and `display_name`. For backward compat, may also be a plain string in older versions. |
 | `cwd`, `workspace.current_dir` | Same value; prefer `workspace.current_dir` for consistency. |
 | `workspace.project_dir` | Directory where Claude Code was launched; may differ from `cwd`. |
@@ -153,11 +140,10 @@ or null. The full schema from the official documentation:
 
 ### Data Source Strategy
 
-The official JSON input now provides token metrics and context window data directly,
-eliminating the need to parse JSONL transcripts for most widgets.
+The official JSON input now provides token metrics and context window data directly, eliminating the need to parse JSONL transcripts for most widgets.
 
 | Data | Primary Source (JSON) | Fallback Source (JSONL) |
-|------|-----------------------|-------------------------|
+| --- | --- | --- |
 | Input tokens | `context_window.total_input_tokens` | JSONL parsing |
 | Output tokens | `context_window.total_output_tokens` | JSONL parsing |
 | Cached tokens | `context_window.current_usage.cache_read_input_tokens` + `cache_creation_input_tokens` | JSONL parsing |
@@ -238,9 +224,6 @@ ccstatus/
       status_test.go
       format.go            # Token formatting, context config, percentage functions
       format_test.go
-  testdata/
-    settings.json          # Example settings for tests
-    transcript.jsonl       # Example JSONL for tests
 ```
 
 ### Data Flow
@@ -276,8 +259,7 @@ stdout (ANSI colored status line, one line per fmt.Println)
 
 ### Session (Input from Claude Code)
 
-Based on the official Claude Code status line documentation
-(https://code.claude.com/docs/en/statusline).
+Based on the official Claude Code status line documentation (https://code.claude.com/docs/en/statusline).
 
 ```go
 // Session represents the JSON payload piped from Claude Code.
@@ -592,8 +574,7 @@ func FormatTokens(count int) string {
 
 ### Context Window Size Resolution
 
-Claude Code now provides `context_window.context_window_size` directly in the JSON input.
-The model ID heuristic is kept only as a fallback for older Claude Code versions.
+Claude Code now provides `context_window.context_window_size` directly in the JSON input. The model ID heuristic is kept only as a fallback for older Claude Code versions.
 
 ```go
 const (
@@ -638,9 +619,7 @@ func ContextConfig(data *Session) WindowLimits {
 
 ### Context Percentage
 
-Claude Code now provides `context_window.used_percentage` directly. The manual calculation
-is kept as a fallback. Note: `used_percentage` is calculated from input tokens only
-(input_tokens + cache_creation_input_tokens + cache_read_input_tokens), not output tokens.
+Claude Code now provides `context_window.used_percentage` directly. The manual calculation is kept as a fallback. Note: `used_percentage` is calculated from input tokens only (input_tokens + cache_creation_input_tokens + cache_read_input_tokens), not output tokens.
 
 ```go
 // ContextPercentage returns the context usage percentage.
@@ -680,9 +659,7 @@ func CacheHitRate(data *Session) (float64, bool) { ... }
 
 ### JSONL Transcript Parsing
 
-With the official Claude Code API now providing token metrics and session duration directly
-in the JSON input, JSONL transcript parsing is only required for the **block-timer** widget
-as a fallback when `cost.total_duration_ms` is unavailable.
+With the official Claude Code API now providing token metrics and session duration directly in the JSON input, JSONL transcript parsing is only required for the **block-timer** widget as a fallback when `cost.total_duration_ms` is unavailable.
 
 The `internal/jsonl` package reads the first JSONL entry timestamp using `encoding/json`.
 
@@ -747,11 +724,9 @@ func CalculateFlexWidth(detected int, flexMode string, compactThreshold int, con
 
 ### Supported Colors (16 named)
 
-8 basic: black, red, green, yellow, blue, magenta, cyan, white
-8 bright: brightBlack, brightRed, brightGreen, brightYellow, brightBlue, brightMagenta, brightCyan, brightWhite
+8 basic: black, red, green, yellow, blue, magenta, cyan, white 8 bright: brightBlack, brightRed, brightGreen, brightYellow, brightBlue, brightMagenta, brightCyan, brightWhite
 
-Colors are mapped to `fatih/color` attributes. Background colors are derived by adding
-the standard ANSI foreground-to-background offset (+10).
+Colors are mapped to `fatih/color` attributes. Background colors are derived by adding the standard ANSI foreground-to-background offset (+10).
 
 ### Color Levels
 
@@ -819,7 +794,7 @@ All phases are completed. Each phase included corresponding testify unit tests.
 ### Phase 2: Token & Context Widgets (Completed)
 
 9. Token widgets: tokens-input, tokens-output, tokens-cached, tokens-total (via generic tokenWidget)
-10. Context widgets: context-length, context-percentage, context-percentage-usable (via generic percentageWidget)
+10. Context widgets: context-percentage (via generic percentageWidget), context-length, context-percentage-usable
 11. `internal/terminal/terminal.go` - Width detection
 12. Flex separator expansion
 
@@ -828,7 +803,7 @@ All phases are completed. Each phase included corresponding testify unit tests.
 13. git-changes, git-worktree (from git commands)
 14. session-clock (from `cost.total_duration_ms`), session-cost (from `cost.total_cost_usd`)
 15. block-timer (primary: `cost.total_duration_ms`, fallback: JSONL transcript parsing)
-16. output-style, session-id, terminal-width, current-working-dir (via generic stringFieldWidget)
+16. output-style (via generic stringFieldWidget), session-id, terminal-width, current-working-dir
 17. custom-command (with timeout and preserveColors)
 18. vim-mode, agent-name, exceeds-200k (from official Claude Code JSON fields)
 19. current-usage-input, current-usage-output, cache-creation (per-round token widgets)
@@ -839,7 +814,7 @@ All phases are completed. Each phase included corresponding testify unit tests.
 
 22. CLI subcommands: init, validate, install, uninstall, dump, widgets
 23. Multi-line rendering (2-line default layout)
-24. Merge mode (widget combining with/without padding)
+24. Merge mode config (`merge`, `IsMerged`); the renderer honors it only since RFC 005
 
 ### Phase 5: Release (Completed)
 

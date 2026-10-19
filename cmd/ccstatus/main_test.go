@@ -122,3 +122,10 @@ func TestRootCommandRegistersSubcommands(t *testing.T) {
 		assert.Truef(t, got[want], "subcommand %q should be registered", want)
 	}
 }
+
+func TestWidgetsCommandListsDefaults(t *testing.T) {
+	out, _, err := execRoot(t, "", "widgets")
+	require.NoError(t, err)
+	assert.Regexp(t, `(?m)^  context-percentage +.+ \(white, prefix "Ctx: "\)$`, out)
+	assert.Regexp(t, `(?m)^  model +.+ \(cyan\)$`, out, "no prefix part when the widget has none")
+}

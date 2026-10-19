@@ -21,38 +21,47 @@ func TestDefaultSettings(t *testing.T) {
 	assert.Equal(t, " ", s.DefaultPadding)
 	require.Len(t, s.Lines, 2)
 
-	// Line 1: model · effort | ctx-% | branch worktree | +added -removed | $cost
-	require.Len(t, s.Lines[0], 12)
+	// Line 1: model · effort | Fast | ctx-% | branch worktree | +added -removed | $cost
+	require.Len(t, s.Lines[0], 14)
 	assert.Equal(t, "model", s.Lines[0][0].Type)
 	assert.Equal(t, "cyan", s.Lines[0][0].Color)
 	assert.Equal(t, "effort", s.Lines[0][1].Type)
-	assert.Equal(t, "context-percentage", s.Lines[0][3].Type)
-	assert.Equal(t, "green", s.Lines[0][3].Color)
-	assert.Equal(t, []Threshold{{GTE: 70, Color: "yellow"}, {GTE: 90, Color: "red"}}, s.Lines[0][3].Thresholds)
-	assert.Equal(t, "git-branch", s.Lines[0][5].Type)
-	assert.Equal(t, "git-worktree", s.Lines[0][6].Type)
-	assert.Equal(t, "lines-added", s.Lines[0][8].Type)
-	assert.Equal(t, "green", s.Lines[0][8].Color)
-	assert.Equal(t, "lines-removed", s.Lines[0][9].Type)
-	assert.Equal(t, "red", s.Lines[0][9].Color)
-	assert.Equal(t, "session-cost", s.Lines[0][11].Type)
+	assert.Equal(t, "fast-mode", s.Lines[0][3].Type)
+	assert.Equal(t, "context-percentage", s.Lines[0][5].Type)
+	usage := []Threshold{{GTE: 30, Color: "white"}, {GTE: 60, Color: "yellow"}, {GTE: 90, Color: "red"}}
+	assert.Equal(t, "brightBlack", s.Lines[0][5].Color)
+	assert.Equal(t, usage, s.Lines[0][5].Thresholds)
+	assert.Equal(t, "git-branch", s.Lines[0][7].Type)
+	assert.Equal(t, "git-worktree", s.Lines[0][8].Type)
+	assert.Equal(t, "lines-added", s.Lines[0][10].Type)
+	assert.Equal(t, "green", s.Lines[0][10].Color)
+	assert.Equal(t, "lines-removed", s.Lines[0][11].Type)
+	assert.Equal(t, "red", s.Lines[0][11].Color)
+	assert.Equal(t, "session-cost", s.Lines[0][13].Type)
 
-	// Line 2: cwd | rate-limits | session-clock  (plain separator, left-aligned)
-	require.Len(t, s.Lines[1], 5)
+	// Line 2: cwd | rate-limits | session-clock | session-name  (plain separator, left-aligned)
+	require.Len(t, s.Lines[1], 7)
 	assert.Equal(t, "current-working-dir", s.Lines[1][0].Type)
 	assert.True(t, s.Lines[1][0].RawValue)
 	assert.Equal(t, "separator", s.Lines[1][1].Type)
 	assert.Equal(t, "rate-limits", s.Lines[1][2].Type)
 	assert.Empty(t, s.Lines[1][2].Prefix) // uses the widget default ("Limit ")
+	assert.Equal(t, "white", s.Lines[1][2].Color)
+	assert.Equal(t, []Threshold{{GTE: 30, Color: "brightWhite"}, {GTE: 60, Color: "yellow"}, {GTE: 90, Color: "red"}},
+		s.Lines[1][2].Thresholds)
 	assert.Equal(t, "separator", s.Lines[1][3].Type)
 	assert.Equal(t, "session-clock", s.Lines[1][4].Type)
+	assert.Equal(t, "session-name", s.Lines[1][6].Type)
+	assert.Equal(t, 30, s.Lines[1][6].MaxWidth)
 
-	// Subagent row: name status elapsed | model tokens context% sparkline | label
-	require.Len(t, s.SubagentLine, 10)
+	// Subagent row: name status elapsed | model · effort tokens context% sparkline | label
+	require.Len(t, s.SubagentLine, 11)
 	assert.Equal(t, "task-name", s.SubagentLine[0].Type)
-	assert.Equal(t, "task-context", s.SubagentLine[6].Type)
-	assert.Len(t, s.SubagentLine[6].Thresholds, 2)
-	assert.Equal(t, "task-label", s.SubagentLine[9].Type)
+	assert.Equal(t, "task-effort", s.SubagentLine[5].Type)
+	assert.Equal(t, "task-context", s.SubagentLine[7].Type)
+	assert.Equal(t, "brightBlack", s.SubagentLine[7].Color)
+	assert.Equal(t, usage, s.SubagentLine[7].Thresholds)
+	assert.Equal(t, "task-label", s.SubagentLine[10].Type)
 }
 
 func TestLoadMissingFile(t *testing.T) {

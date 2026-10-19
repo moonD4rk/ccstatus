@@ -21,7 +21,7 @@ func newPreviewCmd() *cobra.Command {
 		RunE: runPreview,
 	}
 	cmd.Flags().String("input", "", "Payload file to render instead of the built-in sample")
-	cmd.Flags().Int("width", 0, "Render width in columns (default: the terminal width)")
+	cmd.Flags().Int("width", 0, "Terminal width in columns (default: detected; with --subagent, the payload's columns)")
 	cmd.Flags().Bool("subagent", false, "Preview subagentLine rows with a sample task list")
 	return cmd
 }

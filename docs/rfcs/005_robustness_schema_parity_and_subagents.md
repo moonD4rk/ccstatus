@@ -1,14 +1,17 @@
 # RFC 005: Robustness, Official Schema Parity, and Subagent Status Lines
 
-Status: Completed Author: @moond4rk Date: 2026-10-17
+- Status: Completed
+- Author: @moond4rk
+- Date: 2026-10-17
 
 ## Summary
 
-ccstatus v0.3.1 (2026-08-02) predates several additions to the official Claude Code status line schema: `prompt_cache`, `rate_limits.spend_limit`, `pr.kind` (GitLab merge requests), and a richer `subagentStatusLine` payload. Reviewing the codebase against the current docs also surfaced failure modes where the status line silently disappears. This RFC is the plan for v0.4.0 and v0.5.0, delivered as three PRs:
+ccstatus v0.3.1 (2026-08-02) predates several additions to the official Claude Code status line schema: `prompt_cache`, `rate_limits.spend_limit`, `pr.kind` (GitLab merge requests), and a richer `subagentStatusLine` payload. Reviewing the codebase against the current docs also surfaced failure modes where the status line silently disappears. This RFC is the plan for v0.4.0 and v0.5.0, delivered as three PRs and a follow-up:
 
 1. Foundation: toolchain cleanup (drop typos, Go 1.27, latest dependencies, gofumpt enforced in CI); robustness (never exit non-zero while rendering, tolerate schema drift, merge settings over defaults, keep OSC 8 links balanced when truncating); a lock-free, concurrent git layer.
 2. Schema, widgets and rendering: model `prompt_cache`, `rate_limits.spend_limit` and `pr.kind`; widgets for them; fixes to `cache-hit-rate`, `rate-limits` and `pr`; threshold colors, progress bars and `merge`.
 3. Subagents and tooling: `subagentStatusLine` support via `ccstatus subagent`; order-preserving atomic `install`, scoped `uninstall`, `dump --append`, `preview`.
+4. Polish from daily use: the default layout and its shared usage color scale, `task-sparkline` drawn from per-tick growth, a bare `Fast`, and `maxWidth` on every widget.
 
 ## Motivation
 
@@ -52,11 +55,12 @@ All reproduced against v0.3.1.
 
 | PR | Scope | Release |
 | --- | --- | --- |
-| 1 | Foundation: toolchain cleanup, robustness, git layer | v0.4.0 |
-| 2 | Schema parity, new and updated widgets, rendering (thresholds, bars, merge) | v0.4.0 |
-| 3 | Subagent status lines, tooling | v0.5.0 |
+| 1 (#37) | Foundation: toolchain cleanup, robustness, git layer | v0.4.0 |
+| 2 (#38) | Schema parity, new and updated widgets, rendering (thresholds, bars, merge) | v0.4.0 |
+| 3 (#39) | Subagent status lines, tooling | v0.5.0 |
+| 4 (#41) | Polish from daily use: default layout, `task-sparkline`, generic `maxWidth` | v0.5.0 |
 
-The PRs land in order and each ships with tests. PR 3 builds on the lenient parser from PR 1 and the threshold colors from PR 2.
+The PRs land in order and each ships with tests. PR 3 builds on the lenient parser from PR 1 and the threshold colors from PR 2; PR 4 retunes the defaults of PRs 2 and 3.
 
 ## Design
 
@@ -76,7 +80,7 @@ The PRs land in order and each ships with tests. PR 3 builds on the lenient pars
 | Failure | Output |
 | --- | --- |
 | stdin is not JSON | One red line: `ccstatus: invalid input: <error>` |
-| settings.json unreadable or invalid | A red first line such as `ccstatus: settings.json:3:41: invalid character ']' (run ccstatus validate)`, followed by the rows rendered with the built-in defaults |
+| settings.json unreadable or fails to parse | A red first line such as `ccstatus: settings.json:3:41: invalid character ']' (run ccstatus validate)`, followed by the rows rendered with the built-in defaults |
 | A field has an unexpected type | That field is dropped and noted on stderr; everything else renders |
 
 `dump` goes through the same render path and reads the command's stdin. `validate`, `init`, `install` and `uninstall` keep their non-zero exit codes.
@@ -102,7 +106,7 @@ An explicit `"lines": []` still renders nothing.
 
 **Clamping.** 5h/7d `used_percentage` is clamped to 0-100 for text and bars. Spend limits are not clamped (see PR 2).
 
-**validate.** Report JSON syntax errors as `line:col`. Also check `flexMode`, `colorLevel` (0-3), `compactThreshold` (0-100) and `metadata.display` values (widgets list their modes through an optional `DisplayModes() []string`). PR 2 adds `thresholds` checks and PR 3 adds widget scope checks for `subagentLine`.
+**validate.** Report JSON syntax errors as `line:col`. Also check `flexMode`, `colorLevel` (0-3), `compactThreshold` (0-100) and `metadata.display` values (widgets list their modes through an optional, unexported `displayModes() []string`, which `validate` reads through `widget.DisplayModes`). PR 2 adds `thresholds` checks, PR 3 adds widget scope checks for `subagentLine`, and PR 4 rejects a negative `maxWidth`.
 
 #### Git layer
 
@@ -187,7 +191,7 @@ The docs' full sample payload is checked in as `internal/status/testdata/statusl
 | `pr` (changed) | `pr.kind` | `!1234 pending` for merge requests | - |
 
 - `prompt-cache` is hidden when `prompt_cache` is absent or `caching_observed` is false. `status` shows `warm <time until expires_at>` (just `warm` when `expires_at` is null) or `cold`; a countdown that has run out renders `cold`. `misses` renders `2 misses (tools_changed)` from `last_miss_cause.causes`; `full` joins status, hit ratio and misses with `·`. The countdown only advances with a `refreshInterval`, but Claude Code re-runs the command at `expires_at` itself, so the warm-to-cold flip is immediate.
-- `spend-limit` reuses the percent, bar and reset rendering of `RateLimitWidget` through the embedded `RateLimitWindow`, never clamps (being over the limit is meaningful), and adds the period in `full` mode (`$314.12 / $500.00 monthly, resets 12d`).
+- `spend-limit` reuses the reset countdown through the embedded `RateLimitWindow` and the shared bar helper, but formats its own percentage, which is never clamped (being over the limit is meaningful). `full` mode adds the period (`$314.12 / $500.00 monthly, resets 12d`).
 - `session-lines` counts Claude's edits this session; the existing `lines-*` widgets keep showing the uncommitted git diff.
 - Durations of a day or more render with days (`4d15h`): reset countdowns, the session clock and API time share one formatter.
 
@@ -217,7 +221,7 @@ The docs' full sample payload is checked in as `internal/status/testdata/statusl
   }
   ```
 
-  Implemented by the percentage widgets, the rate-limit widgets, `spend-limit`, `prompt-cache` (hit percentage in `hit` mode, minutes left otherwise), `session-cost`, `context-length`, the token widgets, and later `task-context`.
+  Implemented by the percentage widgets, the rate-limit widgets, `spend-limit`, `prompt-cache` (hit percentage in `hit` mode, minutes left otherwise), `session-cost`, `context-length`, the token widgets, and later `task-tokens` and `task-context`.
 
 - The renderer applies the threshold with the highest `gte` that is at most the value; below the first threshold the item's normal color applies. `overrideForegroundColor` and `overrideBackgroundColor` still win.
 - Widgets whose default color depends on state implement the optional `DynamicDefaultColor` interface (`DefaultColorFor(ctx RenderContext) string`), consulted when the item sets no color: `prompt-cache` is green while warm and `brightBlack` once cold, and `task-status` (PR 3) colors by task state.
@@ -246,20 +250,20 @@ type SubagentPayload struct {
 }
 
 type Task struct {
-	ID                string  `json:"id"`
-	Name              string  `json:"name,omitempty"`
-	Type              string  `json:"type,omitempty"`      // local_agent
-	AgentType         string  `json:"agentType,omitempty"` // v2.1.293+
-	Status            string  `json:"status,omitempty"`    // running | completed | failed | killed
-	Description       string  `json:"description,omitempty"`
-	Label             string  `json:"label,omitempty"`
-	StartTime         int64   `json:"startTime,omitempty"` // epoch milliseconds
-	Model             string  `json:"model,omitempty"`
+	ID                string      `json:"id"`
+	Name              string      `json:"name,omitempty"`
+	Type              string      `json:"type,omitempty"`      // local_agent
+	AgentType         string      `json:"agentType,omitempty"` // v2.1.293+
+	Status            string      `json:"status,omitempty"`    // running | completed | failed | killed
+	Description       string      `json:"description,omitempty"`
+	Label             string      `json:"label,omitempty"`
+	StartTime         int64       `json:"startTime,omitempty"` // epoch milliseconds
+	Model             string      `json:"model,omitempty"`
 	Effort            *TaskEffort `json:"effort,omitempty"` // level string or numeric token budget
-	ContextWindowSize *int    `json:"contextWindowSize,omitempty"`
-	TokenCount        int     `json:"tokenCount,omitempty"`
-	TokenSamples      []int   `json:"tokenSamples,omitempty"`
-	Cwd               string  `json:"cwd,omitempty"`
+	ContextWindowSize *int        `json:"contextWindowSize,omitempty"`
+	TokenCount        int         `json:"tokenCount,omitempty"`
+	TokenSamples      []int       `json:"tokenSamples,omitempty"`
+	Cwd               string      `json:"cwd,omitempty"`
 }
 ```
 
@@ -276,12 +280,12 @@ type Task struct {
 | `task-effort` | `high`, or a token budget such as `32k` |
 | `task-tokens` | `tokenCount` formatted like the token widgets (`45.2k`) |
 | `task-context` | `tokenCount / contextWindowSize` as a percentage; supports `bar` and thresholds |
-| `task-sparkline` | `tokenSamples` as `▁▂▃▅▇` |
+| `task-sparkline` | Tokens added between `tokenSamples` readings as `▂▅█▁`, running tasks only |
 | `task-cwd` | Base name of `cwd` |
 
 `separator`, `flex-separator` and `custom-text` work on both kinds of line. `validate` rejects main-line widgets in `subagentLine` and task widgets in `lines`.
 
-**Config.** A new top-level `subagentLine`, one row of widget items; the built-in default applies when it is absent:
+**Config.** A new top-level `subagentLine`, one row of widget items; the built-in default (as revised in PR 4) applies when it is absent:
 
 ```json
 "subagentLine": [
@@ -290,15 +294,16 @@ type Task struct {
   { "id": "s3", "type": "task-elapsed" },
   { "id": "s4", "type": "separator" },
   { "id": "s5", "type": "task-model" },
-  { "id": "s6", "type": "task-tokens" },
-  { "id": "s7", "type": "task-context", "thresholds": [{ "gte": 70, "color": "yellow" }, { "gte": 90, "color": "red" }] },
-  { "id": "s8", "type": "task-sparkline" },
-  { "id": "s9", "type": "separator" },
-  { "id": "s10", "type": "task-label" }
+  { "id": "s6", "type": "task-effort", "prefix": "· " },
+  { "id": "s7", "type": "task-tokens" },
+  { "id": "s8", "type": "task-context", "color": "brightBlack", "thresholds": [{ "gte": 30, "color": "white" }, { "gte": 60, "color": "yellow" }, { "gte": 90, "color": "red" }] },
+  { "id": "s9", "type": "task-sparkline" },
+  { "id": "s10", "type": "separator" },
+  { "id": "s11", "type": "task-label" }
 ]
 ```
 
-This renders like `reviewer running 1m23s | Sonnet 5.5 45.2k 23% ▁▁▂▃▄▅▆█ | Reading internal/auth/session.go`; the label comes last so truncation cuts it first.
+This renders like `reviewer running 1m23s | Sonnet 5.5 · high 45.2k 23% ▅▄▆▇██▇ | Reading internal/auth/session.go`; the label comes last so truncation cuts it first.
 
 **Rendering.** A `render.RenderRow(items, settings, ctx, width)` entry point renders at exactly `width`, without a flex-mode margin since `columns` is already the usable width, and reuses separator cleanup, colors, thresholds, flex expansion and truncation.
 
@@ -312,17 +317,24 @@ This renders like `reviewer running 1m23s | Sonnet 5.5 45.2k 23% ▁▁▂▃▄
 - `dump --append` appends one JSON line per invocation (`ts`, `columns`, `lines`, `input`) instead of overwriting, so a whole session can be captured.
 - `preview` renders the current settings against an embedded sample payload (the docs' full schema, from the new `internal/sample` package, with its timestamps moved to now) or `--input FILE`, at `--width N` or the terminal width; `preview --subagent` does the same for `subagentLine` with a sample task list. The docs payload moves from `internal/status/testdata` into `internal/sample` and stays the parser's test fixture.
 
+### PR 4: Polish from daily use
+
+- `task-sparkline` draws the tokens added between `tokenSamples` readings. Scaling the raw counts from zero drew a finished task (16 equal readings) and a fork (a large inherited context) as a full bar. `▁` marks a tick with no growth, any growth is at least `▂`, and a compaction counts as none. Like `task-elapsed`, it is empty unless the task is running.
+- `fast-mode` renders a bare `Fast` instead of `Fast: on`.
+- `maxWidth` caps the text of any widget, not just `custom-command`: the cut ends with `…`, the prefix and suffix are not counted, wide characters count as two columns, and a cut OSC 8 link is closed. `custom-command` drops its own rune cut in favor of it, and `validate` rejects negative values.
+
 ## Default Layout
 
-- v0.4.0: `context-percentage` uses a green base color with yellow at 70 and red at 90, replacing `brightBlack`. `rate-limits` picks up the spend limit automatically. `prompt-cache`, `spend-limit` and `session-lines` are opt-in.
-- v0.5.0: the `subagentLine` default from PR 3.
+- PR 2: `rate-limits` picks up the spend limit automatically; `prompt-cache`, `spend-limit` and `session-lines` are opt-in.
+- PR 3: the `subagentLine` default.
+- PR 4: `context-percentage` and `task-context` share one scale: a `brightBlack` base, white at 30, yellow at 60 and red at 90; `rate-limits` takes the same steps a shade brighter (white, then bright white at 30). Line 1 gains `fast-mode` after the effort, line 2 ends with `session-name` capped at 30 columns, and the subagent row shows `task-effort` after the model.
 
 ## Testing
 
 - Shared fixture: the docs' full payload, with absent and null variants for every widget.
 - Fuzz targets: `status.Parse` never panics; `render.Truncate` never exceeds the width and always leaves OSC 8 links balanced.
 - Git integration tests assert that `.git/index` is not rewritten and that `Diff` matches the staged-plus-unstaged sum.
-- `cmd/ccstatus` tests: malformed stdin, malformed settings and type drift all exit 0 with an error line, which also lifts `cmd/` coverage from 44.6%.
+- `cmd/ccstatus` tests: malformed stdin, malformed settings and type drift all exit 0 (the first two with an error line, type drift by dropping the field with a note on stderr), which also lifts `cmd/` coverage from 44.6%.
 - Subagent: golden JSON-lines output for a sample payload, omitted empty rows, and no output for invalid input.
 
 ## Out of Scope

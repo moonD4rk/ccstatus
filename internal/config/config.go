@@ -47,48 +47,57 @@ func DefaultSettings() Settings {
 		DefaultPadding:   " ",
 		Lines: [][]WidgetItem{
 			{
-				// model · effort | context % | git branch worktree | +added -removed | $cost
+				// model · effort | Fast | context % | git branch worktree | +added -removed | $cost
 				{ID: "1", Type: "model", Color: "cyan"},
 				{ID: "2", Type: "effort", Color: "cyan", Prefix: "· "},
 				{ID: "3", Type: "separator"},
-				{ID: "4", Type: "context-percentage", Color: "green", Thresholds: []Threshold{
-					{GTE: 70, Color: "yellow"},
-					{GTE: 90, Color: "red"},
-				}},
+				{ID: "4", Type: "fast-mode"},
 				{ID: "5", Type: "separator"},
-				{ID: "6", Type: "git-branch", Color: "magenta"},
-				{ID: "7", Type: "git-worktree", Color: "brightBlack"},
-				{ID: "8", Type: "separator"},
-				{ID: "9", Type: "lines-added", Color: "green"},
-				{ID: "10", Type: "lines-removed", Color: "red"},
-				{ID: "11", Type: "separator"},
-				{ID: "12", Type: "session-cost", Color: "green"},
+				{ID: "6", Type: "context-percentage", Color: "brightBlack", Thresholds: usageThresholds("white")},
+				{ID: "7", Type: "separator"},
+				{ID: "8", Type: "git-branch", Color: "magenta"},
+				{ID: "9", Type: "git-worktree", Color: "brightBlack"},
+				{ID: "10", Type: "separator"},
+				{ID: "11", Type: "lines-added", Color: "green"},
+				{ID: "12", Type: "lines-removed", Color: "red"},
+				{ID: "13", Type: "separator"},
+				{ID: "14", Type: "session-cost", Color: "green"},
 			},
 			{
-				// current dir | rate limits (5h/7d) | session clock  (plain separator, left-aligned)
-				{ID: "13", Type: "current-working-dir", Color: "blue", RawValue: true},
-				{ID: "14", Type: "separator"},
-				{ID: "15", Type: "rate-limits", Color: "yellow"},
+				// current dir | rate limits (5h/7d) | session clock | session name  (plain separator, left-aligned)
+				{ID: "15", Type: "current-working-dir", Color: "blue", RawValue: true},
 				{ID: "16", Type: "separator"},
-				{ID: "17", Type: "session-clock", Color: "white"},
+				{ID: "17", Type: "rate-limits", Color: "white", Thresholds: usageThresholds("brightWhite")},
+				{ID: "18", Type: "separator"},
+				{ID: "19", Type: "session-clock", Color: "white"},
+				{ID: "20", Type: "separator"},
+				{ID: "21", Type: "session-name", MaxWidth: 30},
 			},
 		},
-		// name status elapsed | model tokens context% sparkline | label
+		// name status elapsed | model · effort tokens context% sparkline | label
 		SubagentLine: []WidgetItem{
 			{ID: "s1", Type: "task-name", Color: "cyan"},
 			{ID: "s2", Type: "task-status"},
 			{ID: "s3", Type: "task-elapsed"},
 			{ID: "s4", Type: "separator"},
 			{ID: "s5", Type: "task-model"},
-			{ID: "s6", Type: "task-tokens"},
-			{ID: "s7", Type: "task-context", Thresholds: []Threshold{
-				{GTE: 70, Color: "yellow"},
-				{GTE: 90, Color: "red"},
-			}},
-			{ID: "s8", Type: "task-sparkline"},
-			{ID: "s9", Type: "separator"},
-			{ID: "s10", Type: "task-label"},
+			{ID: "s6", Type: "task-effort", Prefix: "· "},
+			{ID: "s7", Type: "task-tokens"},
+			{ID: "s8", Type: "task-context", Color: "brightBlack", Thresholds: usageThresholds("white")},
+			{ID: "s9", Type: "task-sparkline"},
+			{ID: "s10", Type: "separator"},
+			{ID: "s11", Type: "task-label"},
 		},
+	}
+}
+
+// usageThresholds marks 30% with hint, a step brighter than the base color, then escalates
+// to yellow at 60% and red at 90%.
+func usageThresholds(hint string) []Threshold {
+	return []Threshold{
+		{GTE: 30, Color: hint},
+		{GTE: 60, Color: "yellow"},
+		{GTE: 90, Color: "red"},
 	}
 }
 

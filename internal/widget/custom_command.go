@@ -59,20 +59,9 @@ func (w *CustomCommandWidget) Render(item *config.WidgetItem, ctx RenderContext,
 		result = result[:idx]
 	}
 
-	// Strip ANSI codes unless preserveColors is set, before measuring width so
-	// maxWidth counts visible characters rather than escape bytes.
 	if !item.PreserveColors {
 		result = color.StripANSI(result)
 	}
-
-	// Apply maxWidth truncation by runes so multibyte output is never cut
-	// mid-codepoint.
-	if item.MaxWidth > 0 {
-		if runes := []rune(result); len(runes) > item.MaxWidth {
-			result = string(runes[:item.MaxWidth])
-		}
-	}
-
 	return result
 }
 
