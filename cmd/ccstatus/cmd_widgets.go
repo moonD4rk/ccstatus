@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -13,27 +14,35 @@ func newWidgetsCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "widgets",
 		Short: "List all available widget types",
-		Long:  "List all registered widget types with their descriptions and default colors.",
+		Long:  "List all registered widget types with their descriptions, default colors and default prefixes.",
 		RunE:  runWidgets,
 	}
 }
 
-func runWidgets(_ *cobra.Command, _ []string) error {
+func runWidgets(cmd *cobra.Command, _ []string) error {
 	types := widget.Types()
 	sort.Strings(types)
 
-	fmt.Println("Available widgets:")
-	fmt.Println()
+	out := cmd.OutOrStdout()
+	fmt.Fprintln(out, "Available widgets:")
+	fmt.Fprintln(out)
 	for _, t := range types {
 		w := widget.Get(t)
 		if w == nil {
 			continue
 		}
-		colorInfo := ""
+		var details []string
 		if c := w.DefaultColor(); c != "" {
-			colorInfo = fmt.Sprintf(" (%s)", c)
+			details = append(details, c)
 		}
-		fmt.Printf("  %-28s %s%s\n", t, w.Description(), colorInfo)
+		if p := w.DefaultPrefix(); p != "" {
+			details = append(details, fmt.Sprintf("prefix %q", p))
+		}
+		info := ""
+		if len(details) > 0 {
+			info = " (" + strings.Join(details, ", ") + ")"
+		}
+		fmt.Fprintf(out, "  %-28s %s%s\n", t, w.Description(), info)
 	}
 	return nil
 }
