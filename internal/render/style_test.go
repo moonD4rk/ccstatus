@@ -82,6 +82,8 @@ func TestRenderLineMaxWidth(t *testing.T) {
 		{"long text ends in an ellipsis", config.WidgetItem{Type: "custom-text", CustomText: "feat/window-redesign", MaxWidth: 10}, "feat/wind…"},
 		{"wide runes count as two columns", config.WidgetItem{Type: "custom-text", CustomText: "Terraform 中的 badgebar 仓库", MaxWidth: 16}, "Terraform 中的…"},
 		{"the prefix is not counted", config.WidgetItem{Type: "custom-text", CustomText: "abcdef", Prefix: "S: ", MaxWidth: 4}, "S: abc…"},
+		{"command output is capped the same way", config.WidgetItem{Type: "custom-command", CommandPath: "echo longstring", MaxWidth: 4}, "lon…"},
+		{"a cut never splits a multibyte rune", config.WidgetItem{Type: "custom-command", CommandPath: `printf 'a\303\251bc'`, MaxWidth: 3}, "aé…"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
