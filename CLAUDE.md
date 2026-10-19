@@ -33,9 +33,9 @@ echo '{"model":{"id":"claude-opus-4-7","display_name":"Opus"},"context_window":{
 
 ## How It Works
 
-Claude Code pipes session JSON to stdin. ccstatus parses it (`internal/status`), loads `~/.config/ccstatus/settings.json` (`internal/config`; `$XDG_CONFIG_HOME` respected), and for each configured row renders every widget via the registry, applies colors, expands `flex-separator` to fill the terminal width, truncates, then post-processes (spaces → U+00A0 for VSCode; prepend `\x1b[0m` since Claude Code dims the status area) — see `internal/render` and `internal/widget`.
+Claude Code pipes session JSON to stdin. ccstatus parses it (`internal/status`), loads `~/.config/ccstatus/settings.json` (`internal/config`; `$XDG_CONFIG_HOME` respected), and for each configured row renders every widget via the registry (cut to its `maxWidth`), applies colors and thresholds, expands `flex-separator` to fill the flex-mode width (the terminal minus a 10- or 40-column margin), truncates to it, then post-processes (spaces → U+00A0 for VSCode; prepend `\x1b[0m` since Claude Code dims the status area) — see `internal/render` and `internal/widget`.
 
-Render mode must never exit non-zero (Claude Code blanks the status line): bad settings render the defaults under a red error line, bad stdin renders only that line, and `status.Parse` coerces or drops mistyped fields instead of failing. Settings decode over `DefaultSettings()`, so omitted fields keep their defaults. Git lookups run concurrently up front (`widget.PrefetchGit`) and always with `GIT_OPTIONAL_LOCKS=0` through plumbing that never rewrites the index.
+Render mode must never exit non-zero (Claude Code blanks the status line): settings that fail to parse render the defaults under a red error line, bad stdin renders only that line, and `status.Parse` coerces or drops mistyped fields instead of failing. Settings decode over `DefaultSettings()`, so omitted fields keep their defaults. Git lookups run concurrently up front (`widget.PrefetchGit`), always with `GIT_OPTIONAL_LOCKS=0`, and diff stats come from `git diff-index` / `git diff-files`, so no lookup rewrites the index.
 
 Subagent rows: `ccstatus subagent` reads the `subagentStatusLine` payload (`status.ParseSubagent`: `columns` + `tasks[]`), renders the `subagentLine` setting once per task through `render.RenderRow` (exact width, no flex margin) with `RenderContext.Task` set, and prints one `{"id","content"}` JSON line per non-empty row; on any error it prints nothing so Claude Code keeps its default rows.
 
@@ -56,3 +56,4 @@ Subcommands: `ccstatus init` (write default settings.json), `validate`, `install
 
 - Official Claude Code status line docs: https://code.claude.com/docs/en/statusline
 - Original TypeScript implementation: https://github.com/sirmalloc/ccstatusline
+- Design RFCs: `docs/rfcs/`, numbered; the highest is the latest plan

@@ -1,8 +1,8 @@
 # RFC 003: Remaining Widget Implementation
 
-Status: Completed
-Author: @moond4rk
-Date: 2026-02-15
+- Status: Completed
+- Author: @moond4rk
+- Date: 2026-02-15
 
 ## Summary
 
@@ -13,7 +13,7 @@ All widgets are now implemented. ccstatus has 37 registered widgets, achieving 1
 ## Comparison Matrix
 
 | Widget | ccstatus (Go) | ccstatusline (TS) | Status |
-|--------|:---:|:---:|--------|
+| --- | :-: | :-: | --- |
 | model | Y | Y | Done |
 | version | Y | Y | Done |
 | output-style | Y | Y | Done |
@@ -75,6 +75,7 @@ Calculates the cache read token ratio as a percentage. Formula: `cache_read_inpu
 ### block-timer
 
 Uses `cost.total_duration_ms` as primary data source (available from Claude Code JSON). Falls back to JSONL transcript parsing (`internal/jsonl/`) when duration data is unavailable. Supports three display modes via `metadata["display"]`:
+
 - `"time"` (default): `2h15m/5h`
 - `"progress"`: `[=====>    ] 50%`
 - `"percentage"`: `50%`

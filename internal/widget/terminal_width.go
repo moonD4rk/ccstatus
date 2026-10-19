@@ -24,7 +24,9 @@ func (w *TerminalWidthWidget) DefaultColor() string { return defaultDimColor }
 func (w *TerminalWidthWidget) DisplayName() string { return "Terminal Width" }
 
 // Description returns what this widget shows.
-func (w *TerminalWidthWidget) Description() string { return "Terminal width in columns" }
+func (w *TerminalWidthWidget) Description() string {
+	return "Line width in columns: the terminal width minus the flexMode margin"
+}
 
 // SupportsRawValue returns false since this widget has no compact mode.
 func (w *TerminalWidthWidget) SupportsRawValue() bool { return false }

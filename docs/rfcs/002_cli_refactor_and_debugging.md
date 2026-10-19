@@ -1,15 +1,12 @@
 # RFC 002: CLI Refactor and Debugging Support
 
-Status: Completed
-Author: @moond4rk
-Date: 2026-02-15
+- Status: Completed
+- Author: @moond4rk
+- Date: 2026-02-15
 
 ## Summary
 
-Refactor the ccstatus CLI from flag-based operations (`--init`, `--install`) to standard
-cobra subcommands (`ccstatus init`, `ccstatus install`), add a `dump` subcommand for
-debugging real Claude Code JSON input, and fix the default configuration to match
-implemented widgets.
+Refactor the ccstatus CLI from flag-based operations (`--init`, `--install`) to standard cobra subcommands (`ccstatus init`, `ccstatus install`), add a `dump` subcommand for debugging real Claude Code JSON input, and fix the default configuration to match implemented widgets.
 
 ## Motivation
 
@@ -24,8 +21,7 @@ ccstatus --install     # flag-based
 ccstatus --uninstall   # flag-based
 ```
 
-This is non-idiomatic for cobra. These are independent actions, not modifiers to the
-default behavior. The standard cobra pattern uses subcommands:
+This is non-idiomatic for cobra. These are independent actions, not modifiers to the default behavior. The standard cobra pattern uses subcommands:
 
 ```
 ccstatus init          # subcommand
@@ -35,6 +31,7 @@ ccstatus uninstall     # subcommand
 ```
 
 Problems with the current flag approach:
+
 - `ccstatus --init --validate` is ambiguous (which runs first?)
 - `ccstatus init` currently fails with `unknown command "init"`
 - Help output mixes operational flags with modifier flags
@@ -42,23 +39,15 @@ Problems with the current flag approach:
 
 ### 2. No way to debug real Claude Code input
 
-When developing and testing widgets, there is no way to capture the actual JSON
-that Claude Code pipes to ccstatus. Developers must guess at field availability.
-A `dump` subcommand solves this by saving stdin to a file for inspection.
+When developing and testing widgets, there is no way to capture the actual JSON that Claude Code pipes to ccstatus. Developers must guess at field availability. A `dump` subcommand solves this by saving stdin to a file for inspection.
 
 ### 3. Default config references unimplemented widget
 
-The default configuration includes `git-changes` (id=7), but this widget has no
-implementation. It is silently skipped, causing a trailing separator to appear and
-then be cleaned up. This confuses users who expect to see git change counts.
+The default configuration includes `git-changes` (id=7), but this widget has no implementation. It is silently skipped, causing a trailing separator to appear and then be cleaned up. This confuses users who expect to see git change counts.
 
 ### 4. Status line missing token/context data
 
-The current default config only includes `context-length`, which requires
-`current_usage` data. In practice, this is often empty early in a session. Token
-widgets (`tokens-input`, `context-percentage`) that read from `total_input_tokens`
-and `used_percentage` are more reliable and already implemented but not in the
-default config.
+The current default config only includes `context-length`, which requires `current_usage` data. In practice, this is often empty early in a session. Token widgets (`tokens-input`, `context-percentage`) that read from `total_input_tokens` and `used_percentage` are more reliable and already implemented but not in the default config.
 
 ## Scope
 
@@ -143,6 +132,7 @@ initCmd.Flags().Bool("force", false, "Overwrite existing settings.json")
 ```
 
 Behavior:
+
 - If file exists and `--force` not set: print path and exit with error
 - If file exists and `--force` set: overwrite
 - If file does not exist: create with default settings
@@ -161,6 +151,7 @@ validateCmd := &cobra.Command{
 ```
 
 Behavior:
+
 - Load and parse settings.json
 - Check for unknown widget types (warn, not error)
 - Print "Settings are valid" to stderr on success
@@ -193,16 +184,17 @@ dumpCmd.Flags().StringP("output", "o", "", "Output file path (default: /tmp/ccst
 ```
 
 Behavior:
+
 1. Read all of stdin
 2. Pretty-print the JSON (indent with 2 spaces) for readability
 3. Write to the output file (default: `/tmp/ccstatus-dump.json`)
 4. Also pass through to normal rendering (so the status line still works)
 5. Print the saved file path to stderr
 
-Usage: Temporarily change Claude Code's command to `ccstatus dump` to capture input,
-then inspect `/tmp/ccstatus-dump.json` to see exactly what fields are available.
+Usage: Temporarily change Claude Code's command to `ccstatus dump` to capture input, then inspect `/tmp/ccstatus-dump.json` to see exactly what fields are available.
 
 Advanced usage with `--output`:
+
 ```bash
 ccstatus dump --output ~/debug/claude-input.json
 ```
@@ -220,8 +212,9 @@ widgetsCmd := &cobra.Command{
 ```
 
 Output format:
+
 ```
-Available widgets (37):
+Available widgets:
 
   model                        Current Claude model name (cyan)
   version                      Claude Code version (white)
@@ -264,8 +257,7 @@ Available widgets (37):
 
 ### Default Config Update
 
-The default configuration now features a rich 2-line layout with comprehensive
-session information:
+The default configuration now features a rich 2-line layout with comprehensive session information:
 
 ```go
 func DefaultSettings() Settings {
@@ -310,12 +302,14 @@ func DefaultSettings() Settings {
 ### File Structure Changes
 
 Before:
+
 ```
 cmd/ccstatus/
   main.go              # Everything in one file
 ```
 
 After:
+
 ```
 cmd/ccstatus/
   main.go              # Entry point, root command setup
@@ -330,14 +324,11 @@ cmd/ccstatus/
 
 ### Step 1: Refactor root command and extract subcommands (Completed)
 
-Split `main.go` into separate files per subcommand. Convert `--init`, `--validate`,
-`--install`, `--uninstall` flags into cobra subcommands. Keep default (no subcommand)
-behavior as stdin rendering.
+Split `main.go` into separate files per subcommand. Convert `--init`, `--validate`, `--install`, `--uninstall` flags into cobra subcommands. Keep default (no subcommand) behavior as stdin rendering.
 
 ### Step 2: Add `dump` subcommand (Completed)
 
-Implement the dump command that saves stdin JSON to a file while still rendering
-the status line normally.
+Implement the dump command that saves stdin JSON to a file while still rendering the status line normally.
 
 ### Step 3: Add `widgets` subcommand (Completed)
 
@@ -345,8 +336,7 @@ Implement the widgets listing command using the existing widget registry.
 
 ### Step 4: Update default config (Completed)
 
-Replaced unimplemented widgets with full 2-line layout featuring model, context,
-tokens, cache, git, lines, cost, and session clock.
+Replaced unimplemented widgets with full 2-line layout featuring model, context, tokens, cache, git, lines, cost, and session clock.
 
 ### Step 5: Add `--force` flag to init (Completed)
 
@@ -363,8 +353,7 @@ Allow `ccstatus init --force` to overwrite existing config.
 
 ```bash
 # Manual integration test: capture real Claude Code input
-# 1. Install dump mode
-ccstatus install   # or manually edit ~/.claude/settings.json command to "ccstatus dump"
+# 1. Point statusLine.command in ~/.claude/settings.json at "ccstatus dump"
 
 # 2. Use Claude Code normally, then inspect
 cat /tmp/ccstatus-dump.json | jq .

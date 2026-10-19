@@ -10,7 +10,7 @@ A customizable status line formatter for [Claude Code](https://code.claude.com/)
 
 ## Features
 
-- Single static binary with no runtime dependencies
+- Single static binary with no runtime dependencies beyond `git` for the git widgets
 - 61 configurable widgets (model, tokens, context, git, cost, rate limits, prompt cache, and more)
 - Custom subagent rows in Claude Code's agent panel (`subagentStatusLine`)
 - Multi-line status line with flex separator layout
@@ -39,7 +39,7 @@ go install github.com/moond4rk/ccstatus/cmd/ccstatus@latest
 # Generate default settings
 ccstatus init
 
-# Register in Claude Code (re-run anytime to update; --subagent / --refresh N / --hide-vim-indicator optional)
+# Register in Claude Code (re-run anytime to update; --subagent / --refresh N / --padding N / --hide-vim-indicator optional)
 ccstatus install
 
 # Try your layout against sample data, without starting Claude Code
@@ -66,7 +66,7 @@ ccstatus [command]
 | `preview` | Render your settings against sample data (or `--input FILE`) |
 | `subagent` | Render subagent rows for Claude Code's `subagentStatusLine` (Claude Code runs it) |
 | `dump` | Save raw JSON input from Claude Code to a file for debugging |
-| `widgets` | List all registered widget types with descriptions and default colors |
+| `widgets` | List all registered widget types with descriptions, default colors and prefixes |
 | `completion` | Generate shell autocompletion script (bash, zsh, fish, powershell) |
 
 ### Global Flags
@@ -84,7 +84,7 @@ ccstatus [command]
 ccstatus init [--force]
 ```
 
-Generates a default `settings.json` at `~/.config/ccstatus/settings.json`. Use `--force` to overwrite an existing file.
+Generates a default `settings.json` at `~/.config/ccstatus/settings.json` (under `$XDG_CONFIG_HOME` when that is set). Use `--force` to overwrite an existing file.
 
 #### `ccstatus install`
 
@@ -105,13 +105,14 @@ Registers ccstatus in Claude Code's `~/.claude/settings.json` (or `$CLAUDE_CONFI
 }
 ```
 
-Every other key keeps its position and value, the file is replaced atomically, and a symlinked `settings.json` (for example one managed by a dotfiles repo) stays a symlink. Re-running `install` keeps the values you set by hand.
+Every other key keeps its position and value, the file is replaced atomically, and a symlinked `settings.json` (for example one managed by a dotfiles repo) stays a symlink. Re-running `install` keeps the `padding`, `refreshInterval` and `hideVimModeIndicator` you set by hand and points `command` back at `ccstatus`, which also ends a temporary `ccstatus dump`.
 
 Optional flags:
 
 - `--subagent` — also render subagent rows in the agent panel (writes `subagentStatusLine` running `ccstatus subagent`; `--subagent=false` removes it). See [Subagent Rows](#subagent-rows).
 - `--refresh N` — re-run the status line every `N` seconds (writes `refreshInterval`). A fresh install uses `30` so time-based widgets (`session-clock`, `block-timer`, `prompt-cache`) and git widgets keep moving while Claude Code is idle; `--refresh 0` removes it so the status line runs only on Claude Code's events.
-- `--hide-vim-indicator` — suppress Claude Code's built-in `-- INSERT --` line (writes `hideVimModeIndicator`). Set this if you use the `vim-mode` widget so the mode isn't shown twice.
+- `--padding N` — extra horizontal spacing, in characters, that Claude Code adds to the status line (writes `padding`; a fresh install uses `0`).
+- `--hide-vim-indicator` — suppress Claude Code's built-in `-- INSERT --` line (writes `hideVimModeIndicator`; `--hide-vim-indicator=false` removes it). Set this if you use the `vim-mode` widget so the mode isn't shown twice.
 
 #### `ccstatus uninstall`
 
@@ -127,12 +128,12 @@ Removes the `statusLine` and `subagentStatusLine` blocks whose command runs ccst
 ccstatus validate
 ```
 
-Checks `settings.json` for JSON errors (reported as `path:line:column`), unknown widget types, missing or duplicate widget IDs, invalid color names, out-of-range `flexMode` / `colorLevel` / `compactThreshold`, `metadata.display` values and `thresholds` the widget does not support, and widgets on the wrong kind of line (`task-*` widgets belong in `subagentLine`). Exits non-zero when any problem is found, so it works as a CI gate.
+Checks `settings.json` for JSON errors (reported as `path:line:column`), missing or unknown widget types, missing or duplicate widget IDs, invalid color names (threshold and override colors included), an unknown `flexMode`, `colorLevel` outside 0–3, `compactThreshold` outside 0–100, a negative `maxWidth`, `metadata.display` values and `thresholds` the widget does not support, and widgets on the wrong kind of line (`task-*` widgets belong in `subagentLine`). Exits non-zero when any problem is found, so it works as a CI gate.
 
 #### `ccstatus dump`
 
 ```bash
-ccstatus dump [--output FILE] [--append]
+ccstatus dump [-o|--output FILE] [--append]
 ```
 
 Reads JSON from stdin (same as normal mode), saves it to a file, and renders the status line. Default output: `/tmp/ccstatus-dump.json`. Useful for inspecting what Claude Code sends. With `--append`, every invocation adds one JSON line — `{"ts", "columns", "lines", "input"}` — to `/tmp/ccstatus-dump.jsonl` (or `--output`), so a whole session can be captured.
@@ -143,7 +144,7 @@ Reads JSON from stdin (same as normal mode), saves it to a file, and renders the
 ccstatus preview [--input FILE] [--width N] [--subagent]
 ```
 
-Renders your current `settings.json` against the full sample payload from the official docs, with its timestamps moved to now, so you can try a layout without starting Claude Code. `--input` renders a payload of your own (for example a `dump` capture); `--subagent` renders `subagentLine` for a sample task list.
+Renders your current `settings.json` against the full sample payload from the official docs, with its timestamps moved to now, so you can try a layout without starting Claude Code. `--input` renders a payload of your own (for example a `dump` capture); `--width N` renders as if the terminal were `N` columns wide (the flex-mode margin still applies); `--subagent` renders `subagentLine` for a sample task list, at the sample's `columns` unless `--width` is set.
 
 #### `ccstatus subagent`
 
@@ -159,7 +160,7 @@ The `subagentStatusLine` command (set up by `ccstatus install --subagent`). Clau
 ccstatus widgets
 ```
 
-Lists all registered widget types with their descriptions and default colors.
+Lists all registered widget types with their descriptions, default colors and default prefixes.
 
 ## Usage
 
@@ -170,13 +171,13 @@ echo '{"model":{"id":"claude-opus-4-7","display_name":"Opus"}}' | ccstatus
 # Replay captured dump data
 cat /tmp/ccstatus-dump.json | ccstatus
 
-# Preview the configured layout against sample data at 120 columns
+# Preview the configured layout against sample data in a 120-column terminal
 ccstatus preview --width 120
 ```
 
 ## Configuration
 
-Settings are stored at `~/.config/ccstatus/settings.json`. Edit manually to customize.
+Settings are stored at `~/.config/ccstatus/settings.json` (or `$XDG_CONFIG_HOME/ccstatus/settings.json`). Edit manually to customize.
 
 ### Default Layout
 
@@ -184,7 +185,7 @@ A lean 2-line layout. Widgets with nothing to show — `effort`, `fast-mode`, `g
 
 **Line 1:** `model · effort | Fast | context % | git branch + worktree | lines +/- | session cost` (`Fast` only while fast mode is on)
 
-**Line 2:** `working directory | rate limits (5h/7d, or the gateway spend limit) | session clock | session name` (the name is capped at 30 columns)
+**Line 2:** `working directory | rate limits (5h/7d and the gateway spend limit, whichever are present) | session clock | session name` (the name is capped at 30 columns)
 
 Context % and the subagent `task-context` share one color scale: gray below 30%, white from 30%, yellow from 60% and red from 90%. Rate limits follow the same steps a shade brighter: white, then bright white from 30%.
 
@@ -234,34 +235,40 @@ To customize, edit the `lines` array in `settings.json` — e.g. swap `rate-limi
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
 | `version` | int | `4` | Config schema version |
-| `colorLevel` | int | `2` | `0` disables color; any value `>= 1` enables ANSI 16-color output |
-| `flexMode` | string | `"full-until-compact"` | How flex separator calculates available width |
-| `compactThreshold` | int | `90` | Context % at which `full-until-compact` switches to the wider (−40 col) right margin |
-| `terminalWidth` | int | (auto) | Force the status line width in columns. Leave unset/`0` to auto-detect: ccstatus reads the `COLUMNS` variable that Claude Code (v2.1.153+) sets for status line commands, then falls back to the attached terminal, then 80. |
-| `defaultSeparator` | string | `"\|"` | Separator character between widgets |
-| `defaultPadding` | string | `" "` | Padding around separators |
-| `inheritSeparatorColors` | bool | `false` | Separators inherit color from adjacent widget |
+| `colorLevel` | int | `2` | `0` disables color; `1`–`3` all enable ANSI 16-color output |
+| `flexMode` | string | `"full-until-compact"` | Right margin each main line leaves: where the line is cut with `...` and how far `flex-separator` fills (see [Flex Modes](#flex-modes)) |
+| `compactThreshold` | int | `90` | Context % (0–100) at which `full-until-compact` switches to the wider (−40 col) right margin |
+| `terminalWidth` | int | (auto) | Override the detected terminal width; the `flexMode` margin still applies. Leave unset/`0` to auto-detect: ccstatus reads the `COLUMNS` variable that Claude Code (v2.1.153+) sets for status line commands, then falls back to the attached terminal, then 80. |
+| `defaultSeparator` | string | `"\|"` | Text a `separator` item shows unless it sets `character` |
+| `defaultPadding` | string | `" "` | Inserted between adjacent widgets, separators included, except after an item with `merge` |
+| `inheritSeparatorColors` | bool | `false` | A separator without its own `color` takes the color of the widget before it |
+| `overrideForegroundColor` | string | (none) | Force one foreground color on every widget and separator, thresholds included |
+| `overrideBackgroundColor` | string | (none) | Force one background color the same way |
 | `globalBold` | bool | `false` | Apply bold to all widgets |
 
 ### Widget Item Options
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `id` | string | Unique identifier |
+| `id` | string | Unique identifier, across `lines` and `subagentLine` |
 | `type` | string | Widget type (see list below) |
 | `color` | string | Foreground color name |
 | `backgroundColor` | string | Background color name |
 | `bold` | bool | Bold text |
-| `prefix` | string | Text before widget output |
+| `prefix` | string | Text before widget output; empty keeps the widget's default, such as `Ctx: ` (`ccstatus widgets` lists them) |
 | `suffix` | string | Text after widget output |
-| `character` | string | Special character (e.g., branch icon) |
+| `character` | string | The text of a `separator`, or an icon before the `git-branch` name |
 | `rawValue` | bool | Use compact/raw output mode |
 | `maxWidth` | number | Cap the widget's text at this many columns, ending it with `…` (the prefix and suffix are not counted; wide characters count as two) |
 | `merge` | bool/string | Join this widget to the next one without `defaultPadding` (`true`, or the legacy `"no-padding"`) |
-| `metadata` | object | Widget-specific metadata, such as `display` and `barWidth` |
+| `metadata` | object | Widget-specific options as strings, such as `{ "display": "bar", "barWidth": "20" }`; `barWidth` sizes every `bar` display |
+| `customText` | string | The text of `custom-text` |
+| `commandPath` | string | Shell command for `custom-command`, run with `sh -c` and given Claude Code's JSON on stdin; the first line of its output is shown |
+| `timeout` | number | `custom-command` timeout in milliseconds (default `3000`) |
+| `preserveColors` | bool | Keep the ANSI colors in `custom-command` output |
 | `thresholds` | array | Restyle a numeric widget by value: `[{ "gte": 70, "color": "yellow" }, { "gte": 90, "color": "red", "bold": true }]`. The highest `gte` reached wins; below the first, `color` applies. Each entry may set `color`, `backgroundColor`, `bold` |
 
-Thresholds work on widgets that render a number: the context and remaining percentages, `cache-hit-rate`, the rate-limit widgets (`rate-limits` uses the highest of its limits), `spend-limit`, `prompt-cache` (minutes until cold, or the hit percentage in `hit` mode), `session-cost`, `context-length`, and the token counts. `ccstatus validate` flags thresholds on any other widget.
+Thresholds work on widgets that render a number: the context and remaining percentages, `cache-hit-rate`, the rate-limit widgets (`rate-limits` uses the highest of its limits), `spend-limit`, `prompt-cache` (minutes until cold, or the hit percentage in `hit` mode), `session-cost`, `context-length`, the token counts, and `task-tokens` / `task-context` in `subagentLine`. `ccstatus validate` flags thresholds on any other widget.
 
 ### Flex Modes
 
@@ -317,7 +324,7 @@ Rows are sized to the width Claude Code reports, with no flex-mode margin. `suba
 | `output-style` | JSON | Output style name | white |
 | `git-branch` | Git | Current branch name | magenta |
 | `git-changes` | Git | Uncommitted changes count | yellow |
-| `git-worktree` | Git | Worktree name | magenta |
+| `git-worktree` | JSON/Git | Worktree name | magenta |
 | `tokens-input` | JSON | Input tokens in current context, incl. cache (~= `context-length` since CC v2.1.132) | white |
 | `tokens-output` | JSON | Output tokens from the most recent API response | white |
 | `tokens-cached` | JSON | Cached tokens | white |
@@ -331,15 +338,15 @@ Rows are sized to the width Claude Code reports, with no flex-mode margin. `suba
 | `remaining-percentage` | JSON | Remaining context % (`bar` display) | white |
 | `cache-hit-rate` | JSON | Session prompt cache hit ratio (`prompt_cache.hit_ratio`; older Claude Code: the last request's cache reads; `bar` display) | cyan |
 | `prompt-cache` | JSON | Prompt cache state, e.g. `warm 42m` / `cold` — green while warm, dim once cold (`metadata.display`: `status`/`ttl`/`hit`/`misses`/`full`, e.g. `warm 42m · 91% hit · 2 misses (tools_changed)`) | green |
-| `api-duration` | JSON | API response time | white |
+| `api-duration` | JSON | Total API response time this session | white |
 | `block-timer` | JSON/JSONL | 5-hour block timer (uses the rate-limit window when available; `metadata.display`: `time`/`progress`/`percentage`) | white |
 | `rate-limits` | JSON | Combined limits, e.g. `5h: 3% / 7d: 12%` or `spend: $314.12/$500.00` behind a Claude apps gateway (each shown only when present) | yellow |
 | `spend-limit` | JSON | Claude apps gateway spend limit, e.g. `$314.12 / $500.00` (`63%` until the dollar amounts arrive; `metadata.display`: `amount`/`percent`/`bar`/`reset`/`full`) | yellow |
 | `rate-limit-5h` | JSON | 5-hour rate-limit usage (`metadata.display`: `percent`/`bar`/`reset`/`full`; `metadata.barWidth`) | yellow |
 | `rate-limit-7d` | JSON | 7-day rate-limit usage (`metadata.display`: `percent`/`bar`/`reset`/`full`; `metadata.barWidth`) | yellow |
-| `current-working-dir` | JSON | Current directory | blue |
-| `project-dir` | JSON | Project root directory | blue |
-| `transcript-path` | JSON | Transcript file path | white |
+| `current-working-dir` | JSON | Current directory name (raw: the full path, `~`-shortened) | blue |
+| `project-dir` | JSON | Project root directory name (raw: the full path) | blue |
+| `transcript-path` | JSON | Transcript file name (raw: the full path) | white |
 | `added-dirs` | JSON | Directories added via `/add-dir` (`metadata.display`: `list` for names) | blue |
 | `repo` | JSON | Repository `owner/name` from the origin remote (raw: name only) | blue |
 | `pr` | JSON | Open PR number + review state, e.g. `#1234 approved`, or `!1234` for a GitLab merge request; the number is an OSC 8 link when `pr.url` is present (raw: number) | cyan |
@@ -353,7 +360,7 @@ Rows are sized to the width Claude Code reports, with no flex-mode margin. `suba
 | `thinking` | JSON | Extended thinking indicator | magenta |
 | `fast-mode` | JSON | `Fast` while fast mode is on | yellow |
 | `exceeds-200k` | JSON | Warning at 200k tokens | red |
-| `terminal-width` | System | Terminal width in columns | white |
+| `terminal-width` | System | Line width: the terminal width minus the `flexMode` margin | white |
 | `custom-text` | - | User-defined static text | white |
 | `custom-command` | System | Shell command output | white |
 | `separator` | - | Visual separator | white |
@@ -365,7 +372,7 @@ Usable only in `subagentLine`; each reads the task Claude Code passes for that r
 
 | Widget | Description | Default Color |
 | --- | --- | --- |
-| `task-name` | Subagent name, else its agent type | cyan |
+| `task-name` | Subagent name, else its agent type, else the task type | cyan |
 | `task-type` | Agent type, e.g. `Explore` or a custom agent | magenta |
 | `task-status` | `running` / `completed` / `failed` / `killed`, colored yellow / green / red / dim | by state |
 | `task-label` | Progress summary, else the task description | white |
@@ -393,7 +400,7 @@ The separate [`subagentStatusLine`](https://code.claude.com/docs/en/statusline#s
 
 ccstatus never exits non-zero while rendering, because Claude Code hides the whole status line when the command fails. Problems show up in the status line instead:
 
-- An invalid `settings.json` renders the default layout below a red `ccstatus: settings.json:LINE:COL: ...` line; run `ccstatus validate` for the full list.
+- A `settings.json` that fails to parse renders the default layout below a red `ccstatus: settings.json:LINE:COL: ... (run ccstatus validate)` line. Other mistakes, such as an unknown widget type or color name, are skipped without a message; `ccstatus validate` lists them.
 - Input that is not JSON renders a single red `ccstatus: invalid input: ...` line.
 - A field whose type changed in a newer Claude Code is coerced when that is unambiguous (a quoted number, a fractional epoch) or dropped otherwise, and the rest still renders; dropped fields are listed on stderr, which `claude --debug` logs.
 
@@ -416,6 +423,7 @@ ccstatus preview --input /tmp/ccstatus-dump.json
 
 - [Claude Code Status Line Documentation](https://code.claude.com/docs/en/statusline)
 - [ccstatusline](https://github.com/sirmalloc/ccstatusline) - Original TypeScript implementation
+- [Design RFCs](docs/rfcs/) - Architecture decisions and release plans
 
 ## License
 
