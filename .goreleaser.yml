@@ -40,28 +40,29 @@ changelog:
 
 release:
   github:
-    owner: moonD4rk
+    owner: chaudhryfaisal
     name: ccstatus
   draft: false
   prerelease: auto
 
-brews:
-  - name: ccstatus
-    homepage: "https://github.com/moonD4rk/ccstatus"
-    description: "Customizable status line formatter for Claude Code CLI"
-    license: "Apache-2.0"
-    directory: Formula
-    skip_upload: auto
-    repository:
-      owner: moonD4rk
-      name: homebrew-tap
-      branch: main
-      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
-    commit_author:
-      name: "moond4rk-ci[bot]"
-      email: "299850723+moond4rk-ci[bot]@users.noreply.github.com"
-    commit_msg_template: "brew formula update for {{ .ProjectName }} version {{ .Tag }}"
-    install: |
-      bin.install "ccstatus"
-    test: |
-      system "#{bin}/ccstatus", "--version"
+# Homebrew tap publishing disabled until the tap repo and token are set up
+# brews:
+#   - name: ccstatus
+#     homepage: "https://github.com/chaudhryfaisal/ccstatus"
+#     description: "Customizable status line formatter for Claude Code CLI"
+#     license: "Apache-2.0"
+#     directory: Formula
+#     skip_upload: auto
+#     repository:
+#       owner: moonD4rk
+#       name: homebrew-tap
+#       branch: main
+#       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+#     commit_author:
+#       name: "moond4rk-ci[bot]"
+#       email: "299850723+moond4rk-ci[bot]@users.noreply.github.com"
+#     commit_msg_template: "brew formula update for {{ .ProjectName }} version {{ .Tag }}"
+#     install: |
+#       bin.install "ccstatus"
+#     test: |
+#       system "#{bin}/ccstatus", "--version"
