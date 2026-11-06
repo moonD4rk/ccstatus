@@ -22,7 +22,7 @@ golangci-lint run
 
 # Format (gofumpt is stricter than gofmt)
 gofumpt -l -w .
-goimports -w -local github.com/moond4rk/ccstatus .
+goimports -w -local github.com/chaudhryfaisal/ccstatus .
 
 # Dependencies
 go mod tidy

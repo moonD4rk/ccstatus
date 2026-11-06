@@ -3,7 +3,7 @@ package widget
 import (
 	"fmt"
 
-	"github.com/moond4rk/ccstatus/internal/config"
+	"github.com/chaudhryfaisal/ccstatus/internal/config"
 )
 
 // SessionLinesWidget displays the lines Claude added and removed this session

@@ -6,9 +6,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/moond4rk/ccstatus/internal/config"
-	"github.com/moond4rk/ccstatus/internal/git"
-	"github.com/moond4rk/ccstatus/internal/status"
+	"github.com/chaudhryfaisal/ccstatus/internal/config"
+	"github.com/chaudhryfaisal/ccstatus/internal/git"
+	"github.com/chaudhryfaisal/ccstatus/internal/status"
 )
 
 // countingGit wraps fakeGit and counts calls, safely under concurrent prefetch.

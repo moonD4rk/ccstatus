@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/moond4rk/ccstatus/internal/color"
-	"github.com/moond4rk/ccstatus/internal/config"
+	"github.com/chaudhryfaisal/ccstatus/internal/color"
+	"github.com/chaudhryfaisal/ccstatus/internal/config"
 )
 
 const defaultCommandTimeout = 3 * time.Second

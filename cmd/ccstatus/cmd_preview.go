@@ -8,7 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/moond4rk/ccstatus/internal/sample"
+	"github.com/chaudhryfaisal/ccstatus/internal/sample"
 )
 
 func newPreviewCmd() *cobra.Command {

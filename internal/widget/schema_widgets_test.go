@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/moond4rk/ccstatus/internal/config"
-	"github.com/moond4rk/ccstatus/internal/status"
+	"github.com/chaudhryfaisal/ccstatus/internal/config"
+	"github.com/chaudhryfaisal/ccstatus/internal/status"
 )
 
 func displayItem(mode string) config.WidgetItem {

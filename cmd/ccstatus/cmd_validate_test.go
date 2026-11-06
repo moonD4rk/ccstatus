@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/moond4rk/ccstatus/internal/config"
+	"github.com/chaudhryfaisal/ccstatus/internal/config"
 )
 
 // saveConfigWithLines points XDG_CONFIG_HOME at a temp dir and writes a config

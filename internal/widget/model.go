@@ -1,6 +1,6 @@
 package widget
 
-import "github.com/moond4rk/ccstatus/internal/config"
+import "github.com/chaudhryfaisal/ccstatus/internal/config"
 
 // ModelWidget displays the current Claude model name.
 type ModelWidget struct{ noAffix }

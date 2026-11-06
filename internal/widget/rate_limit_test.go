@@ -5,8 +5,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/moond4rk/ccstatus/internal/config"
-	"github.com/moond4rk/ccstatus/internal/status"
+	"github.com/chaudhryfaisal/ccstatus/internal/config"
+	"github.com/chaudhryfaisal/ccstatus/internal/status"
 )
 
 func TestRateLimitPercentIsClamped(t *testing.T) {

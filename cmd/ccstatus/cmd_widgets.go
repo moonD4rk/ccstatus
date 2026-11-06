@@ -7,7 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/moond4rk/ccstatus/internal/widget"
+	"github.com/chaudhryfaisal/ccstatus/internal/widget"
 )
 
 func newWidgetsCmd() *cobra.Command {

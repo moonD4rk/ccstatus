@@ -3,8 +3,8 @@ package widget
 import (
 	"fmt"
 
-	"github.com/moond4rk/ccstatus/internal/config"
-	"github.com/moond4rk/ccstatus/internal/status"
+	"github.com/chaudhryfaisal/ccstatus/internal/config"
+	"github.com/chaudhryfaisal/ccstatus/internal/status"
 )
 
 // percentageExtractor extracts a percentage value from status Data.

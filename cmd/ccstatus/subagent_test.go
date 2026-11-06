@@ -12,8 +12,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/moond4rk/ccstatus/internal/color"
-	"github.com/moond4rk/ccstatus/internal/config"
+	"github.com/chaudhryfaisal/ccstatus/internal/color"
+	"github.com/chaudhryfaisal/ccstatus/internal/config"
 )
 
 // execRoot runs the root command with args and stdin, returning stdout and

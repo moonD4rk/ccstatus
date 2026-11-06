@@ -8,9 +8,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/moond4rk/ccstatus/internal/config"
-	"github.com/moond4rk/ccstatus/internal/git"
-	"github.com/moond4rk/ccstatus/internal/status"
+	"github.com/chaudhryfaisal/ccstatus/internal/config"
+	"github.com/chaudhryfaisal/ccstatus/internal/git"
+	"github.com/chaudhryfaisal/ccstatus/internal/status"
 )
 
 // fakeGit is a deterministic GitProvider so git widgets can be asserted exactly

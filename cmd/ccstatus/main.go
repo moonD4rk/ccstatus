@@ -11,12 +11,12 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/moond4rk/ccstatus/internal/color"
-	"github.com/moond4rk/ccstatus/internal/config"
-	"github.com/moond4rk/ccstatus/internal/render"
-	"github.com/moond4rk/ccstatus/internal/status"
-	"github.com/moond4rk/ccstatus/internal/terminal"
-	"github.com/moond4rk/ccstatus/internal/widget"
+	"github.com/chaudhryfaisal/ccstatus/internal/color"
+	"github.com/chaudhryfaisal/ccstatus/internal/config"
+	"github.com/chaudhryfaisal/ccstatus/internal/render"
+	"github.com/chaudhryfaisal/ccstatus/internal/status"
+	"github.com/chaudhryfaisal/ccstatus/internal/terminal"
+	"github.com/chaudhryfaisal/ccstatus/internal/widget"
 )
 
 var version = "dev"

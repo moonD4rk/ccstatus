@@ -1,6 +1,6 @@
 package widget
 
-import "github.com/moond4rk/ccstatus/internal/config"
+import "github.com/chaudhryfaisal/ccstatus/internal/config"
 
 // Exceeds200KWidget displays a warning when token count exceeds the 200k threshold.
 type Exceeds200KWidget struct{ noAffix }

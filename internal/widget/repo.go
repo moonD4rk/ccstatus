@@ -1,7 +1,7 @@
 package widget
 
 import (
-	"github.com/moond4rk/ccstatus/internal/config"
+	"github.com/chaudhryfaisal/ccstatus/internal/config"
 )
 
 // RepoWidget displays the repository identity from workspace.repo (parsed by

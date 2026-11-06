@@ -151,4 +151,4 @@ formatters:
           replacement: "any"
     goimports:
       local-prefixes:
-        - github.com/moond4rk/ccstatus
+        - github.com/chaudhryfaisal/ccstatus

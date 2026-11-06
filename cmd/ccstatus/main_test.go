@@ -10,8 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/moond4rk/ccstatus/internal/color"
-	"github.com/moond4rk/ccstatus/internal/config"
+	"github.com/chaudhryfaisal/ccstatus/internal/color"
+	"github.com/chaudhryfaisal/ccstatus/internal/config"
 )
 
 // runRoot feeds stdin to the root command (the status-line path) and returns the

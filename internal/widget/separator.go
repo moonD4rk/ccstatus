@@ -1,6 +1,6 @@
 package widget
 
-import "github.com/moond4rk/ccstatus/internal/config"
+import "github.com/chaudhryfaisal/ccstatus/internal/config"
 
 // SeparatorWidget displays a visual separator between other widgets.
 type SeparatorWidget struct{ noAffix }

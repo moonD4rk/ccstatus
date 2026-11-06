@@ -3,7 +3,7 @@ package widget
 import (
 	"strconv"
 
-	"github.com/moond4rk/ccstatus/internal/config"
+	"github.com/chaudhryfaisal/ccstatus/internal/config"
 )
 
 // PRWidget displays the open pull request for the current branch (the same data

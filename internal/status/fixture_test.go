@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/moond4rk/ccstatus/internal/sample"
+	"github.com/chaudhryfaisal/ccstatus/internal/sample"
 )
 
 // docsFixture is the full sample payload from the official status line docs.

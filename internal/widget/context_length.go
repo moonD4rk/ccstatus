@@ -1,8 +1,8 @@
 package widget
 
 import (
-	"github.com/moond4rk/ccstatus/internal/config"
-	"github.com/moond4rk/ccstatus/internal/status"
+	"github.com/chaudhryfaisal/ccstatus/internal/config"
+	"github.com/chaudhryfaisal/ccstatus/internal/status"
 )
 
 // ContextLengthWidget displays the context window usage as a formatted token count.

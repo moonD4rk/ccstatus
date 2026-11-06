@@ -6,7 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/moond4rk/ccstatus/internal/claude"
+	"github.com/chaudhryfaisal/ccstatus/internal/claude"
 )
 
 func newInstallCmd() *cobra.Command {

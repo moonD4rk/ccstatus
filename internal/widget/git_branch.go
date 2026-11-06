@@ -1,7 +1,7 @@
 package widget
 
 import (
-	"github.com/moond4rk/ccstatus/internal/config"
+	"github.com/chaudhryfaisal/ccstatus/internal/config"
 )
 
 // GitBranchWidget displays the current git branch name.

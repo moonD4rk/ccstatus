@@ -3,7 +3,7 @@ package widget
 import (
 	"path/filepath"
 
-	"github.com/moond4rk/ccstatus/internal/config"
+	"github.com/chaudhryfaisal/ccstatus/internal/config"
 )
 
 // TranscriptPathWidget displays the transcript file path.

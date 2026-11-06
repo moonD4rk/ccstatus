@@ -1,4 +1,4 @@
-module github.com/moond4rk/ccstatus
+module github.com/chaudhryfaisal/ccstatus
 
 go 1.27.2
 

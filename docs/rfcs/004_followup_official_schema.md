@@ -243,7 +243,7 @@ func Install(refreshInterval int, hideVimMode bool) (string, error) { ... }
 ```bash
 go build ./... && go test ./... && go vet ./...
 golangci-lint run            # watch dupl on the new widgets -- reuse the generic templates
-gofumpt -l -w . && goimports -w -local github.com/moond4rk/ccstatus .
+gofumpt -l -w . && goimports -w -local github.com/chaudhryfaisal/ccstatus .
 
 # manual: pipe a sample with the new fields, using a config that includes the new widgets
 echo '{"model":{"id":"claude-opus-4-7","display_name":"Opus"},"session_name":"my-feat","effort":{"level":"high"},"thinking":{"enabled":true},"rate_limits":{"five_hour":{"used_percentage":45,"resets_at":<now+7200>},"seven_day":{"used_percentage":30,"resets_at":<now+200000>}},"workspace":{"current_dir":"/x","added_dirs":["/y","/z"],"git_worktree":"feat-1"},"context_window":{"used_percentage":25,"context_window_size":200000}}' | ./ccstatus

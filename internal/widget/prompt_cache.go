@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/moond4rk/ccstatus/internal/config"
-	"github.com/moond4rk/ccstatus/internal/status"
+	"github.com/chaudhryfaisal/ccstatus/internal/config"
+	"github.com/chaudhryfaisal/ccstatus/internal/status"
 )
 
 // PromptCacheWidget displays the main conversation's prompt cache state.
