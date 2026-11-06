@@ -1,6 +1,6 @@
 # ccstatus
 
-[![Go CI](https://github.com/moond4rk/ccstatus/actions/workflows/ci.yml/badge.svg)](https://github.com/moond4rk/ccstatus/actions/workflows/ci.yml) [![codecov](https://codecov.io/gh/moond4rk/ccstatus/branch/main/graph/badge.svg)](https://codecov.io/gh/moond4rk/ccstatus) [![Go Reference](https://pkg.go.dev/badge/github.com/moond4rk/ccstatus.svg)](https://pkg.go.dev/github.com/moond4rk/ccstatus) [![License](https://img.shields.io/github/license/moond4rk/ccstatus)](https://github.com/moond4rk/ccstatus/blob/main/LICENSE)
+[![Go CI](https://github.com/chaudhryfaisal/ccstatus/actions/workflows/ci.yml/badge.svg)](https://github.com/chaudhryfaisal/ccstatus/actions/workflows/ci.yml) [![codecov](https://codecov.io/gh/chaudhryfaisal/ccstatus/branch/main/graph/badge.svg)](https://codecov.io/gh/chaudhryfaisal/ccstatus) [![Go Reference](https://pkg.go.dev/badge/github.com/chaudhryfaisal/ccstatus.svg)](https://pkg.go.dev/github.com/chaudhryfaisal/ccstatus) [![License](https://img.shields.io/github/license/chaudhryfaisal/ccstatus)](https://github.com/chaudhryfaisal/ccstatus/blob/main/LICENSE)
 
 A customizable status line formatter for [Claude Code](https://code.claude.com/) CLI. Reads JSON session data from stdin, renders an ANSI-colored status line, and outputs to stdout.
 
@@ -21,16 +21,54 @@ A customizable status line formatter for [Claude Code](https://code.claude.com/)
 
 ## Installation
 
-### Homebrew
+Supports macOS and Linux (amd64, arm64). Requires `curl` and `tar`.
+
+### Quick install (latest release, auto-configured)
 
 ```bash
-brew install moond4rk/tap/ccstatus
+curl -fsSL https://raw.githubusercontent.com/chaudhryfaisal/ccstatus/main/install.sh | bash -s -- --configure
+```
+
+`install.sh` detects your OS and architecture, downloads the matching release archive, verifies its SHA-256 checksum, installs `ccstatus` to `~/.local/bin`, and deletes all temporary files.
+
+With `--configure` it also writes the default `~/.config/ccstatus/settings.json` (kept if present), registers ccstatus in Claude Code's `settings.json`, validates, and prints a preview. Restart Claude Code afterwards.
+
+### Install options
+
+```bash
+# Install only, no configuration
+curl -fsSL https://raw.githubusercontent.com/chaudhryfaisal/ccstatus/main/install.sh | bash
+
+# Specific version / custom directory
+curl -fsSL https://raw.githubusercontent.com/chaudhryfaisal/ccstatus/main/install.sh | bash -s -- --version v0.4.0 --bin-dir /usr/local/bin
+```
+
+If `ccstatus` is not found afterwards, add `~/.local/bin` to your PATH:
+
+```bash
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc && source ~/.zshrc   # bash: ~/.bashrc
 ```
 
 ### Go
 
 ```bash
-go install github.com/moond4rk/ccstatus/cmd/ccstatus@latest
+go install github.com/chaudhryfaisal/ccstatus/cmd/ccstatus@latest
+```
+
+<!-- Homebrew disabled until the tap is set up
+### Homebrew
+
+```bash
+brew install moond4rk/tap/ccstatus
+```
+-->
+
+### Uninstall
+
+```bash
+ccstatus uninstall
+rm -f ~/.local/bin/ccstatus
+rm -rf "${XDG_CONFIG_HOME:-$HOME/.config}/ccstatus"
 ```
 
 ## Quick Start
