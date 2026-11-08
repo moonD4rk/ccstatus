@@ -24,6 +24,7 @@ type Settings struct {
 	FlexMode                string         `json:"flexMode"`
 	CompactThreshold        int            `json:"compactThreshold"`
 	ColorLevel              int            `json:"colorLevel"`
+	Hyperlinks              bool           `json:"hyperlinks"`
 	TerminalWidth           int            `json:"terminalWidth,omitempty"`
 	DefaultSeparator        string         `json:"defaultSeparator,omitempty"`
 	DefaultPadding          string         `json:"defaultPadding,omitempty"`
@@ -44,6 +45,7 @@ func DefaultSettings() Settings {
 	return Settings{
 		Version:          CurrentVersion,
 		ColorLevel:       2,
+		Hyperlinks:       true,
 		FlexMode:         "full-until-compact",
 		CompactThreshold: 90,
 		DefaultSeparator: "|",

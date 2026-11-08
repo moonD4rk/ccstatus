@@ -94,3 +94,23 @@ func TestIsMergeRequest(t *testing.T) {
 	assert.False(t, (&PRInfo{}).IsMergeRequest())
 	assert.True(t, (&PRInfo{Kind: "mr"}).IsMergeRequest())
 }
+
+func TestRepoURL(t *testing.T) {
+	tests := []struct {
+		name string
+		repo *Repo
+		want string
+	}{
+		{name: "github", repo: &Repo{Host: "github.com", Owner: "anthropics", Name: "claude-code"}, want: "https://github.com/anthropics/claude-code"},
+		{name: "nested gitlab group", repo: &Repo{Host: "gitlab.com", Owner: "group/subgroup", Name: "app"}, want: "https://gitlab.com/group/subgroup/app"},
+		{name: "no host", repo: &Repo{Owner: "anthropics", Name: "claude-code"}},
+		{name: "no owner", repo: &Repo{Host: "github.com", Name: "claude-code"}},
+		{name: "no name", repo: &Repo{Host: "github.com", Owner: "anthropics"}},
+		{name: "nil", repo: nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, tt.repo.URL())
+		})
+	}
+}

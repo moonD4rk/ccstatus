@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/moond4rk/ccstatus/internal/claude"
+	"github.com/moond4rk/ccstatus/internal/config"
 )
 
 func newInstallCmd() *cobra.Command {
@@ -60,8 +61,26 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(cmd.ErrOrStderr(), "ccstatus installed successfully: %s\n", path)
+	stderr := cmd.ErrOrStderr()
+	fmt.Fprintf(stderr, "ccstatus installed successfully: %s\n", path)
+	if opts.HideVimMode != nil && *opts.HideVimMode && !showsVimMode() {
+		fmt.Fprintf(stderr, "Note: Claude Code no longer shows the vim mode; add a vim-mode widget to a line in %s to show it\n",
+			config.Path())
+	}
 	return nil
+}
+
+// showsVimMode reports whether a main status line has a vim-mode widget.
+func showsVimMode() bool {
+	settings, _ := config.Load()
+	for _, line := range settings.Lines {
+		for i := range line {
+			if line[i].Type == "vim-mode" {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func runUninstall(cmd *cobra.Command, _ []string) error {

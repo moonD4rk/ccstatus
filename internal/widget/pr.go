@@ -12,10 +12,9 @@ type PRWidget struct{ noAffix }
 
 // Render returns "#<number>" (or "!<number>" for a GitLab merge request) plus the
 // review state when present (just the bare number in raw mode), and empty when
-// there is no open PR. When pr.url is present the number is wrapped in an OSC 8
-// hyperlink; terminals without hyperlink support ignore the sequence and show
-// plain text.
-func (w *PRWidget) Render(item *config.WidgetItem, ctx RenderContext, _ *config.Settings) string {
+// there is no open PR. When pr.url is present and hyperlinks are on, the number
+// is an OSC 8 link to it.
+func (w *PRWidget) Render(item *config.WidgetItem, ctx RenderContext, settings *config.Settings) string {
 	if ctx.Data == nil || ctx.Data.PR == nil || ctx.Data.PR.Number == nil {
 		return ""
 	}
@@ -28,10 +27,7 @@ func (w *PRWidget) Render(item *config.WidgetItem, ctx RenderContext, _ *config.
 	if pr.IsMergeRequest() {
 		sigil = "!"
 	}
-	out := sigil + number
-	if pr.URL != "" {
-		out = "\x1b]8;;" + pr.URL + "\x07" + out + "\x1b]8;;\x07"
-	}
+	out := hyperlink(settings, pr.URL, sigil+number)
 	if pr.ReviewState != "" {
 		out += " " + pr.ReviewState
 	}

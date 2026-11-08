@@ -678,9 +678,20 @@ func TestRepoWidget(t *testing.T) {
 	settings := config.DefaultSettings()
 	repo := &status.Repo{Host: "github.com", Owner: "anthropics", Name: "claude-code"}
 
-	t.Run("owner/name by default", func(t *testing.T) {
+	t.Run("owner/name links to the repository", func(t *testing.T) {
 		ctx := RenderContext{Data: &status.Session{Workspace: &status.Workspace{Repo: repo}}}
-		assert.Equal(t, "anthropics/claude-code", w.Render(&config.WidgetItem{}, ctx, &settings))
+		want := "\x1b]8;;https://github.com/anthropics/claude-code\x07anthropics/claude-code\x1b]8;;\x07"
+		assert.Equal(t, want, w.Render(&config.WidgetItem{}, ctx, &settings))
+	})
+	t.Run("plain owner/name when hyperlinks are off", func(t *testing.T) {
+		off := config.DefaultSettings()
+		off.Hyperlinks = false
+		ctx := RenderContext{Data: &status.Session{Workspace: &status.Workspace{Repo: repo}}}
+		assert.Equal(t, "anthropics/claude-code", w.Render(&config.WidgetItem{}, ctx, &off))
+	})
+	t.Run("plain owner/name without a host", func(t *testing.T) {
+		ctx := RenderContext{Data: &status.Session{Workspace: &status.Workspace{Repo: &status.Repo{Owner: "o", Name: "r"}}}}
+		assert.Equal(t, "o/r", w.Render(&config.WidgetItem{}, ctx, &settings))
 	})
 	t.Run("raw value drops the owner", func(t *testing.T) {
 		ctx := RenderContext{Data: &status.Session{Workspace: &status.Workspace{Repo: repo}}}
@@ -720,6 +731,12 @@ func TestPRWidget(t *testing.T) {
 		ctx := RenderContext{Data: &status.Session{PR: &status.PRInfo{Number: &num, URL: url, ReviewState: "approved"}}}
 		want := "\x1b]8;;" + url + "\x07#1234\x1b]8;;\x07 approved"
 		assert.Equal(t, want, w.Render(&config.WidgetItem{}, ctx, &settings))
+	})
+	t.Run("no hyperlink when hyperlinks are off", func(t *testing.T) {
+		off := config.DefaultSettings()
+		off.Hyperlinks = false
+		ctx := RenderContext{Data: &status.Session{PR: &status.PRInfo{Number: &num, URL: "https://github.com/o/r/pull/1234"}}}
+		assert.Equal(t, "#1234", w.Render(&config.WidgetItem{}, ctx, &off))
 	})
 	t.Run("raw value is the bare number", func(t *testing.T) {
 		ctx := RenderContext{Data: &status.Session{PR: &status.PRInfo{Number: &num, ReviewState: "approved"}}}

@@ -112,7 +112,7 @@ Optional flags:
 - `--subagent` — also render subagent rows in the agent panel (writes `subagentStatusLine` running `ccstatus subagent`; `--subagent=false` removes it). See [Subagent Rows](#subagent-rows).
 - `--refresh N` — re-run the status line every `N` seconds (writes `refreshInterval`). A fresh install uses `30` so time-based widgets (`session-clock`, `block-timer`, `prompt-cache`) and git widgets keep moving while Claude Code is idle; `--refresh 0` removes it so the status line runs only on Claude Code's events.
 - `--padding N` — extra horizontal spacing, in characters, that Claude Code adds to the status line (writes `padding`; a fresh install uses `0`).
-- `--hide-vim-indicator` — suppress Claude Code's built-in `-- INSERT --` line (writes `hideVimModeIndicator`; `--hide-vim-indicator=false` removes it). Set this if you use the `vim-mode` widget so the mode isn't shown twice.
+- `--hide-vim-indicator` — suppress Claude Code's built-in `-- INSERT --` line (writes `hideVimModeIndicator`; `--hide-vim-indicator=false` removes it). Set this if you use the `vim-mode` widget so the mode isn't shown twice; `install` prints a hint when no line has one.
 
 #### `ccstatus uninstall`
 
@@ -205,6 +205,7 @@ To customize, edit the `lines` array in `settings.json` — e.g. swap `rate-limi
 {
   "version": 4,
   "colorLevel": 2,
+  "hyperlinks": true,
   "flexMode": "full-until-compact",
   "compactThreshold": 90,
   "defaultSeparator": "|",
@@ -236,6 +237,7 @@ To customize, edit the `lines` array in `settings.json` — e.g. swap `rate-limi
 | --- | --- | --- | --- |
 | `version` | int | `4` | Config schema version |
 | `colorLevel` | int | `2` | `0` disables color; `1`–`3` all enable ANSI 16-color output |
+| `hyperlinks` | bool | `true` | Make the `pr` number and the `repo` name clickable OSC 8 links. Set `false` if your terminal, tmux or SSH session prints the escape codes instead |
 | `flexMode` | string | `"full-until-compact"` | Right margin each main line leaves: where the line is cut with `...` and how far `flex-separator` fills (see [Flex Modes](#flex-modes)) |
 | `compactThreshold` | int | `90` | Context % (0–100) at which `full-until-compact` switches to the wider (−40 col) right margin |
 | `terminalWidth` | int | (auto) | Override the detected terminal width; the `flexMode` margin still applies. Leave unset/`0` to auto-detect: ccstatus reads the `COLUMNS` variable that Claude Code (v2.1.153+) sets for status line commands, then falls back to the attached terminal, then 80. |
@@ -354,7 +356,7 @@ To keep the panel short, `subagentHideStatuses` hides the rows of tasks in the l
 | `project-dir` | JSON | Project root directory name (raw: the full path) | blue |
 | `transcript-path` | JSON | Transcript file name (raw: the full path) | white |
 | `added-dirs` | JSON | Directories added via `/add-dir` (`metadata.display`: `list` for names) | blue |
-| `repo` | JSON | Repository `owner/name` from the origin remote (raw: name only) | blue |
+| `repo` | JSON | Repository `owner/name` from the origin remote, an OSC 8 link to `https://host/owner/name` (raw: name only, unlinked) | blue |
 | `pr` | JSON | Open PR number + review state, e.g. `#1234 approved`, or `!1234` for a GitLab merge request; the number is an OSC 8 link when `pr.url` is present (raw: number) | cyan |
 | `lines-changed` | Git | Uncommitted lines changed (+N/-M) | green |
 | `lines-added` | Git | Uncommitted lines added | green |
