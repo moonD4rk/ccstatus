@@ -50,6 +50,19 @@ func writeSubagentConfig(t *testing.T) {
 	require.NoError(t, config.Save(&s))
 }
 
+// decodeRows parses the JSON lines `ccstatus subagent` prints.
+func decodeRows(t *testing.T, out string) []subagentRow {
+	t.Helper()
+	var rows []subagentRow
+	sc := bufio.NewScanner(strings.NewReader(out))
+	for sc.Scan() {
+		var row subagentRow
+		require.NoError(t, json.Unmarshal(sc.Bytes(), &row), sc.Text())
+		rows = append(rows, row)
+	}
+	return rows
+}
+
 func TestSubagentCommand(t *testing.T) {
 	writeSubagentConfig(t)
 
@@ -62,13 +75,7 @@ func TestSubagentCommand(t *testing.T) {
 		out, _, err := execRoot(t, in, "subagent")
 		require.NoError(t, err)
 
-		var rows []subagentRow
-		sc := bufio.NewScanner(strings.NewReader(out))
-		for sc.Scan() {
-			var row subagentRow
-			require.NoError(t, json.Unmarshal(sc.Bytes(), &row), sc.Text())
-			rows = append(rows, row)
-		}
+		rows := decodeRows(t, out)
 		require.Len(t, rows, 1, "empty rows and tasks without an id are left to Claude Code")
 		assert.Equal(t, "t1", rows[0].ID)
 		assert.Equal(t, "reviewer running | 25%", plain(rows[0].Content))
@@ -90,6 +97,93 @@ func TestSubagentCommand(t *testing.T) {
 		require.NoError(t, err)
 		assert.Empty(t, out)
 	})
+}
+
+func TestSubagentHideStatuses(t *testing.T) {
+	writeSubagentConfig(t)
+	s, err := config.Load()
+	require.NoError(t, err)
+	s.SubagentHideStatuses = []string{"completed", "killed"}
+	require.NoError(t, config.Save(&s))
+
+	t.Run("hidden statuses print an empty row", func(t *testing.T) {
+		in := `{"columns": 60, "tasks": [
+			{"id": "t1", "name": "reviewer", "status": "running"},
+			{"id": "t2", "name": "explorer", "status": "completed"},
+			{"id": "t3", "status": "killed"},
+			{"id": "t4", "status": "failed"}
+		]}`
+		out, _, err := execRoot(t, in, "subagent")
+		require.NoError(t, err)
+		assert.Contains(t, out, `{"id":"t2","content":""}`)
+
+		rows := decodeRows(t, out)
+		require.Len(t, rows, 4)
+		assert.Equal(t, "reviewer running", plain(rows[0].Content))
+		assert.Equal(t, subagentRow{ID: "t2"}, rows[1])
+		assert.Equal(t, subagentRow{ID: "t3"}, rows[2])
+		assert.Equal(t, "failed", plain(rows[3].Content))
+	})
+
+	t.Run("preview leaves hidden rows out", func(t *testing.T) {
+		out, _, err := execRoot(t, "", "preview", "--subagent")
+		require.NoError(t, err)
+		assert.Equal(t, "reviewer running | 23%\n", plain(out))
+	})
+}
+
+func TestDumpSubagent(t *testing.T) {
+	writeSubagentConfig(t)
+	in := `{"columns": 60, "tasks": [{"id": "t1", "name": "reviewer", "status": "running"}]}`
+
+	t.Run("saves the payload and prints the rows", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "subagent.json")
+		out, errOut, err := execRoot(t, in, "dump", "--subagent", "-o", path)
+		require.NoError(t, err)
+		assert.Contains(t, errOut, "Dumped JSON to "+path)
+
+		rows := decodeRows(t, out)
+		require.Len(t, rows, 1)
+		assert.Equal(t, "t1", rows[0].ID)
+		assert.Equal(t, "reviewer running", plain(rows[0].Content))
+
+		dumped, err := os.ReadFile(path)
+		require.NoError(t, err)
+		assert.JSONEq(t, in, string(dumped))
+	})
+
+	t.Run("invalid input is saved and prints nothing", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "subagent.jsonl")
+		out, errOut, err := execRoot(t, "not json", "dump", "--subagent", "--append", "-o", path)
+		require.NoError(t, err)
+		assert.Empty(t, out)
+		assert.Contains(t, errOut, "invalid subagent input")
+
+		data, err := os.ReadFile(path)
+		require.NoError(t, err)
+		var rec dumpRecord
+		require.NoError(t, json.Unmarshal(bytes.TrimSpace(data), &rec))
+		assert.JSONEq(t, `"not json"`, string(rec.Input))
+	})
+}
+
+func TestDefaultDumpOutput(t *testing.T) {
+	tests := []struct {
+		name       string
+		appendMode bool
+		subagent   bool
+		want       string
+	}{
+		{name: "status line", want: defaultDumpPath},
+		{name: "status line append", appendMode: true, want: defaultAppendPath},
+		{name: "subagent", subagent: true, want: defaultSubagentDumpPath},
+		{name: "subagent append", appendMode: true, subagent: true, want: defaultSubagentAppendPath},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, defaultDumpOutput(tt.appendMode, tt.subagent))
+		})
+	}
 }
 
 func TestPreviewCommand(t *testing.T) {

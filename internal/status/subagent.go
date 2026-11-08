@@ -15,6 +15,19 @@ type SubagentPayload struct {
 	Tasks          []Task `json:"tasks"`
 }
 
+// The task statuses Claude Code documents for subagent rows.
+const (
+	TaskRunning   = "running"
+	TaskCompleted = "completed"
+	TaskFailed    = "failed"
+	TaskKilled    = "killed"
+)
+
+// TaskStatuses returns the documented task statuses.
+func TaskStatuses() []string {
+	return []string{TaskRunning, TaskCompleted, TaskFailed, TaskKilled}
+}
+
 // Task is one subagent row. Optional fields are omitted when they have no value.
 type Task struct {
 	ID                string      `json:"id"`
