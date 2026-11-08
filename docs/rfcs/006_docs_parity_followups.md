@@ -1,6 +1,6 @@
 # RFC 006: Docs Parity Follow-ups
 
-- Status: Accepted
+- Status: Completed
 - Author: @moond4rk
 - Date: 2026-11-08
 
