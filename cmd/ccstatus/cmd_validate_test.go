@@ -86,6 +86,19 @@ func TestValidate(t *testing.T) {
 		assert.Contains(t, errOut, "compactThreshold 150 out of range 0-100")
 	})
 
+	t.Run("subagentHideStatuses takes documented statuses only", func(t *testing.T) {
+		t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+		s := config.DefaultSettings()
+		s.SubagentHideStatuses = []string{"completed", "complete", "killed"}
+		require.NoError(t, config.Save(&s))
+		_, errOut, err := execValidate(t)
+		require.Error(t, err)
+		assert.Contains(t, errOut,
+			`settings: unknown subagentHideStatuses entry "complete" (want one of running, completed, failed, killed)`)
+		assert.NotContains(t, errOut, `entry "completed"`)
+		assert.NotContains(t, errOut, `entry "killed"`)
+	})
+
 	t.Run("display modes are checked per widget", func(t *testing.T) {
 		saveConfigWithLines(t, [][]config.WidgetItem{{
 			{ID: "1", Type: "rate-limit-5h", Metadata: map[string]string{"display": "bars"}},

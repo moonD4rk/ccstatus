@@ -54,7 +54,9 @@ func runPreview(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 	for _, row := range rows {
-		fmt.Fprintln(cmd.OutOrStdout(), row.Content)
+		if row.Content != "" {
+			fmt.Fprintln(cmd.OutOrStdout(), row.Content)
+		}
 	}
 	return nil
 }

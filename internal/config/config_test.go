@@ -157,6 +157,19 @@ func TestParseMergesDefaults(t *testing.T) {
 		require.NoError(t, err)
 		assert.Empty(t, s.SubagentLine)
 	})
+
+	t.Run("subagentHideStatuses hides nothing unless set", func(t *testing.T) {
+		s, err := Parse([]byte(`{}`))
+		require.NoError(t, err)
+		assert.Empty(t, s.SubagentHideStatuses)
+
+		s, err = Parse([]byte(`{"subagentHideStatuses":["completed","killed"]}`))
+		require.NoError(t, err)
+		assert.Equal(t, []string{"completed", "killed"}, s.SubagentHideStatuses)
+
+		_, err = Parse([]byte(`{"subagentHideStatuses":"completed"}`))
+		require.Error(t, err)
+	})
 }
 
 func TestParseReportsPosition(t *testing.T) {

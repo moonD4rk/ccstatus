@@ -35,6 +35,9 @@ type Settings struct {
 	// SubagentLine is the row `ccstatus subagent` renders for each subagent in
 	// Claude Code's agent panel.
 	SubagentLine []WidgetItem `json:"subagentLine,omitempty"`
+	// SubagentHideStatuses lists the task statuses, such as "completed", whose
+	// rows `ccstatus subagent` hides from the agent panel.
+	SubagentHideStatuses []string `json:"subagentHideStatuses,omitempty"`
 }
 
 // DefaultSettings returns the default ccstatus configuration.

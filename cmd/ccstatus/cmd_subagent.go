@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -21,44 +22,54 @@ func newSubagentCmd() *cobra.Command {
 		Use:   "subagent",
 		Short: "Render subagent rows for Claude Code's subagentStatusLine",
 		Long: "Read the subagentStatusLine payload from stdin, render the subagentLine widgets for each task,\n" +
-			"and print one {\"id\",\"content\"} JSON line per row. Rows that render empty, and every row on any\n" +
-			"error, are left out so Claude Code keeps its default rendering for them.",
+			"and print one {\"id\",\"content\"} JSON line per row. Tasks whose status is listed in\n" +
+			"subagentHideStatuses get an empty row, which hides them. Rows that render empty, and every row\n" +
+			"on any error, are left out so Claude Code keeps its default rendering for them.",
 		RunE: runSubagent,
 	}
 }
 
 func runSubagent(cmd *cobra.Command, _ []string) error {
 	data, err := io.ReadAll(cmd.InOrStdin())
-	if err != nil {
-		fmt.Fprintf(cmd.ErrOrStderr(), "ccstatus: reading stdin: %v\n", err)
-		return nil
+	writeSubagentRows(cmd.OutOrStdout(), cmd.ErrOrStderr(), data, err)
+	return nil
+}
+
+// writeSubagentRows prints one {"id","content"} JSON line per subagent row of
+// the payload in data. On any error it prints nothing, so Claude Code keeps its
+// default rows.
+func writeSubagentRows(stdout, stderr io.Writer, data []byte, readErr error) {
+	if readErr != nil {
+		fmt.Fprintf(stderr, "ccstatus: reading stdin: %v\n", readErr)
+		return
 	}
-	rows, err := subagentRows(data, 0, cmd.ErrOrStderr())
+	rows, err := subagentRows(data, 0, stderr)
 	if err != nil {
-		fmt.Fprintf(cmd.ErrOrStderr(), "ccstatus: %v\n", err)
-		return nil
+		fmt.Fprintf(stderr, "ccstatus: %v\n", err)
+		return
 	}
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 	enc.SetEscapeHTML(false)
 	for _, row := range rows {
-		if err := enc.Encode(row); err != nil {
-			return nil //nolint:nilerr // print nothing so Claude Code keeps its default rows
+		if enc.Encode(row) != nil {
+			return
 		}
 	}
-	_, _ = cmd.OutOrStdout().Write(buf.Bytes())
-	return nil
+	_, _ = stdout.Write(buf.Bytes())
 }
 
-// subagentRow overrides one row of Claude Code's agent panel.
+// subagentRow overrides one row of Claude Code's agent panel; an empty Content
+// hides the row.
 type subagentRow struct {
 	ID      string `json:"id"`
 	Content string `json:"content"`
 }
 
 // subagentRows renders settings.subagentLine for every task in the payload, at
-// width columns or, when width is 0, the payload's "columns". Tasks whose row
-// renders empty are left out.
+// width columns or, when width is 0, the payload's "columns". Tasks whose status
+// is in settings.subagentHideStatuses get an empty row; tasks whose row renders
+// empty are left out.
 func subagentRows(data []byte, width int, stderr io.Writer) ([]subagentRow, error) {
 	settings, err := config.Load()
 	if err != nil {
@@ -81,6 +92,10 @@ func subagentRows(data []byte, width int, stderr io.Writer) ([]subagentRow, erro
 	for i := range payload.Tasks {
 		task := &payload.Tasks[i]
 		if task.ID == "" {
+			continue
+		}
+		if slices.Contains(settings.SubagentHideStatuses, task.Status) {
+			rows = append(rows, subagentRow{ID: task.ID})
 			continue
 		}
 		content := render.PostProcess(render.RenderRow(settings.SubagentLine, &settings, widget.RenderContext{Task: task}, width))

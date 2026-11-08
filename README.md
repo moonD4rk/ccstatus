@@ -65,7 +65,7 @@ ccstatus [command]
 | `validate` | Validate `settings.json` for correctness |
 | `preview` | Render your settings against sample data (or `--input FILE`) |
 | `subagent` | Render subagent rows for Claude Code's `subagentStatusLine` (Claude Code runs it) |
-| `dump` | Save raw JSON input from Claude Code to a file for debugging |
+| `dump` | Save raw JSON input from Claude Code to a file for debugging (`--subagent` for the subagent row payload) |
 | `widgets` | List all registered widget types with descriptions, default colors and prefixes |
 | `completion` | Generate shell autocompletion script (bash, zsh, fish, powershell) |
 
@@ -128,15 +128,15 @@ Removes the `statusLine` and `subagentStatusLine` blocks whose command runs ccst
 ccstatus validate
 ```
 
-Checks `settings.json` for JSON errors (reported as `path:line:column`), missing or unknown widget types, missing or duplicate widget IDs, invalid color names (threshold and override colors included), an unknown `flexMode`, `colorLevel` outside 0–3, `compactThreshold` outside 0–100, a negative `maxWidth`, `metadata.display` values and `thresholds` the widget does not support, and widgets on the wrong kind of line (`task-*` widgets belong in `subagentLine`). Exits non-zero when any problem is found, so it works as a CI gate.
+Checks `settings.json` for JSON errors (reported as `path:line:column`), missing or unknown widget types, missing or duplicate widget IDs, invalid color names (threshold and override colors included), an unknown `flexMode`, `colorLevel` outside 0–3, `compactThreshold` outside 0–100, a negative `maxWidth`, `metadata.display` values and `thresholds` the widget does not support, a `subagentHideStatuses` entry that is not a documented task status, and widgets on the wrong kind of line (`task-*` widgets belong in `subagentLine`). Exits non-zero when any problem is found, so it works as a CI gate.
 
 #### `ccstatus dump`
 
 ```bash
-ccstatus dump [-o|--output FILE] [--append]
+ccstatus dump [-o|--output FILE] [--append] [--subagent]
 ```
 
-Reads JSON from stdin (same as normal mode), saves it to a file, and renders the status line. Default output: `/tmp/ccstatus-dump.json`. Useful for inspecting what Claude Code sends. With `--append`, every invocation adds one JSON line — `{"ts", "columns", "lines", "input"}` — to `/tmp/ccstatus-dump.jsonl` (or `--output`), so a whole session can be captured.
+Reads JSON from stdin (same as normal mode), saves it to a file, and renders the status line. Default output: `/tmp/ccstatus-dump.json`. Useful for inspecting what Claude Code sends. With `--append`, every invocation adds one JSON line — `{"ts", "columns", "lines", "input"}` — to `/tmp/ccstatus-dump.jsonl` (or `--output`), so a whole session can be captured. With `--subagent`, it stands in for `ccstatus subagent` instead: it saves the `subagentStatusLine` payload to `/tmp/ccstatus-subagent-dump.json` (`/tmp/ccstatus-subagent-dump.jsonl` with `--append`) and prints the subagent rows.
 
 #### `ccstatus preview`
 
@@ -152,7 +152,7 @@ Renders your current `settings.json` against the full sample payload from the of
 ccstatus subagent
 ```
 
-The `subagentStatusLine` command (set up by `ccstatus install --subagent`). Claude Code pipes the visible subagents as `{"columns", "tasks": [...]}`; ccstatus renders `subagentLine` for each task and prints one `{"id", "content"}` JSON line per row. Rows that render empty, and every row on any error, are left out so Claude Code keeps its default rendering.
+The `subagentStatusLine` command (set up by `ccstatus install --subagent`). Claude Code pipes the visible subagents as `{"columns", "tasks": [...]}`; ccstatus renders `subagentLine` for each task and prints one `{"id", "content"}` JSON line per row. A task whose status is listed in `subagentHideStatuses` gets an empty `content`, which hides its row. Rows that render empty, and every row on any error, are left out so Claude Code keeps its default rendering.
 
 #### `ccstatus widgets`
 
@@ -307,6 +307,12 @@ Explore completed | Haiku 5.5 · 16k 18.4k 9% | Find every caller of Session.Ref
 
 Rows are sized to the width Claude Code reports, with no flex-mode margin. `subagentLine` takes the `task-*` widgets plus `separator`, `flex-separator` and `custom-text`; `ccstatus validate` flags anything else, and `task-*` widgets on the main lines. Try it with `ccstatus preview --subagent`.
 
+To keep the panel short, `subagentHideStatuses` hides the rows of tasks in the listed states. It takes `running`, `completed`, `failed` and `killed`, and hides nothing by default:
+
+```json
+"subagentHideStatuses": ["completed", "killed"]
+```
+
 ### Available Colors
 
 8 basic: `black`, `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, `white`
@@ -412,10 +418,13 @@ Use `ccstatus dump` to capture the raw JSON that Claude Code sends:
 # Temporarily switch to dump mode in ~/.claude/settings.json:
 # "command": "ccstatus dump"            (latest payload only)
 # "command": "ccstatus dump --append"   (every payload of the session, one JSON line each)
+# and, for subagent rows, in the subagentStatusLine block:
+# "command": "ccstatus dump --subagent --append"
 
 # Then inspect the captured data:
 cat /tmp/ccstatus-dump.json | jq .
 jq -c '{ts, columns, model: .input.model.display_name}' /tmp/ccstatus-dump.jsonl
+jq -c '{ts, tasks: [.input.tasks[] | {id, status}]}' /tmp/ccstatus-subagent-dump.jsonl
 
 # Replay captured data to test rendering:
 ccstatus preview --input /tmp/ccstatus-dump.json

@@ -94,17 +94,15 @@ func taskLabel(t *status.Task, _ *config.WidgetItem) string {
 	return t.Description
 }
 
-const taskRunning = "running"
-
 func taskStatusColor(t *status.Task) string {
 	switch t.Status {
-	case taskRunning:
+	case status.TaskRunning:
 		return "yellow"
-	case "completed":
+	case status.TaskCompleted:
 		return defaultGreenColor
-	case "failed":
+	case status.TaskFailed:
 		return "red"
-	case "killed":
+	case status.TaskKilled:
 		return "brightBlack"
 	default:
 		return ""
@@ -114,7 +112,7 @@ func taskStatusColor(t *status.Task) string {
 // taskElapsed is empty unless the task is running: the payload has no end time,
 // so a finished task's age would keep growing.
 func taskElapsed(t *status.Task, _ *config.WidgetItem) string {
-	if t.Status != taskRunning || t.StartTime <= 0 {
+	if t.Status != status.TaskRunning || t.StartTime <= 0 {
 		return ""
 	}
 	elapsed := time.Since(time.UnixMilli(t.StartTime))
@@ -212,7 +210,7 @@ var sparkBlocks = []rune("▁▂▃▄▅▆▇█")
 
 // taskSparkline is empty unless the task is running: a finished task's samples stop changing.
 func taskSparkline(t *status.Task, _ *config.WidgetItem) string {
-	if t.Status != taskRunning {
+	if t.Status != status.TaskRunning {
 		return ""
 	}
 	return sparkline(t.TokenSamples)

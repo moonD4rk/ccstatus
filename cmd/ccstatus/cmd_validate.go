@@ -10,6 +10,7 @@ import (
 
 	"github.com/moond4rk/ccstatus/internal/color"
 	"github.com/moond4rk/ccstatus/internal/config"
+	"github.com/moond4rk/ccstatus/internal/status"
 	"github.com/moond4rk/ccstatus/internal/widget"
 )
 
@@ -32,9 +33,9 @@ func newValidateCmd() *cobra.Command {
 // runValidate checks the loaded settings for decode errors (reported as
 // path:line:column), unknown widget types, missing or duplicate widget IDs,
 // invalid colors, out-of-range globals, unsupported display modes and
-// thresholds, and widgets used on the wrong kind of line. It
-// reports every problem and exits non-zero when any are found, so it is usable
-// as a CI gate.
+// thresholds, unknown subagent statuses, and widgets used on the wrong kind of
+// line. It reports every problem and exits non-zero when any are found, so it
+// is usable as a CI gate.
 func runValidate(cmd *cobra.Command, _ []string) error {
 	settings, err := config.Load()
 	if err != nil {
@@ -158,6 +159,13 @@ func globalProblems(settings *config.Settings) []string {
 	if settings.CompactThreshold < 0 || settings.CompactThreshold > maxCompactThreshold {
 		problems = append(problems, fmt.Sprintf("settings: compactThreshold %d out of range 0-%d",
 			settings.CompactThreshold, maxCompactThreshold))
+	}
+	known := status.TaskStatuses()
+	for _, s := range settings.SubagentHideStatuses {
+		if !slices.Contains(known, s) {
+			problems = append(problems, fmt.Sprintf("settings: unknown subagentHideStatuses entry %q (want one of %s)",
+				s, strings.Join(known, ", ")))
+		}
 	}
 	return problems
 }

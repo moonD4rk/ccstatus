@@ -14,8 +14,10 @@ import (
 )
 
 const (
-	defaultDumpPath   = "/tmp/ccstatus-dump.json"
-	defaultAppendPath = "/tmp/ccstatus-dump.jsonl"
+	defaultDumpPath           = "/tmp/ccstatus-dump.json"
+	defaultAppendPath         = "/tmp/ccstatus-dump.jsonl"
+	defaultSubagentDumpPath   = "/tmp/ccstatus-subagent-dump.json"
+	defaultSubagentAppendPath = "/tmp/ccstatus-subagent-dump.jsonl"
 )
 
 func newDumpCmd() *cobra.Command {
@@ -24,20 +26,25 @@ func newDumpCmd() *cobra.Command {
 		Short: "Dump raw JSON input from Claude Code for debugging",
 		Long: "Read JSON from stdin, save to a file for inspection, and render the status line normally.\n" +
 			"Useful for debugging what Claude Code sends to ccstatus. With --append, every invocation adds\n" +
-			"one JSON line (timestamp, COLUMNS, LINES, input) so a whole session can be captured.",
+			"one JSON line (timestamp, COLUMNS, LINES, input) so a whole session can be captured. With\n" +
+			"--subagent, it captures the subagentStatusLine payload and prints the subagent rows instead,\n" +
+			"standing in for `ccstatus subagent`.",
 		RunE: runDump,
 	}
 	cmd.Flags().StringP("output", "o", defaultDumpPath,
-		"Output file path for the JSON dump (default with --append: "+defaultAppendPath+")")
+		"Output file path for the JSON dump (default with --append: "+defaultAppendPath+
+			"; with --subagent: "+defaultSubagentDumpPath+" or "+defaultSubagentAppendPath+")")
 	cmd.Flags().Bool("append", false, "Append one JSON line per invocation instead of overwriting")
+	cmd.Flags().Bool("subagent", false, "Capture the subagentStatusLine payload and print subagent rows")
 	return cmd
 }
 
 func runDump(cmd *cobra.Command, _ []string) error {
 	output, _ := cmd.Flags().GetString("output")
 	appendMode, _ := cmd.Flags().GetBool("append")
-	if appendMode && !cmd.Flags().Changed("output") {
-		output = defaultAppendPath
+	subagent, _ := cmd.Flags().GetBool("subagent")
+	if !cmd.Flags().Changed("output") {
+		output = defaultDumpOutput(appendMode, subagent)
 	}
 	stderr := cmd.ErrOrStderr()
 
@@ -54,9 +61,28 @@ func runDump(cmd *cobra.Command, _ []string) error {
 		}
 	}
 
-	// Still render the status line so it works as a drop-in replacement.
+	// Still render so dump works as a drop-in replacement for the command it captures.
+	if subagent {
+		writeSubagentRows(cmd.OutOrStdout(), stderr, data, err)
+		return nil
+	}
 	renderStatusLine(cmd.OutOrStdout(), stderr, data, err, 0)
 	return nil
+}
+
+// defaultDumpOutput returns the dump file used when --output is not set, kept
+// apart per payload so the main and subagent dumps never overwrite each other.
+func defaultDumpOutput(appendMode, subagent bool) string {
+	switch {
+	case subagent && appendMode:
+		return defaultSubagentAppendPath
+	case subagent:
+		return defaultSubagentDumpPath
+	case appendMode:
+		return defaultAppendPath
+	default:
+		return defaultDumpPath
+	}
 }
 
 func writeDump(data []byte, path string) error {
