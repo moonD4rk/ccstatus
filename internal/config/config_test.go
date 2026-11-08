@@ -15,6 +15,7 @@ func TestDefaultSettings(t *testing.T) {
 
 	assert.Equal(t, CurrentVersion, s.Version)
 	assert.Equal(t, 2, s.ColorLevel)
+	assert.True(t, s.Hyperlinks)
 	assert.Equal(t, "full-until-compact", s.FlexMode)
 	assert.Equal(t, 90, s.CompactThreshold)
 	assert.Equal(t, "|", s.DefaultSeparator)
@@ -121,11 +122,12 @@ func TestParseMergesDefaults(t *testing.T) {
 	})
 
 	t.Run("explicit values win, including zero", func(t *testing.T) {
-		s, err := Parse([]byte(`{"colorLevel":0,"defaultPadding":"","compactThreshold":50}`))
+		s, err := Parse([]byte(`{"colorLevel":0,"defaultPadding":"","compactThreshold":50,"hyperlinks":false}`))
 		require.NoError(t, err)
 		assert.Equal(t, 0, s.ColorLevel)
 		assert.Empty(t, s.DefaultPadding)
 		assert.Equal(t, 50, s.CompactThreshold)
+		assert.False(t, s.Hyperlinks)
 	})
 
 	t.Run("absent or null lines keep the default layout", func(t *testing.T) {

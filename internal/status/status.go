@@ -163,6 +163,15 @@ type Repo struct {
 	Name  string `json:"name,omitempty"`
 }
 
+// URL returns the repository's web page, https://host/owner/name, or empty when
+// any part is missing.
+func (r *Repo) URL() string {
+	if r == nil || r.Host == "" || r.Owner == "" || r.Name == "" {
+		return ""
+	}
+	return "https://" + r.Host + "/" + r.Owner + "/" + r.Name
+}
+
 // PRInfo holds the open pull request for the current branch, or the open GitLab
 // merge request when Kind is "mr". Absent until one is found and removed once it
 // merges or closes. ReviewState and Kind may be independently absent.
