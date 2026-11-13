@@ -142,23 +142,11 @@ func optionProblems(loc string, item *config.WidgetItem) []string {
 		case opt.set && !slices.Contains(users, item.Type):
 			problems = append(problems, fmt.Sprintf("%s: %s has no effect on %s (it applies to %s)",
 				loc, opt.name, item.Type, strings.Join(users, ", ")))
-		case !opt.set && requiredOption(item.Type) == opt.name:
+		case !opt.set && widget.RequiredOption(item.Type) == opt.name:
 			problems = append(problems, fmt.Sprintf("%s: %s needs %s", loc, item.Type, opt.name))
 		}
 	}
 	return problems
-}
-
-// requiredOption returns the option a widget type renders nothing without.
-func requiredOption(widgetType string) string {
-	switch widgetType {
-	case widget.TypeCustomText:
-		return "customText"
-	case widget.TypeCustomCommand:
-		return "commandPath"
-	default:
-		return ""
-	}
 }
 
 // displayProblems checks display against the widget's modes and barWidth
@@ -193,7 +181,7 @@ func thresholdProblems(loc string, item *config.WidgetItem) []string {
 	if len(item.Thresholds) == 0 {
 		return nil
 	}
-	if _, ok := widget.Get(item.Type).(widget.Valuer); !ok {
+	if !widget.TakesThresholds(item.Type) {
 		return []string{fmt.Sprintf("%s: %s does not support thresholds", loc, item.Type)}
 	}
 	var problems []string
@@ -233,10 +221,10 @@ func globalProblems(settings *config.Settings) []string {
 	return problems
 }
 
-// colorProblem reports a non-empty value that is not a named color.
+// colorProblem reports a non-empty value that is not a color.
 func colorProblem(loc, kind, val string) []string {
-	if val != "" && !color.IsNamed(val) {
-		return []string{fmt.Sprintf("%s: invalid %s %q", loc, kind, val)}
+	if val != "" && !color.IsValid(val) {
+		return []string{fmt.Sprintf("%s: invalid %s %q (want a color name, #rrggbb or a palette index 0-255)", loc, kind, val)}
 	}
 	return nil
 }

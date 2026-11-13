@@ -7,7 +7,7 @@ import (
 )
 
 // PRWidget displays the open pull request for the current branch (the same data
-// as Claude Code's PR badge).
+// as Claude Code's PR badge), colored by its review state.
 type PRWidget struct{}
 
 // Render returns "#<number>" (or "!<number>" for a GitLab merge request) plus the
@@ -32,6 +32,27 @@ func (w *PRWidget) Render(item *config.WidgetItem, ctx RenderContext, settings *
 		out += " " + pr.ReviewState
 	}
 	return out
+}
+
+// DefaultColorFor colors the PR by its review state: green once approved, red
+// when changes are requested, yellow while pending and dim as a draft. Other
+// states, and none, keep the default color.
+func (w *PRWidget) DefaultColorFor(ctx RenderContext) string {
+	if ctx.Data == nil || ctx.Data.PR == nil {
+		return ""
+	}
+	switch ctx.Data.PR.ReviewState {
+	case "approved":
+		return defaultGreenColor
+	case "changes_requested":
+		return "red"
+	case "pending":
+		return "yellow"
+	case "draft":
+		return "brightBlack"
+	default:
+		return ""
+	}
 }
 
 // DefaultColor returns the default foreground color.

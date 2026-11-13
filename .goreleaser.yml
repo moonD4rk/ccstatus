@@ -45,12 +45,12 @@ release:
   draft: false
   prerelease: auto
 
-brews:
+homebrew_casks:
   - name: ccstatus
+    binaries:
+      - ccstatus
     homepage: "https://github.com/moonD4rk/ccstatus"
     description: "Customizable status line formatter for Claude Code CLI"
-    license: "Apache-2.0"
-    directory: Formula
     skip_upload: auto
     repository:
       owner: moonD4rk
@@ -60,8 +60,11 @@ brews:
     commit_author:
       name: "moond4rk-ci[bot]"
       email: "299850723+moond4rk-ci[bot]@users.noreply.github.com"
-    commit_msg_template: "brew formula update for {{ .ProjectName }} version {{ .Tag }}"
-    install: |
-      bin.install "ccstatus"
-    test: |
-      system "#{bin}/ccstatus", "--version"
+    commit_msg_template: "brew cask update for {{ .ProjectName }} version {{ .Tag }}"
+    hooks:
+      post:
+        # The binary is not signed or notarized, so Gatekeeper would refuse to run it.
+        install_steps: |
+          on_macos do
+            run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{ .StagedPath }}/ccstatus"]
+          end

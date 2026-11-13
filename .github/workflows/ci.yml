@@ -23,16 +23,19 @@ jobs:
           go-version-file: 'go.mod'
           cache: true
 
-      - name: Format Check
-        run: |
-          diff -u <(echo -n) <(gofmt -d .)
+      - name: Check go.mod is tidy
+        run: go mod tidy -diff
 
+      # The linter's formatters (gofmt, gofumpt, goimports) also check formatting.
       - name: Run Linter
         uses: golangci/golangci-lint-action@v9
         with:
           version: v2.15
           skip-cache: false
           skip-save-cache: false
+
+      - name: Check for known vulnerabilities
+        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
 
   test:
     name: Test & Build (${{ matrix.os }})

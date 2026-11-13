@@ -2,11 +2,13 @@
 package color
 
 import (
+	"fmt"
 	"iter"
+	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/clipperhouse/uax29/v2/graphemes"
-	fcolor "github.com/fatih/color"
 	"github.com/mattn/go-runewidth"
 )
 
@@ -18,65 +20,172 @@ var cellWidth = func() *runewidth.Condition {
 	return c
 }()
 
-// fgToBGOffset is the ANSI standard offset from foreground to background codes.
-// FG: 30-37, BG: 40-47 (diff=10); FG: 90-97, BG: 100-107 (diff=10).
-const fgToBGOffset fcolor.Attribute = 10
+// The color levels: how many colors Apply may ask the terminal for.
+const (
+	LevelNone      = 0 // no escape codes at all
+	Level16        = 1 // the 16 ANSI colors
+	Level256       = 2 // the 256-color palette
+	LevelTrueColor = 3 // 24-bit color
+)
 
-// namedColors maps color names to fatih/color foreground attributes.
-// Background attributes are derived by adding fgToBGOffset.
-var namedColors = map[string]fcolor.Attribute{
-	"black":         fcolor.FgBlack,
-	"red":           fcolor.FgRed,
-	"green":         fcolor.FgGreen,
-	"yellow":        fcolor.FgYellow,
-	"blue":          fcolor.FgBlue,
-	"magenta":       fcolor.FgMagenta,
-	"cyan":          fcolor.FgCyan,
-	"white":         fcolor.FgWhite,
-	"brightBlack":   fcolor.FgHiBlack,
-	"brightRed":     fcolor.FgHiRed,
-	"brightGreen":   fcolor.FgHiGreen,
-	"brightYellow":  fcolor.FgHiYellow,
-	"brightBlue":    fcolor.FgHiBlue,
-	"brightMagenta": fcolor.FgHiMagenta,
-	"brightCyan":    fcolor.FgHiCyan,
-	"brightWhite":   fcolor.FgHiWhite,
+// names lists the 16 ANSI colors in palette order: a color's index is its
+// palette index.
+var names = []string{
+	"black", "red", "green", "yellow", "blue", "magenta", "cyan", "white",
+	"brightBlack", "brightRed", "brightGreen", "brightYellow", "brightBlue", "brightMagenta", "brightCyan", "brightWhite",
 }
 
-// IsNamed reports whether name is a recognized color name. The empty string is
-// not a named color: callers treat empty as "use the widget default".
-func IsNamed(name string) bool {
-	_, ok := namedColors[name]
+// Names returns the 16 color names, basic colors first.
+func Names() []string {
+	return slices.Clone(names)
+}
+
+// kind is the way a color was written in the settings.
+type kind int
+
+const (
+	kindNamed   kind = iota // one of names
+	kindPalette             // an index into the 256-color palette, "0" to "255"
+	kindRGB                 // "#rgb" or "#rrggbb"
+)
+
+// value is a parsed color.
+type value struct {
+	kind  kind
+	index int // palette index, for named and palette colors
+	rgb   rgb // for RGB colors
+}
+
+type rgb struct{ r, g, b int }
+
+// parse reads a color as the settings write it: a name, a palette index or a
+// hex triplet.
+func parse(s string) (value, bool) {
+	if i := slices.Index(names, s); i >= 0 {
+		return value{kind: kindNamed, index: i}, true
+	}
+	if c, ok := parseHex(s); ok {
+		return value{kind: kindRGB, rgb: c}, true
+	}
+	if i, ok := parsePaletteIndex(s); ok {
+		return value{kind: kindPalette, index: i}, true
+	}
+	return value{}, false
+}
+
+// parseHex reads "#rgb" or "#rrggbb", in either case.
+func parseHex(s string) (rgb, bool) {
+	hex, ok := strings.CutPrefix(s, "#")
+	if !ok {
+		return rgb{}, false
+	}
+	const short, long = 3, 6
+	if len(hex) == short {
+		hex = string([]byte{hex[0], hex[0], hex[1], hex[1], hex[2], hex[2]})
+	}
+	if len(hex) != long {
+		return rgb{}, false
+	}
+	n, err := strconv.ParseUint(hex, 16, 32)
+	if err != nil {
+		return rgb{}, false
+	}
+	return rgb{r: int(n >> 16), g: int(n >> 8 & 0xff), b: int(n & 0xff)}, true
+}
+
+// PalettePattern and HexPattern are the regular expressions of the two color
+// forms that are not names, for the settings JSON Schema.
+const (
+	PalettePattern = `^(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])$`
+	HexPattern     = `^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$`
+)
+
+// parsePaletteIndex reads a decimal palette index, "0" to "255", written
+// without leading zeros.
+func parsePaletteIndex(s string) (int, bool) {
+	const maxDigits, maxIndex = 3, 255
+	if s == "" || len(s) > maxDigits || strings.TrimLeft(s, "0123456789") != "" || (len(s) > 1 && s[0] == '0') {
+		return 0, false
+	}
+	i, err := strconv.Atoi(s)
+	return i, err == nil && i <= maxIndex
+}
+
+// IsValid reports whether s names a color: one of Names, a palette index "0" to
+// "255", or a hex triplet "#rgb" / "#rrggbb". The empty string is not a color:
+// callers treat empty as "use the widget default".
+func IsValid(s string) bool {
+	_, ok := parse(s)
 	return ok
 }
 
-// Apply wraps text with ANSI color codes based on the given color level.
-// Returns unmodified text when color level is 0 or text is empty.
+// Apply wraps text with ANSI color codes for the given color level. Colors the
+// level cannot express are mapped to the nearest one it can; unknown color
+// names are ignored. It returns text unmodified when the level is LevelNone,
+// text is empty, or nothing is left to apply.
 func Apply(text, fg, bg string, bold bool, level int) string {
-	if level <= 0 || text == "" {
+	if level <= LevelNone || text == "" {
 		return text
 	}
-
-	c := fcolor.New()
-	c.EnableColor()
-
-	added := false
+	var codes []string
 	if bold {
-		c.Add(fcolor.Bold)
-		added = true
+		codes = append(codes, "1")
 	}
-	if a, ok := namedColors[fg]; ok {
-		c.Add(a)
-		added = true
+	if c, ok := parse(fg); ok {
+		codes = append(codes, c.sgr(level, false))
 	}
-	if a, ok := namedColors[bg]; ok {
-		c.Add(a + fgToBGOffset)
-		added = true
+	if c, ok := parse(bg); ok {
+		codes = append(codes, c.sgr(level, true))
 	}
-	if !added {
+	if len(codes) == 0 {
 		return text
 	}
-	return c.Sprint(text)
+	return "\x1b[" + strings.Join(codes, ";") + "m" + text + "\x1b[0m"
+}
+
+// SGR parameters: foreground bases, the offset from a foreground code to its
+// background code, and the selectors for extended colors.
+const (
+	sgrBasic      = 30
+	sgrBright     = 90
+	sgrBackground = 10
+	sgrExtended   = 38
+	sgrPalette    = 5
+	sgrRGB        = 2
+
+	ansiColors = 16 // the palette entries Level16 can address
+	basicCount = 8  // of which the first eight are the basic colors
+)
+
+// sgr returns the SGR parameters that select the color at level, as a
+// background color when background is set.
+func (v value) sgr(level int, background bool) string {
+	offset := 0
+	if background {
+		offset = sgrBackground
+	}
+	if v.kind == kindRGB && level >= LevelTrueColor {
+		return fmt.Sprintf("%d;%d;%d;%d;%d", sgrExtended+offset, sgrRGB, v.rgb.r, v.rgb.g, v.rgb.b)
+	}
+
+	index := v.index
+	switch {
+	case v.kind == kindRGB && level >= Level256:
+		index = nearestPalette(v.rgb)
+	case v.kind == kindRGB:
+		index = nearestANSI(v.rgb)
+	case index >= ansiColors && level < Level256:
+		index = nearestANSI(paletteRGB(index))
+	}
+
+	switch {
+	case index < basicCount:
+		return strconv.Itoa(sgrBasic + offset + index)
+	case index < ansiColors:
+		return strconv.Itoa(sgrBright + offset + index - basicCount)
+	default:
+		return fmt.Sprintf("%d;%d;%d", sgrExtended+offset, sgrPalette, index)
+	}
 }
 
 // StripANSI removes ANSI escape sequences from a string, including CSI color

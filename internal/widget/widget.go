@@ -2,6 +2,7 @@
 package widget
 
 import (
+	"maps"
 	"slices"
 	"sync"
 	"time"
@@ -77,7 +78,8 @@ func NewGitCache(dir string) *GitCache {
 	return &GitCache{provider: git.Repo{Dir: dir}}
 }
 
-// NewGitCacheWithProvider creates a cache backed by a custom provider, for tests.
+// NewGitCacheWithProvider creates a cache backed by a custom provider: a fake
+// in tests, sample data in `ccstatus preview`.
 func NewGitCacheWithProvider(p GitProvider) *GitCache {
 	return &GitCache{provider: p}
 }
@@ -494,6 +496,32 @@ var optionUsers = map[string][]string{
 // for an option every widget takes.
 func OptionUsers(option string) []string {
 	return optionUsers[option]
+}
+
+// SpecificOptions returns, sorted, the item options that only some widget
+// types read.
+func SpecificOptions() []string {
+	return slices.Sorted(maps.Keys(optionUsers))
+}
+
+// RequiredOption returns the item option a widget type renders nothing
+// without, or "".
+func RequiredOption(widgetType string) string {
+	switch widgetType {
+	case TypeCustomText:
+		return "customText"
+	case TypeCustomCommand:
+		return "commandPath"
+	default:
+		return ""
+	}
+}
+
+// TakesThresholds reports whether the widget type renders a number that an
+// item's thresholds can restyle.
+func TakesThresholds(widgetType string) bool {
+	_, ok := Get(widgetType).(Valuer)
+	return ok
 }
 
 // Types returns all registered widget type names.
