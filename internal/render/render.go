@@ -19,6 +19,9 @@ const (
 	flexCompactPadding = 40
 	// minFlexWidth is the floor for the resolved width so truncation always runs.
 	minFlexWidth = 1
+	// maxRowWidth caps the width a row is laid out to, so a runaway terminalWidth,
+	// COLUMNS or --width cannot make flex padding allocate without bound.
+	maxRowWidth = 10_000
 )
 
 // segment holds a rendered widget's text and metadata for the pipeline. value is
@@ -55,6 +58,7 @@ func RenderRow(items []config.WidgetItem, settings *config.Settings, ctx widget.
 
 // renderRow renders items at ctx.TerminalWidth.
 func renderRow(items []config.WidgetItem, settings *config.Settings, ctx widget.RenderContext) string {
+	ctx.TerminalWidth = min(ctx.TerminalWidth, maxRowWidth)
 	segments := renderWidgets(items, ctx, settings)
 	segments = cleanSeparators(segments)
 	if len(segments) == 0 {
@@ -110,6 +114,8 @@ func CalculateFlexWidth(detected int, flexMode string, compactThreshold int, con
 // joinWithFlex joins colored segments, expanding every flex separator. With N
 // flex separators the row splits into N+1 groups; the leftover terminal width is
 // spread evenly across the N gaps so a left/center/right layout aligns correctly.
+// Neighboring groups always keep one column between them: a row with no room to
+// align is joined with single spaces and left for the caller to truncate.
 func joinWithFlex(colored []string, segments []segment, settings *config.Settings, ctx widget.RenderContext) string {
 	var flexIdx []int
 	for i := range segments {
@@ -131,30 +137,36 @@ func joinWithFlex(colored []string, segments []segment, settings *config.Setting
 	groups = append(groups, joinPadded(colored[prev:], segments[prev:], settings.DefaultPadding))
 	gaps := len(flexIdx)
 
-	totalWidth := ctx.TerminalWidth
-	if totalWidth <= 0 {
-		// Unknown width: collapse each gap to a single space.
-		return strings.Join(groups, " ")
+	// minGap reserves a column after each group that has another one to its right.
+	minGap := make([]int, gaps)
+	var shown []string
+	used, reserved, last := 0, 0, -1
+	for i, g := range groups {
+		if g == "" {
+			continue
+		}
+		shown = append(shown, g)
+		used += color.VisibleWidth(g)
+		if last >= 0 {
+			minGap[last] = 1
+			reserved++
+		}
+		last = i
 	}
 
-	used := 0
-	for _, g := range groups {
-		used += color.VisibleWidth(g)
-	}
-	free := totalWidth - used
-	if free <= 0 {
-		// No room to expand: butt the groups together.
-		return strings.Join(groups, "")
+	free := ctx.TerminalWidth - used - reserved
+	if ctx.TerminalWidth <= 0 || free < 0 {
+		return strings.Join(shown, " ")
 	}
 
 	// Distribute free width across the gaps; spread the remainder over the
-	// leading gaps so the line fills exactly to totalWidth.
+	// leading gaps so the line fills exactly to the terminal width.
 	base, extra := free/gaps, free%gaps
 	var b strings.Builder
 	for i, g := range groups {
 		b.WriteString(g)
 		if i < gaps {
-			w := base
+			w := minGap[i] + base
 			if i < extra {
 				w++
 			}
@@ -210,34 +222,32 @@ func renderWidgets(items []config.WidgetItem, ctx widget.RenderContext, settings
 	return segments
 }
 
-// cleanSeparators removes empty non-separator widgets and trims edge/consecutive separators.
-// Flex separators are preserved and not treated as regular separators.
+// cleanSeparators drops widgets that rendered empty and the separators left
+// without a widget on both sides. A flex separator ends a group like the edge of
+// the row does, so a separator never sits next to one; of a run of separators
+// the first is kept.
 func cleanSeparators(segments []segment) []segment {
-	// Remove empty non-separator widgets (but keep flex separators)
-	var filtered []segment
-	for _, seg := range segments {
-		if seg.text == "" && !seg.isSep && seg.item.Type != flexSeparatorType {
-			continue
-		}
-		filtered = append(filtered, seg)
-	}
-
-	// Remove leading separators
-	for len(filtered) > 0 && filtered[0].isSep {
-		filtered = filtered[1:]
-	}
-	// Remove trailing separators
-	for len(filtered) > 0 && filtered[len(filtered)-1].isSep {
-		filtered = filtered[:len(filtered)-1]
-	}
-
-	// Remove consecutive separators (keep first of each run)
 	var result []segment
-	for i, seg := range filtered {
-		if seg.isSep && i > 0 && filtered[i-1].isSep {
-			continue
+	var pending *segment // a separator waiting for a widget to follow it
+	inGroup := false     // the current flex group already holds a widget
+	for i := range segments {
+		seg := &segments[i]
+		switch {
+		case seg.item.Type == flexSeparatorType:
+			result = append(result, *seg)
+			pending, inGroup = nil, false
+		case seg.isSep:
+			if inGroup && pending == nil {
+				pending = seg
+			}
+		case seg.text != "":
+			if pending != nil {
+				result = append(result, *pending)
+				pending = nil
+			}
+			result = append(result, *seg)
+			inGroup = true
 		}
-		result = append(result, seg)
 	}
 	return result
 }
@@ -247,13 +257,21 @@ func cleanSeparators(segments []segment) []segment {
 // separators are not colored (they are invisible spacing).
 func applyColors(segments []segment, settings *config.Settings, ctx widget.RenderContext) []string {
 	result := make([]string, 0, len(segments))
-	for i, seg := range segments {
+	widgetFG := "" // foreground of the nearest widget to the left, thresholds applied
+	for _, seg := range segments {
 		if seg.item.Type == flexSeparatorType {
 			result = append(result, "")
 			continue
 		}
 
-		fg := resolveColor(seg, segments, i, settings, ctx)
+		fg := seg.item.Color
+		if fg == "" {
+			if seg.isSep && settings.InheritSeparatorColors {
+				fg = widgetFG
+			} else {
+				fg = defaultColor(seg.item.Type, ctx)
+			}
+		}
 		bg := seg.item.BackgroundColor
 		bold := seg.item.Bold || settings.GlobalBold
 
@@ -268,6 +286,9 @@ func applyColors(segments []segment, settings *config.Settings, ctx widget.Rende
 				bold = bold || t.Bold
 			}
 		}
+		if !seg.isSep {
+			widgetFG = fg
+		}
 
 		if settings.OverrideForegroundColor != "" {
 			fg = settings.OverrideForegroundColor
@@ -280,30 +301,6 @@ func applyColors(segments []segment, settings *config.Settings, ctx widget.Rende
 		result = append(result, colored)
 	}
 	return result
-}
-
-// resolveColor determines the foreground color for a segment.
-func resolveColor(seg segment, segments []segment, idx int, settings *config.Settings, ctx widget.RenderContext) string {
-	if seg.item.Color != "" {
-		return seg.item.Color
-	}
-	if seg.isSep && settings.InheritSeparatorColors {
-		return inheritColor(segments, idx, ctx)
-	}
-	return defaultColor(seg.item.Type, ctx)
-}
-
-// inheritColor finds the color from the nearest non-separator widget before the separator.
-func inheritColor(segments []segment, sepIdx int, ctx widget.RenderContext) string {
-	for i := sepIdx - 1; i >= 0; i-- {
-		if !segments[i].isSep {
-			if segments[i].item.Color != "" {
-				return segments[i].item.Color
-			}
-			return defaultColor(segments[i].item.Type, ctx)
-		}
-	}
-	return ""
 }
 
 // defaultColor returns a widget type's default color, preferring the

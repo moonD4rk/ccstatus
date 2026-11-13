@@ -111,8 +111,18 @@ func TestShortModelName(t *testing.T) {
 		"claude-3-5-sonnet-20241022": "Sonnet 3.5",
 		"claude-fable-5-1":           "Fable 5.1",
 		"claude-opus":                "Opus",
+		"claude-3-7-sonnet-latest":   "Sonnet 3.7",
 		"gpt-4o":                     "gpt-4o",
+		"sonnet":                     "sonnet",
 		"":                           "",
+
+		// Provider-wrapped IDs: Vertex, Bedrock (plain, inference profile, ARN), gateways.
+		"claude-sonnet-4-5@20250929":                   "Sonnet 4.5",
+		"claude-3-5-haiku@20241022":                    "Haiku 3.5",
+		"anthropic.claude-opus-4-1-20250805-v1:0":      "Opus 4.1",
+		"us.anthropic.claude-sonnet-4-5-20250929-v1:0": "Sonnet 4.5",
+		"arn:aws:bedrock:us-east-1:123456789012:inference-profile/us.anthropic.claude-haiku-4-5-20251001-v1:0": "Haiku 4.5",
+		"anthropic/claude-haiku-5-5": "Haiku 5.5",
 	}
 	for id, want := range tests {
 		assert.Equal(t, want, shortModelName(id), id)
@@ -122,8 +132,11 @@ func TestShortModelName(t *testing.T) {
 func TestFormatElapsed(t *testing.T) {
 	assert.Equal(t, "0s", formatElapsed(0))
 	assert.Equal(t, "45s", formatElapsed(45*time.Second))
-	assert.Equal(t, "1m05s", formatElapsed(65*time.Second))
-	assert.Equal(t, "1h02m", formatElapsed(time.Hour+2*time.Minute+30*time.Second))
+	assert.Equal(t, "1m5s", formatElapsed(65*time.Second))
+	assert.Equal(t, "59m59s", formatElapsed(time.Hour-time.Second))
+	assert.Equal(t, "1h", formatElapsed(time.Hour))
+	assert.Equal(t, "1h2m", formatElapsed(time.Hour+2*time.Minute+30*time.Second))
+	assert.Equal(t, "1d2h", formatElapsed(26*time.Hour+5*time.Minute))
 }
 
 func TestSparkline(t *testing.T) {

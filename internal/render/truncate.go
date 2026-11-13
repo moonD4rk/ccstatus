@@ -2,7 +2,6 @@ package render
 
 import (
 	"strings"
-	"unicode/utf8"
 
 	"github.com/moond4rk/ccstatus/internal/color"
 )
@@ -43,14 +42,14 @@ func truncateWidget(text string, maxWidth int) string {
 }
 
 // cut keeps the longest prefix of line that fits in width columns, copying escape
-// sequences through and closing a hyperlink it cuts mid-text.
+// sequences through and closing a hyperlink it cuts mid-text. It never splits a
+// grapheme cluster, and measures as color.VisibleWidth does.
 func cut(line string, width int) string {
+	keep := fittingBytes(color.StripANSI(line), width)
 	var b strings.Builder
 	b.Grow(len(line))
-	used := 0
 	linkOpen := false
-	i := 0
-	for i < len(line) {
+	for i := 0; i < len(line); {
 		// Copy escape sequences through without counting their width.
 		if line[i] == '\x1b' {
 			j := color.ScanEscape(line, i)
@@ -61,20 +60,32 @@ func cut(line string, width int) string {
 			i = j
 			continue
 		}
-		r, size := utf8.DecodeRuneInString(line[i:])
-		rw := color.RuneWidth(r)
-		if used+rw > width {
+		if keep == 0 {
 			break
 		}
-		b.WriteString(line[i : i+size])
-		used += rw
-		i += size
+		b.WriteByte(line[i])
+		keep--
+		i++
 	}
 
 	if linkOpen {
 		b.WriteString(hyperlinkClose)
 	}
 	return b.String()
+}
+
+// fittingBytes returns the byte length of the longest run of whole grapheme
+// clusters at the start of plain that fits in width columns.
+func fittingBytes(plain string, width int) int {
+	used, n := 0, 0
+	for cluster, w := range color.Clusters(plain) {
+		if used+w > width {
+			break
+		}
+		used += w
+		n += len(cluster)
+	}
+	return n
 }
 
 // hyperlinkState reports whether seq is an OSC 8 hyperlink sequence and, if so,

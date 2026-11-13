@@ -106,7 +106,12 @@ func usageThresholds(hint string) []Threshold {
 	}
 }
 
-// Dir returns the ccstatus configuration directory path.
+// ErrNoConfigDir reports that neither $XDG_CONFIG_HOME nor the home directory is
+// known, so there is no place to keep settings.json.
+var ErrNoConfigDir = errors.New("cannot locate the config directory: set $HOME or $XDG_CONFIG_HOME")
+
+// Dir returns the ccstatus configuration directory path, or "" when it cannot be
+// located.
 func Dir() string {
 	if dir := os.Getenv("XDG_CONFIG_HOME"); dir != "" {
 		return filepath.Join(dir, configDirName)
@@ -118,16 +123,26 @@ func Dir() string {
 	return filepath.Join(home, ".config", configDirName)
 }
 
-// Path returns the full path to the settings.json file.
+// Path returns the full path to the settings.json file, or "" when the
+// configuration directory cannot be located.
 func Path() string {
-	return filepath.Join(Dir(), configFileName)
+	dir := Dir()
+	if dir == "" {
+		return ""
+	}
+	return filepath.Join(dir, configFileName)
 }
 
 // Load reads the settings file over the defaults, so fields it omits keep their
-// default values; a missing file yields the defaults. On a read or decode error
-// it returns the defaults along with the error, so callers can still render.
+// default values; a missing file, or no config directory to look in, yields the
+// defaults. On a read or decode error it returns the defaults along with the
+// error, so callers can still render.
 func Load() (Settings, error) {
-	data, err := os.ReadFile(Path())
+	path := Path()
+	if path == "" {
+		return DefaultSettings(), nil
+	}
+	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return DefaultSettings(), nil
@@ -201,6 +216,9 @@ func positionError(data []byte, err error) error {
 // Save writes the settings to the configuration file.
 func Save(s *Settings) error {
 	dir := Dir()
+	if dir == "" {
+		return ErrNoConfigDir
+	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}

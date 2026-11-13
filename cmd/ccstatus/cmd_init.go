@@ -23,6 +23,9 @@ func newInitCmd() *cobra.Command {
 func runInit(cmd *cobra.Command, _ []string) error {
 	force, _ := cmd.Flags().GetBool("force")
 	path := config.Path()
+	if path == "" {
+		return config.ErrNoConfigDir
+	}
 
 	if !force {
 		if _, err := os.Stat(path); err == nil {
@@ -34,6 +37,6 @@ func runInit(cmd *cobra.Command, _ []string) error {
 	if err := config.Save(&settings); err != nil {
 		return fmt.Errorf("saving settings: %w", err)
 	}
-	fmt.Fprintf(os.Stderr, "Created %s\n", path)
+	fmt.Fprintf(cmd.ErrOrStderr(), "Created %s\n", path)
 	return nil
 }

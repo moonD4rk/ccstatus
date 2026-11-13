@@ -364,6 +364,26 @@ func TestCleanSeparators(t *testing.T) {
 			input:    []segment{w1, flex, empty},
 			wantText: []string{"A", "flex-separator"},
 		},
+		{
+			name:     "separators beside a flex separator are dropped",
+			input:    []segment{w1, sep, flex, sep, w2},
+			wantText: []string{"A", "flex-separator", "B"},
+		},
+		{
+			name:     "a widget that renders empty leaves no separator beside the flex",
+			input:    []segment{w1, sep, empty, flex, empty, sep, w2},
+			wantText: []string{"A", "flex-separator", "B"},
+		},
+		{
+			name:     "each flex group is cleaned on its own",
+			input:    []segment{sep, w1, sep, sep, w2, sep, flex, sep, w1, sep, w2, sep},
+			wantText: []string{"A", "|", "B", "flex-separator", "A", "|", "B"},
+		},
+		{
+			name:     "a flex separator survives alone",
+			input:    []segment{sep, flex, sep},
+			wantText: []string{"flex-separator"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -502,6 +522,8 @@ func FuzzTruncate(f *testing.F) {
 	f.Add("Opus \x1b]8;;https://example.com/pull/1\x07#1234\x1b]8;;\x07 pending", 9)
 	f.Add("\x1b[36m中文宽字符 and emoji \x1b[0m tail", 7)
 	f.Add("plain text that is long enough to be cut", 12)
+	f.Add("warn \u26a0\ufe0f\u26a0\ufe0f\u26a0\ufe0f\u26a0\ufe0f flag \U0001F1E9\U0001F1EA family \U0001F468\u200d\U0001F469\u200d\U0001F467", 9)
+	f.Add("e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301", 4)
 	f.Fuzz(func(t *testing.T, line string, maxWidth int) {
 		if maxWidth < 0 || maxWidth > 500 {
 			return

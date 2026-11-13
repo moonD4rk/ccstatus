@@ -86,6 +86,35 @@ func TestRepoAgainstScratchRepo(t *testing.T) {
 	})
 }
 
+func TestBranchWithoutCurrentBranch(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not installed")
+	}
+	isolateGit(t)
+
+	t.Run("no commits yet", func(t *testing.T) {
+		dir := t.TempDir()
+		gitExec(t, dir, "init", "-q")
+		gitExec(t, dir, "symbolic-ref", "HEAD", "refs/heads/trunk")
+		assert.Equal(t, "trunk", Repo{Dir: dir}.Branch())
+	})
+
+	t.Run("detached HEAD names the commit", func(t *testing.T) {
+		dir := t.TempDir()
+		gitExec(t, dir, "init", "-q")
+		writeFile(t, filepath.Join(dir, "a.txt"), "1\n")
+		gitExec(t, dir, "add", "a.txt")
+		gitExec(t, dir, "commit", "-q", "-m", "init")
+		gitExec(t, dir, "checkout", "-q", "--detach")
+
+		repo := Repo{Dir: dir}
+		commit, ok := repo.run("rev-parse", "--short", "HEAD")
+		require.True(t, ok)
+		require.NotEmpty(t, commit)
+		assert.Equal(t, commit, repo.Branch())
+	})
+}
+
 func TestDiffSumsStagedAndUnstaged(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not installed")
