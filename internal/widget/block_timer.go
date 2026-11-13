@@ -2,24 +2,20 @@ package widget
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/moond4rk/ccstatus/internal/config"
 )
 
-const (
-	blockDuration = 5 * time.Hour
-	barWidth      = 10
-)
+const blockDuration = 5 * time.Hour
 
 // BlockTimerWidget displays how far the rolling 5-hour rate-limit window has
 // run. It is hidden without rate_limits data: on accounts with no subscription
 // limits, and before the first API response.
-// Supports three display modes via metadata["display"]:
-//   - "time" (default): shows elapsed/total like "2h15m/5h"
-//   - "progress": shows progress bar "[=====>    ] 45%"
-//   - "percentage": shows just "45%"
+// Display modes:
+//   - "time" (default): elapsed over total, "2h15m/5h"
+//   - "bar": a block progress bar, "▓▓▓▓▓░░░░░ 45%" (width via barWidth)
+//   - "percent": "45%"
 type BlockTimerWidget struct{}
 
 // Render returns the block timer display.
@@ -28,16 +24,29 @@ func (w *BlockTimerWidget) Render(item *config.WidgetItem, ctx RenderContext, _ 
 	if !ok {
 		return ""
 	}
-	pct := float64(elapsed) / float64(blockDuration) * 100
+	pct := blockPercent(elapsed)
 
 	switch displayMode(item, "time") {
-	case "progress":
-		return formatProgressBar(pct)
-	case "percentage":
+	case BarDisplay:
+		return formatBlockBar(pct, barWidthFor(item)) + fmt.Sprintf(" %.0f%%", pct)
+	case "percent":
 		return fmt.Sprintf("%.0f%%", pct)
 	default:
 		return formatBlockTime(elapsed)
 	}
+}
+
+// Value returns the share of the window that has run, 0-100, for threshold colors.
+func (w *BlockTimerWidget) Value(_ *config.WidgetItem, ctx RenderContext) (float64, bool) {
+	elapsed, ok := blockElapsed(ctx)
+	if !ok {
+		return 0, false
+	}
+	return blockPercent(elapsed), true
+}
+
+func blockPercent(elapsed time.Duration) float64 {
+	return float64(elapsed) / float64(blockDuration) * 100
 }
 
 // blockElapsed returns the time since the 5-hour window opened. The window ends
@@ -71,26 +80,7 @@ func formatBlockTime(elapsed time.Duration) string {
 	return fmt.Sprintf("%dh%dm/5h", hours, mins)
 }
 
-func formatProgressBar(pct float64) string {
-	filled := min(int(pct*barWidth/100), barWidth)
-	empty := barWidth - filled
-	var b strings.Builder
-	b.WriteByte('[')
-	for range filled {
-		b.WriteByte('=')
-	}
-	if empty > 0 {
-		b.WriteByte('>')
-		for range empty - 1 {
-			b.WriteByte(' ')
-		}
-	}
-	b.WriteByte(']')
-	fmt.Fprintf(&b, " %.0f%%", pct)
-	return b.String()
-}
-
-func (w *BlockTimerWidget) displayModes() []string { return []string{"time", "progress", "percentage"} }
+func (w *BlockTimerWidget) displayModes() []string { return []string{"time", BarDisplay, "percent"} }
 
 // DefaultColor returns the default foreground color.
 func (w *BlockTimerWidget) DefaultColor() string { return defaultDimColor }

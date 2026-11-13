@@ -8,10 +8,10 @@ import (
 )
 
 // SpendLimitWidget displays the Claude apps gateway spend limit.
-// Display modes via metadata["display"]:
+// Display modes:
 //   - "amount" (default): "$314.12 / $500.00", or "63%" until the USD fields arrive
 //   - "percent": "63%" (exceeds 100% once over the limit)
-//   - "bar": "▓▓▓▓▓▓░░░░ 63%" (width via metadata["barWidth"])
+//   - "bar": "▓▓▓▓▓▓░░░░ 63%" (width via barWidth)
 //   - "reset": time until the limit's period resets, e.g. "12d4h"
 //   - "full": "$314.12 / $500.00 monthly, resets 12d4h"
 //
@@ -27,7 +27,7 @@ func (w *SpendLimitWidget) Render(item *config.WidgetItem, ctx RenderContext, _ 
 	switch displayMode(item, "amount") {
 	case "percent":
 		return spendPercent(sl, item.RawValue)
-	case "bar":
+	case BarDisplay:
 		if sl.UsedPercentage == nil {
 			return ""
 		}
@@ -88,7 +88,7 @@ func spendPercent(sl *status.SpendLimit, raw bool) string {
 }
 
 func (w *SpendLimitWidget) displayModes() []string {
-	return []string{"amount", "percent", "bar", "reset", "full"}
+	return []string{"amount", "percent", BarDisplay, "reset", "full"}
 }
 
 // DefaultColor returns the default foreground color.

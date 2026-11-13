@@ -16,10 +16,10 @@ func TestRenderRow(t *testing.T) {
 	task := &status.Task{Name: "reviewer", Status: "running", Label: "Reading internal/auth/session.go"}
 	ctx := widget.RenderContext{Task: task}
 	items := []config.WidgetItem{
-		{ID: "1", Type: "task-name"},
-		{ID: "2", Type: "task-status"},
-		{ID: "3", Type: "separator"},
-		{ID: "4", Type: "task-label"},
+		{Type: "task-name"},
+		{Type: "task-status"},
+		{Type: "separator"},
+		{Type: "task-label"},
 	}
 
 	t.Run("uses the full width, with no flex-mode margin", func(t *testing.T) {
@@ -37,14 +37,14 @@ func TestRenderRow(t *testing.T) {
 	})
 
 	t.Run("flex separator fills exactly the width", func(t *testing.T) {
-		flex := []config.WidgetItem{{ID: "1", Type: "task-name"}, {ID: "2", Type: "flex-separator"}, {ID: "3", Type: "task-status"}}
+		flex := []config.WidgetItem{{Type: "task-name"}, {Type: "flex-separator"}, {Type: "task-status"}}
 		assert.Equal(t, "reviewer         running", RenderRow(flex, &settings, ctx, 24))
 	})
 
 	t.Run("task-status takes its state color", func(t *testing.T) {
 		colored := settings
 		colored.ColorLevel = 2
-		got := RenderRow([]config.WidgetItem{{ID: "1", Type: "task-status"}}, &colored, ctx, 40)
+		got := RenderRow([]config.WidgetItem{{Type: "task-status"}}, &colored, ctx, 40)
 		assert.Equal(t, color.Apply("running", "yellow", "", false, 2), got)
 	})
 }

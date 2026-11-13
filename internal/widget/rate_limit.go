@@ -13,9 +13,9 @@ import (
 type rateLimitExtractor func(data *status.Session) *status.RateLimitWindow
 
 // RateLimitWidget displays a Claude.ai subscription rate-limit window.
-// Display modes via metadata["display"]:
+// Display modes:
 //   - "percent" (default): "45%" from used_percentage
-//   - "bar": a block progress bar, e.g. "▓▓▓▓░░░░░░ 45%" (width via metadata["barWidth"])
+//   - "bar": a block progress bar, e.g. "▓▓▓▓░░░░░░ 45%" (width via barWidth)
 //   - "reset": time until the window resets, e.g. "2h13m"
 //   - "full": "45% / 2h13m"
 //
@@ -38,7 +38,7 @@ func (w *RateLimitWidget) Render(item *config.WidgetItem, ctx RenderContext, _ *
 	}
 
 	switch displayMode(item, "percent") {
-	case "bar":
+	case BarDisplay:
 		return rateLimitBar(window, barWidthFor(item))
 	case "reset":
 		return rateLimitTimeToReset(window, ctx.now())
@@ -99,7 +99,9 @@ func sevenDayWindow(data *status.Session) *status.RateLimitWindow {
 	return data.RateLimits.SevenDay
 }
 
-func (w *RateLimitWidget) displayModes() []string { return []string{"percent", "bar", "reset", "full"} }
+func (w *RateLimitWidget) displayModes() []string {
+	return []string{"percent", BarDisplay, "reset", "full"}
+}
 
 // DefaultColor returns the default foreground color.
 func (w *RateLimitWidget) DefaultColor() string { return "yellow" }

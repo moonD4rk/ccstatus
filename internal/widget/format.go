@@ -2,7 +2,6 @@ package widget
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
@@ -19,9 +18,9 @@ const (
 
 const (
 	defaultBarWidth = 10
-	// maxBarWidth caps metadata.barWidth: a bar wider than any terminal only
+	// MaxBarWidth caps an item's barWidth: a bar wider than any terminal only
 	// costs memory.
-	maxBarWidth = 100
+	MaxBarWidth = 100
 )
 
 // formatDuration renders a duration compactly: "<1m", "42m", "2h13m", and with
@@ -70,10 +69,10 @@ func compactTokens(n int) string {
 }
 
 // formatPercentage renders pct as "45%", "45.0" in raw mode, or a block bar
-// such as "▓▓▓▓░░░░░░ 45%" with metadata.display "bar".
+// such as "▓▓▓▓░░░░░░ 45%" with display "bar".
 func formatPercentage(item *config.WidgetItem, pct float64) string {
 	switch {
-	case displayMode(item, "percent") == "bar":
+	case displayMode(item, "percent") == BarDisplay:
 		return formatBlockBar(pct, barWidthFor(item)) + fmt.Sprintf(" %.0f%%", pct)
 	case item.RawValue:
 		return fmt.Sprintf("%.1f", pct)
@@ -103,15 +102,11 @@ func formatBlockBar(pct float64, width int) string {
 	return strings.Repeat("▓", filled) + strings.Repeat("░", width-filled)
 }
 
-// barWidthFor returns the width of an item's bar, from metadata.barWidth.
+// barWidthFor returns the width of an item's bar: its barWidth, capped, or the
+// default when it sets none.
 func barWidthFor(item *config.WidgetItem) int {
-	if item.Metadata == nil {
-		return defaultBarWidth
-	}
-	if v, ok := item.Metadata["barWidth"]; ok {
-		if n, err := strconv.Atoi(v); err == nil && n > 0 {
-			return min(n, maxBarWidth)
-		}
+	if item.BarWidth > 0 {
+		return min(item.BarWidth, MaxBarWidth)
 	}
 	return defaultBarWidth
 }

@@ -2,6 +2,7 @@
 package widget
 
 import (
+	"slices"
 	"sync"
 	"time"
 
@@ -15,6 +16,7 @@ const (
 	TypeSeparator     = "separator"
 	TypeFlexSeparator = "flex-separator"
 	TypeCustomText    = "custom-text"
+	TypeCustomCommand = "custom-command"
 )
 
 // RenderContext carries runtime data available to all widgets during rendering.
@@ -224,10 +226,10 @@ type DynamicDefaultColor interface {
 	DefaultColorFor(ctx RenderContext) string
 }
 
-// displayMode returns item's metadata["display"], or def when unset.
+// displayMode returns the display mode an item selects, or def when it sets none.
 func displayMode(item *config.WidgetItem, def string) string {
-	if m, ok := item.Metadata["display"]; ok && m != "" {
-		return m
+	if item.Display != "" {
+		return item.Display
 	}
 	return def
 }
@@ -440,8 +442,8 @@ var registry = map[string]Widget{
 	},
 
 	// User-defined
-	TypeCustomText:   &CustomTextWidget{},
-	"custom-command": &CustomCommandWidget{},
+	TypeCustomText:    &CustomTextWidget{},
+	TypeCustomCommand: &CustomCommandWidget{},
 
 	// Layout
 	TypeSeparator:     &SeparatorWidget{},
@@ -453,18 +455,45 @@ func Get(widgetType string) Widget {
 	return registry[widgetType]
 }
 
-// displayModer is implemented by widgets that read metadata["display"].
+// displayModer is implemented by widgets that read an item's display option.
+// The first mode is the default.
 type displayModer interface {
 	displayModes() []string
 }
 
-// DisplayModes returns the metadata.display values the widget type accepts, or
-// false when the type has no display modes.
+// DisplayModes returns the display values the widget type accepts, the default
+// first, or false when the type has no display modes.
 func DisplayModes(widgetType string) ([]string, bool) {
 	if w, ok := Get(widgetType).(displayModer); ok {
 		return w.displayModes(), true
 	}
 	return nil, false
+}
+
+// BarDisplay is the display mode that draws a bar and reads an item's barWidth.
+const BarDisplay = "bar"
+
+// HasBarDisplay reports whether the widget type has a bar display, the only one
+// an item's barWidth applies to.
+func HasBarDisplay(widgetType string) bool {
+	modes, _ := DisplayModes(widgetType)
+	return slices.Contains(modes, BarDisplay)
+}
+
+// optionUsers lists, for each item option only some widgets read, the widget
+// types that read it.
+var optionUsers = map[string][]string{
+	"character":      {TypeSeparator, "git-branch"},
+	"customText":     {TypeCustomText},
+	"commandPath":    {TypeCustomCommand},
+	"timeout":        {TypeCustomCommand},
+	"preserveColors": {TypeCustomCommand},
+}
+
+// OptionUsers returns the widget types that read the named item option, or nil
+// for an option every widget takes.
+func OptionUsers(option string) []string {
+	return optionUsers[option]
 }
 
 // Types returns all registered widget type names.
