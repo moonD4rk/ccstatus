@@ -14,7 +14,9 @@ import (
 	"github.com/moond4rk/ccstatus/internal/proc"
 )
 
-const defaultCommandTimeout = 3 * time.Second
+// DefaultCommandTimeout is how long a custom-command may run when its item
+// sets no timeout.
+const DefaultCommandTimeout = 3 * time.Second
 
 // CustomCommandWidget executes a shell command and displays its output.
 type CustomCommandWidget struct{}
@@ -28,7 +30,7 @@ func (w *CustomCommandWidget) Render(item *config.WidgetItem, ctx RenderContext,
 		return ""
 	}
 
-	timeout := defaultCommandTimeout
+	timeout := DefaultCommandTimeout
 	if item.Timeout > 0 {
 		timeout = time.Duration(item.Timeout) * time.Millisecond
 	}

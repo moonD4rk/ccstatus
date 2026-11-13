@@ -1,6 +1,6 @@
 # RFC 007: Hardening and Settings Cleanup
 
-- Status: In progress
+- Status: Completed
 - Author: @moond4rk
 - Date: 2026-11-13
 
@@ -67,10 +67,13 @@ Rendering stays lenient: it ignores keys it does not know, so a file from an ear
 
 ### PR 4: Colors, JSON Schema and tooling
 
-- Colors also take `#rrggbb` and a palette index `0`-`255`. `colorLevel` 1 emits the 16 ANSI colors, 2 the 256-color palette and 3 true color; a color the level cannot express is mapped to the nearest one it can. `fatih/color` is dropped.
-- `ccstatus schema` prints a JSON Schema generated from the widget registry. It is committed as `schema.json`, a test keeps it current, and `init` writes a `$schema` reference so editors complete and check settings.
-- `preview` renders the git widgets from sample data. `install` warns when `ccstatus` is not on `PATH` and keeps a command that names the binary by absolute path. `pr` is colored by review state.
-- Release and CI: `homebrew_casks` replaces the deprecated `brews`; the release workflow tests before it tags; CI runs `govulncheck` and drops the duplicate format step; fuzz tests cover `config.Parse` and the render pipeline.
+- Colors also take `#rrggbb` (or `#rgb`) and a palette index `"0"`-`"255"`. `colorLevel` 1 emits the 16 ANSI colors, 2 the 256-color palette and 3 true color; a color the level cannot express is mapped to the nearest one it can. Named colors are the same at every level, so existing settings render as before. `fatih/color` is dropped.
+- `ccstatus schema` prints a JSON Schema (draft-07) generated from the settings types and the widget registry: the widget types with what each shows, per type its display modes and the options that have no effect on it, the color forms and the numeric ranges. It is committed as `schema.json`, a test keeps it current, and `init` writes a `$schema` reference to it.
+- `preview` renders the git widgets from sample data, since the sample payload's directories do not exist. `install` warns when `ccstatus` is not on `PATH`, and keeps a command that names the binary by absolute path. `pr` is colored by review state.
+- Saving settings keeps an explicit empty `defaultPadding`, `defaultSeparator` and `subagentLine`; they used to come back as their defaults.
+- Release and CI: `homebrew_casks` replaces the deprecated `brews`, with a post-install step that clears the quarantine attribute on macOS because the binary is not notarized; the release workflow runs the tests and `goreleaser check` and mints the tap token before it pushes the tag; CI checks `go mod tidy` and runs `govulncheck`, and drops the format step the linter already covers. Fuzz tests cover `config.Parse`, `validate` and the render pipeline.
+
+After the first release with the cask, the tap needs one manual change: delete `Formula/ccstatus.rb` and add a `tap_migrations.json` with `{ "ccstatus": "ccstatus" }`, so existing installs move to the cask on upgrade.
 
 ## Out of Scope
 

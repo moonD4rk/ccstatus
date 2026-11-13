@@ -6,6 +6,8 @@ import (
 	_ "embed"
 	"encoding/json"
 	"time"
+
+	"github.com/moond4rk/ccstatus/internal/git"
 )
 
 // StatusLineDocs is the full status line payload from the official docs, as
@@ -18,6 +20,23 @@ var StatusLineDocs []byte
 //
 //go:embed subagent.json
 var SubagentDocs []byte
+
+// Git is the repository state `ccstatus preview` renders next to the docs
+// payload, whose directories do not exist: the branch of the payload's
+// worktree, with a small uncommitted change.
+type Git struct{}
+
+// Branch returns the branch the docs payload names for its worktree.
+func (Git) Branch() string { return "worktree-my-feature" }
+
+// Changes returns the sample count of uncommitted changes.
+func (Git) Changes() int { return 3 }
+
+// Diff returns the sample uncommitted line counts.
+func (Git) Diff() git.DiffStat { return git.DiffStat{Added: 42, Removed: 7} }
+
+// Worktree returns the worktree the docs payload names.
+func (Git) Worktree() string { return "my-feature" }
 
 // StatusLine returns the docs payload with its timestamps moved relative to now,
 // so countdowns render as they would in a live session.

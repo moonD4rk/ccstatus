@@ -17,7 +17,8 @@ const (
 )
 
 const (
-	defaultBarWidth = 10
+	// DefaultBarWidth is the width of a bar display when an item sets no barWidth.
+	DefaultBarWidth = 10
 	// MaxBarWidth caps an item's barWidth: a bar wider than any terminal only
 	// costs memory.
 	MaxBarWidth = 100
@@ -90,7 +91,7 @@ func clampPercent(pct float64) float64 {
 // formatBlockBar renders a fixed-width bar like "▓▓▓░░░░░░░" for the given percentage.
 func formatBlockBar(pct float64, width int) string {
 	if width <= 0 {
-		width = defaultBarWidth
+		width = DefaultBarWidth
 	}
 	filled := int(pct*float64(width)/100 + 0.5)
 	if filled < 0 {
@@ -108,5 +109,5 @@ func barWidthFor(item *config.WidgetItem) int {
 	if item.BarWidth > 0 {
 		return min(item.BarWidth, MaxBarWidth)
 	}
-	return defaultBarWidth
+	return DefaultBarWidth
 }

@@ -752,6 +752,18 @@ func TestPRWidget(t *testing.T) {
 		assert.Empty(t, w.Render(&config.WidgetItem{}, RenderContext{Data: &status.Session{}}, &settings))
 	})
 
+	t.Run("colored by review state", func(t *testing.T) {
+		for state, want := range map[string]string{
+			"approved": "green", "changes_requested": "red", "pending": "yellow", "draft": "brightBlack",
+			"": "", "some_new_state": "",
+		} {
+			ctx := RenderContext{Data: &status.Session{PR: &status.PRInfo{Number: &num, ReviewState: state}}}
+			assert.Equal(t, want, w.DefaultColorFor(ctx), state)
+		}
+		assert.Empty(t, w.DefaultColorFor(RenderContext{Data: &status.Session{}}))
+		assert.Empty(t, w.DefaultColorFor(RenderContext{}))
+	})
+
 	assert.Equal(t, "cyan", w.DefaultColor())
 }
 
