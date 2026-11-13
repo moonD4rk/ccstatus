@@ -7,7 +7,7 @@ import (
 )
 
 // TerminalWidthWidget displays the current terminal width in columns.
-type TerminalWidthWidget struct{ noAffix }
+type TerminalWidthWidget struct{}
 
 // Render returns the terminal width as a string.
 func (w *TerminalWidthWidget) Render(_ *config.WidgetItem, ctx RenderContext, _ *config.Settings) string {
@@ -20,13 +20,7 @@ func (w *TerminalWidthWidget) Render(_ *config.WidgetItem, ctx RenderContext, _ 
 // DefaultColor returns the default foreground color.
 func (w *TerminalWidthWidget) DefaultColor() string { return defaultDimColor }
 
-// DisplayName returns the human-readable name.
-func (w *TerminalWidthWidget) DisplayName() string { return "Terminal Width" }
-
 // Description returns what this widget shows.
 func (w *TerminalWidthWidget) Description() string {
 	return "Line width in columns: the terminal width minus the flexMode margin"
 }
-
-// SupportsRawValue returns false since this widget has no compact mode.
-func (w *TerminalWidthWidget) SupportsRawValue() bool { return false }

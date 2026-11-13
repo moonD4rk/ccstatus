@@ -34,7 +34,7 @@ func (w *SpendLimitWidget) Render(item *config.WidgetItem, ctx RenderContext, _ 
 		pct := *sl.UsedPercentage
 		return formatBlockBar(pct, barWidthFor(item)) + fmt.Sprintf(" %.0f%%", pct)
 	case "reset":
-		return rateLimitTimeToReset(&sl.RateLimitWindow)
+		return rateLimitTimeToReset(&sl.RateLimitWindow, ctx.now())
 	case "full":
 		out := spendAmount(sl, " / ")
 		if out == "" {
@@ -43,7 +43,7 @@ func (w *SpendLimitWidget) Render(item *config.WidgetItem, ctx RenderContext, _ 
 		if sl.Period != "" {
 			out += " " + sl.Period
 		}
-		if reset := rateLimitTimeToReset(&sl.RateLimitWindow); reset != "" {
+		if reset := rateLimitTimeToReset(&sl.RateLimitWindow, ctx.now()); reset != "" {
 			out += ", resets " + reset
 		}
 		return out
@@ -94,9 +94,6 @@ func (w *SpendLimitWidget) displayModes() []string {
 // DefaultColor returns the default foreground color.
 func (w *SpendLimitWidget) DefaultColor() string { return "yellow" }
 
-// DisplayName returns the human-readable name.
-func (w *SpendLimitWidget) DisplayName() string { return "Spend Limit" }
-
 // Description returns what this widget shows.
 func (w *SpendLimitWidget) Description() string {
 	return "Claude apps gateway spend against its limit"
@@ -107,6 +104,3 @@ func (w *SpendLimitWidget) SupportsRawValue() bool { return true }
 
 // DefaultPrefix returns the default prefix.
 func (w *SpendLimitWidget) DefaultPrefix() string { return "Spend: " }
-
-// DefaultSuffix returns the default suffix.
-func (w *SpendLimitWidget) DefaultSuffix() string { return "" }

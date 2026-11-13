@@ -6,7 +6,7 @@ import (
 
 // RepoWidget displays the repository identity from workspace.repo (parsed by
 // Claude Code from the origin remote).
-type RepoWidget struct{ noAffix }
+type RepoWidget struct{}
 
 // Render returns "owner/name" (or just the name in raw mode, or when no owner is
 // present), and empty when no repo identity is available. With hyperlinks on,
@@ -27,9 +27,6 @@ func (w *RepoWidget) Render(item *config.WidgetItem, ctx RenderContext, settings
 
 // DefaultColor returns the default foreground color.
 func (w *RepoWidget) DefaultColor() string { return "blue" }
-
-// DisplayName returns the human-readable name.
-func (w *RepoWidget) DisplayName() string { return "Repository" }
 
 // Description returns what this widget shows.
 func (w *RepoWidget) Description() string {

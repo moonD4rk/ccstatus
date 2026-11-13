@@ -10,9 +10,6 @@ import (
 )
 
 const (
-	separatorType     = "separator"
-	flexSeparatorType = "flex-separator"
-
 	// flexFullPadding is the padding subtracted in "full" and "full-until-compact" flex modes.
 	flexFullPadding = 10
 	// flexCompactPadding is the padding subtracted in "full-minus-40" mode and compact state.
@@ -119,7 +116,7 @@ func CalculateFlexWidth(detected int, flexMode string, compactThreshold int, con
 func joinWithFlex(colored []string, segments []segment, settings *config.Settings, ctx widget.RenderContext) string {
 	var flexIdx []int
 	for i := range segments {
-		if segments[i].item.Type == flexSeparatorType {
+		if segments[i].item.Type == widget.TypeFlexSeparator {
 			flexIdx = append(flexIdx, i)
 		}
 	}
@@ -200,19 +197,15 @@ func renderWidgets(items []config.WidgetItem, ctx widget.RenderContext, settings
 		seg := segment{
 			text:  w.Render(&items[i], ctx, settings),
 			item:  &items[i],
-			isSep: items[i].Type == separatorType,
+			isSep: items[i].Type == widget.TypeSeparator,
 		}
 		if seg.text != "" {
 			seg.text = truncateWidget(seg.text, items[i].MaxWidth)
 			prefix := items[i].Prefix
-			suffix := items[i].Suffix
 			if prefix == "" {
-				prefix = w.DefaultPrefix()
+				prefix = widget.DefaultPrefix(w)
 			}
-			if suffix == "" {
-				suffix = w.DefaultSuffix()
-			}
-			seg.text = prefix + seg.text + suffix
+			seg.text = prefix + seg.text + items[i].Suffix
 			if v, ok := w.(widget.Valuer); ok && len(items[i].Thresholds) > 0 {
 				seg.value, seg.hasValue = v.Value(&items[i], ctx)
 			}
@@ -233,7 +226,7 @@ func cleanSeparators(segments []segment) []segment {
 	for i := range segments {
 		seg := &segments[i]
 		switch {
-		case seg.item.Type == flexSeparatorType:
+		case seg.item.Type == widget.TypeFlexSeparator:
 			result = append(result, *seg)
 			pending, inGroup = nil, false
 		case seg.isSep:
@@ -259,7 +252,7 @@ func applyColors(segments []segment, settings *config.Settings, ctx widget.Rende
 	result := make([]string, 0, len(segments))
 	widgetFG := "" // foreground of the nearest widget to the left, thresholds applied
 	for _, seg := range segments {
-		if seg.item.Type == flexSeparatorType {
+		if seg.item.Type == widget.TypeFlexSeparator {
 			result = append(result, "")
 			continue
 		}

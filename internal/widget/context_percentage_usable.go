@@ -38,9 +38,6 @@ func (w *ContextPercentageUsableWidget) displayModes() []string { return []strin
 // DefaultColor returns the default foreground color.
 func (w *ContextPercentageUsableWidget) DefaultColor() string { return defaultDimColor }
 
-// DisplayName returns the human-readable name.
-func (w *ContextPercentageUsableWidget) DisplayName() string { return "Context % Usable" }
-
 // Description returns what this widget shows.
 func (w *ContextPercentageUsableWidget) Description() string {
 	return "Context usage as % of the usable window (heuristic: 80% of max, leaving auto-compact headroom)"
@@ -51,6 +48,3 @@ func (w *ContextPercentageUsableWidget) SupportsRawValue() bool { return true }
 
 // DefaultPrefix returns the default prefix.
 func (w *ContextPercentageUsableWidget) DefaultPrefix() string { return "Usable: " }
-
-// DefaultSuffix returns the default suffix.
-func (w *ContextPercentageUsableWidget) DefaultSuffix() string { return "" }

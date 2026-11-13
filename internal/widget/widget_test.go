@@ -2,6 +2,7 @@ package widget
 
 import (
 	"os"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -151,7 +152,6 @@ func TestModelWidget(t *testing.T) {
 	}
 
 	assert.Equal(t, "cyan", w.DefaultColor())
-	assert.True(t, w.SupportsRawValue())
 }
 
 func TestVersionWidget(t *testing.T) {
@@ -392,8 +392,6 @@ func TestContextPercentageWidget(t *testing.T) {
 		}}
 		assert.Equal(t, "0%", w.Render(&item, ctx, &settings))
 	})
-
-	assert.True(t, w.SupportsRawValue())
 }
 
 func TestContextPercentageUsableWidget(t *testing.T) {
@@ -446,8 +444,6 @@ func TestContextPercentageUsableWidget(t *testing.T) {
 		ctx := RenderContext{Data: nil}
 		assert.Empty(t, w.Render(&item, ctx, &settings))
 	})
-
-	assert.True(t, w.SupportsRawValue())
 }
 
 func TestFlexSeparatorWidget(t *testing.T) {
@@ -458,7 +454,6 @@ func TestFlexSeparatorWidget(t *testing.T) {
 
 	assert.Equal(t, "flex-separator", w.Render(&item, ctx, &settings))
 	assert.Empty(t, w.DefaultColor())
-	assert.False(t, w.SupportsRawValue())
 }
 
 func TestCurrentDirWidget(t *testing.T) {
@@ -503,7 +498,6 @@ func TestCurrentDirWidget(t *testing.T) {
 	})
 
 	assert.Equal(t, "blue", w.DefaultColor())
-	assert.True(t, w.SupportsRawValue())
 }
 
 func TestSessionCostWidget(t *testing.T) {
@@ -550,11 +544,10 @@ func TestSessionCostWidget(t *testing.T) {
 	})
 
 	assert.Equal(t, "green", w.DefaultColor())
-	assert.True(t, w.SupportsRawValue())
 }
 
 func TestSessionClockWidget(t *testing.T) {
-	w := &SessionClockWidget{}
+	w := Get("session-clock")
 	settings := config.DefaultSettings()
 
 	tests := []struct {
@@ -593,7 +586,6 @@ func TestSessionClockWidget(t *testing.T) {
 	})
 
 	assert.Equal(t, defaultDimColor, w.DefaultColor())
-	assert.True(t, w.SupportsRawValue())
 }
 
 func TestGitBranchWidget(t *testing.T) {
@@ -614,7 +606,6 @@ func TestGitBranchWidget(t *testing.T) {
 	})
 
 	assert.Equal(t, "magenta", w.DefaultColor())
-	assert.True(t, w.SupportsRawValue())
 }
 
 func TestGitChangesWidget(t *testing.T) {
@@ -647,8 +638,6 @@ func TestLinesChangedWidget(t *testing.T) {
 	})
 
 	assert.Equal(t, "green", w.DefaultColor())
-	assert.Equal(t, "Lines Changed", w.DisplayName())
-	assert.False(t, w.SupportsRawValue())
 }
 
 func TestLinesAddedWidget(t *testing.T) {
@@ -720,7 +709,6 @@ func TestRepoWidget(t *testing.T) {
 	})
 
 	assert.Equal(t, "blue", w.DefaultColor())
-	assert.True(t, w.SupportsRawValue())
 }
 
 func TestPRWidget(t *testing.T) {
@@ -765,7 +753,6 @@ func TestPRWidget(t *testing.T) {
 	})
 
 	assert.Equal(t, "cyan", w.DefaultColor())
-	assert.True(t, w.SupportsRawValue())
 }
 
 func TestTypes(t *testing.T) {
@@ -872,7 +859,6 @@ func TestRemainingPercentageWidget(t *testing.T) {
 	})
 
 	assert.Equal(t, defaultDimColor, w.DefaultColor())
-	assert.True(t, w.SupportsRawValue())
 }
 
 func TestCacheHitRateWidget(t *testing.T) {
@@ -920,11 +906,10 @@ func TestCacheHitRateWidget(t *testing.T) {
 	})
 
 	assert.Equal(t, "cyan", w.DefaultColor())
-	assert.True(t, w.SupportsRawValue())
 }
 
 func TestAPIDurationWidget(t *testing.T) {
-	w := &APIDurationWidget{}
+	w := Get("api-duration")
 	settings := config.DefaultSettings()
 
 	tests := []struct {
@@ -968,7 +953,6 @@ func TestAPIDurationWidget(t *testing.T) {
 	})
 
 	assert.Equal(t, defaultDimColor, w.DefaultColor())
-	assert.True(t, w.SupportsRawValue())
 }
 
 func TestProjectDirWidget(t *testing.T) {
@@ -1021,7 +1005,6 @@ func TestProjectDirWidget(t *testing.T) {
 	})
 
 	assert.Equal(t, "blue", w.DefaultColor())
-	assert.True(t, w.SupportsRawValue())
 }
 
 func TestTranscriptPathWidget(t *testing.T) {
@@ -1066,7 +1049,6 @@ func TestTranscriptPathWidget(t *testing.T) {
 	})
 
 	assert.Equal(t, defaultDimColor, w.DefaultColor())
-	assert.True(t, w.SupportsRawValue())
 }
 
 func TestCurrentUsageTokenWidgets(t *testing.T) {
@@ -1180,7 +1162,6 @@ func TestOutputStyleWidget(t *testing.T) {
 	})
 
 	assert.Equal(t, defaultDimColor, w.DefaultColor())
-	assert.False(t, w.SupportsRawValue())
 }
 
 func TestSessionIDWidget(t *testing.T) {
@@ -1224,7 +1205,6 @@ func TestSessionIDWidget(t *testing.T) {
 	})
 
 	assert.Equal(t, defaultDimColor, w.DefaultColor())
-	assert.True(t, w.SupportsRawValue())
 }
 
 func TestTerminalWidthWidget(t *testing.T) {
@@ -1248,7 +1228,6 @@ func TestTerminalWidthWidget(t *testing.T) {
 	})
 
 	assert.Equal(t, defaultDimColor, w.DefaultColor())
-	assert.False(t, w.SupportsRawValue())
 }
 
 func TestVimModeWidget(t *testing.T) {
@@ -1281,7 +1260,6 @@ func TestVimModeWidget(t *testing.T) {
 	})
 
 	assert.Equal(t, "yellow", w.DefaultColor())
-	assert.False(t, w.SupportsRawValue())
 }
 
 func TestAgentNameWidget(t *testing.T) {
@@ -1307,7 +1285,6 @@ func TestAgentNameWidget(t *testing.T) {
 	})
 
 	assert.Equal(t, "cyan", w.DefaultColor())
-	assert.False(t, w.SupportsRawValue())
 }
 
 func TestExceeds200KWidget(t *testing.T) {
@@ -1340,7 +1317,6 @@ func TestExceeds200KWidget(t *testing.T) {
 	})
 
 	assert.Equal(t, "red", w.DefaultColor())
-	assert.False(t, w.SupportsRawValue())
 }
 
 func TestCustomCommandWidget(t *testing.T) {
@@ -1427,132 +1403,65 @@ func TestCustomCommandWidget(t *testing.T) {
 	})
 
 	assert.Equal(t, "white", w.DefaultColor())
-	assert.False(t, w.SupportsRawValue())
 }
 
 func TestBlockTimerWidget(t *testing.T) {
 	w := &BlockTimerWidget{}
 	settings := config.DefaultSettings()
+	now := time.Date(2026, 11, 13, 9, 0, 0, 0, time.UTC)
 
-	t.Run("time mode from duration_ms", func(t *testing.T) {
-		item := config.WidgetItem{}
-		ctx := RenderContext{Data: &status.Session{
-			Cost: &status.CostInfo{TotalDurationMS: floatPtr(5_400_000)}, // 1h30m
-		}}
-		assert.Equal(t, "1h30m/5h", w.Render(&item, ctx, &settings))
-	})
-
-	t.Run("time mode less than a minute", func(t *testing.T) {
-		item := config.WidgetItem{}
-		ctx := RenderContext{Data: &status.Session{
-			Cost: &status.CostInfo{TotalDurationMS: floatPtr(30_000)},
-		}}
-		assert.Equal(t, "<1m/5h", w.Render(&item, ctx, &settings))
-	})
-
-	t.Run("time mode hours only", func(t *testing.T) {
-		item := config.WidgetItem{}
-		ctx := RenderContext{Data: &status.Session{
-			Cost: &status.CostInfo{TotalDurationMS: floatPtr(7_200_000)}, // 2h
-		}}
-		assert.Equal(t, "2h/5h", w.Render(&item, ctx, &settings))
-	})
-
-	t.Run("clamped at 5h", func(t *testing.T) {
-		item := config.WidgetItem{}
-		ctx := RenderContext{Data: &status.Session{
-			Cost: &status.CostInfo{TotalDurationMS: floatPtr(20_000_000)}, // >5h
-		}}
-		assert.Equal(t, "5h/5h", w.Render(&item, ctx, &settings))
-	})
-
-	t.Run("percentage mode", func(t *testing.T) {
-		item := config.WidgetItem{Metadata: map[string]string{"display": "percentage"}}
-		ctx := RenderContext{Data: &status.Session{
-			Cost: &status.CostInfo{TotalDurationMS: floatPtr(9_000_000)}, // 2.5h = 50%
-		}}
-		assert.Equal(t, "50%", w.Render(&item, ctx, &settings))
-	})
-
-	t.Run("progress mode", func(t *testing.T) {
-		item := config.WidgetItem{Metadata: map[string]string{"display": "progress"}}
-		ctx := RenderContext{Data: &status.Session{
-			Cost: &status.CostInfo{TotalDurationMS: floatPtr(9_000_000)}, // 50%
-		}}
-		result := w.Render(&item, ctx, &settings)
-		assert.Contains(t, result, "[")
-		assert.Contains(t, result, "]")
-		assert.Contains(t, result, "50%")
-	})
-
-	t.Run("nil cost returns empty", func(t *testing.T) {
-		item := config.WidgetItem{}
-		ctx := RenderContext{Data: &status.Session{}}
-		assert.Empty(t, w.Render(&item, ctx, &settings))
-	})
-
-	t.Run("nil data returns empty", func(t *testing.T) {
-		item := config.WidgetItem{}
-		ctx := RenderContext{Data: nil}
-		assert.Empty(t, w.Render(&item, ctx, &settings))
-	})
-
-	t.Run("transcript fallback with temp file", func(t *testing.T) {
-		// Create a temp JSONL file with a timestamp.
-		tmpFile, err := os.CreateTemp("", "transcript-*.jsonl")
-		require.NoError(t, err)
-		defer os.Remove(tmpFile.Name())
-
-		// Write a JSONL entry with a timestamp 1 hour ago.
-		ts := time.Now().Add(-1 * time.Hour).Format(time.RFC3339)
-		_, err = tmpFile.WriteString(`{"timestamp":"` + ts + `","type":"start"}` + "\n")
-		require.NoError(t, err)
-		tmpFile.Close()
-
-		item := config.WidgetItem{}
-		ctx := RenderContext{Data: &status.Session{
-			TranscriptPath: tmpFile.Name(),
-		}}
-		result := w.Render(&item, ctx, &settings)
-		// Should show approximately 1h/5h (could be 59m or 1h depending on timing).
-		assert.NotEmpty(t, result)
-		assert.Contains(t, result, "/5h")
-	})
-
-	t.Run("prefers rate_limits.five_hour over duration_ms", func(t *testing.T) {
-		item := config.WidgetItem{Metadata: map[string]string{"display": "percentage"}}
-		ctx := RenderContext{Data: &status.Session{
+	// resetsIn builds a render whose 5-hour window resets after left.
+	resetsIn := func(left time.Duration) RenderContext {
+		return RenderContext{Now: now, Data: &status.Session{
 			RateLimits: &status.RateLimits{FiveHour: &status.RateLimitWindow{
-				ResetsAt: int64Ptr(time.Now().Add(150 * time.Minute).Unix()), // 2.5h left => 50% elapsed
+				ResetsAt: int64Ptr(now.Add(left).Unix()),
 			}},
-			Cost: &status.CostInfo{TotalDurationMS: floatPtr(600_000)}, // would be ~3%; must be ignored
+			// A long session must not stand in for the window.
+			Cost: &status.CostInfo{TotalDurationMS: floatPtr(25_200_000)},
 		}}
-		assert.Equal(t, "50%", w.Render(&item, ctx, &settings))
-	})
+	}
 
-	t.Run("rate_limits past reset clamps to full", func(t *testing.T) {
-		item := config.WidgetItem{Metadata: map[string]string{"display": "percentage"}}
-		ctx := RenderContext{Data: &status.Session{
-			RateLimits: &status.RateLimits{FiveHour: &status.RateLimitWindow{
-				ResetsAt: int64Ptr(time.Now().Add(-1 * time.Hour).Unix()),
-			}},
-		}}
-		assert.Equal(t, "100%", w.Render(&item, ctx, &settings))
-	})
+	tests := []struct {
+		name    string
+		display string
+		left    time.Duration
+		want    string
+	}{
+		{"elapsed over total", "", 3*time.Hour + 30*time.Minute, "1h30m/5h"},
+		{"hours only", "", 3 * time.Hour, "2h/5h"},
+		{"minutes only", "", 4*time.Hour + 18*time.Minute, "42m/5h"},
+		{"a window that just opened", "", 5 * time.Hour, "<1m/5h"},
+		{"a reset time already past is a full window", "", -time.Hour, "5h/5h"},
+		{"a reset further away than a window is not one", "", 10 * time.Hour, ""},
+		{"percentage mode", "percentage", 150 * time.Minute, "50%"},
+		{"progress mode", "progress", 150 * time.Minute, "[=====>    ] 50%"},
+		{"progress mode at the end", "progress", 0, "[==========] 100%"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			item := config.WidgetItem{}
+			if tt.display != "" {
+				item.Metadata = map[string]string{"display": tt.display}
+			}
+			assert.Equal(t, tt.want, w.Render(&item, resetsIn(tt.left), &settings))
+		})
+	}
 
-	t.Run("falls through to duration_ms when reset is implausibly far", func(t *testing.T) {
+	t.Run("hidden without a rate-limit window", func(t *testing.T) {
 		item := config.WidgetItem{}
-		ctx := RenderContext{Data: &status.Session{
-			RateLimits: &status.RateLimits{FiveHour: &status.RateLimitWindow{
-				ResetsAt: int64Ptr(time.Now().Add(10 * time.Hour).Unix()),
-			}},
-			Cost: &status.CostInfo{TotalDurationMS: floatPtr(7_200_000)}, // 2h
-		}}
-		assert.Equal(t, "2h/5h", w.Render(&item, ctx, &settings))
+		for _, data := range []*status.Session{
+			nil,
+			{},
+			{Cost: &status.CostInfo{TotalDurationMS: floatPtr(5_400_000)}, TranscriptPath: "transcript.jsonl"},
+			{RateLimits: &status.RateLimits{}},
+			{RateLimits: &status.RateLimits{FiveHour: &status.RateLimitWindow{UsedPercentage: floatPtr(40)}}},
+		} {
+			assert.Empty(t, w.Render(&item, RenderContext{Now: now, Data: data}, &settings))
+		}
 	})
 
 	assert.Equal(t, defaultDimColor, w.DefaultColor())
-	assert.False(t, w.SupportsRawValue())
+	assert.Equal(t, "Block: ", w.DefaultPrefix())
 }
 
 func TestGitWorktreeWidget(t *testing.T) {
@@ -1596,7 +1505,6 @@ func TestGitWorktreeWidget(t *testing.T) {
 	})
 
 	assert.Equal(t, "magenta", w.DefaultColor())
-	assert.False(t, w.SupportsRawValue())
 }
 
 func TestRateLimitWidget(t *testing.T) {
@@ -1713,8 +1621,7 @@ func TestRateLimitWidget(t *testing.T) {
 	})
 
 	assert.Equal(t, "yellow", w.DefaultColor())
-	assert.True(t, w.SupportsRawValue())
-	assert.Equal(t, "5h limit: ", w.DefaultPrefix())
+	assert.Equal(t, "5h limit: ", DefaultPrefix(w))
 }
 
 func TestRateLimitsWidget(t *testing.T) {
@@ -1761,8 +1668,7 @@ func TestRateLimitsWidget(t *testing.T) {
 	})
 
 	assert.Equal(t, "yellow", w.DefaultColor())
-	assert.False(t, w.SupportsRawValue())
-	assert.Equal(t, "Limit ", w.DefaultPrefix())
+	assert.Equal(t, "Limit ", DefaultPrefix(w))
 }
 
 func TestEffortWidget(t *testing.T) {
@@ -1845,7 +1751,7 @@ func TestFastModeWidget(t *testing.T) {
 	})
 
 	assert.Equal(t, "yellow", w.DefaultColor())
-	assert.Empty(t, w.DefaultPrefix())
+	assert.Empty(t, DefaultPrefix(w))
 }
 
 func TestSessionNameWidget(t *testing.T) {
@@ -1909,7 +1815,6 @@ func TestAddedDirsWidget(t *testing.T) {
 	})
 
 	assert.Equal(t, "blue", w.DefaultColor())
-	assert.False(t, w.SupportsRawValue())
 }
 
 func TestDefaultConfigWidgetsRegistered(t *testing.T) {
@@ -1938,4 +1843,34 @@ func TestAllWidgetsNilDataSafe(t *testing.T) {
 			})
 		})
 	}
+}
+
+func TestSupportsRawValue(t *testing.T) {
+	raw := []string{
+		"model", "session-cost", "session-clock", "session-id", "git-branch",
+		"context-percentage", "context-percentage-usable", "remaining-percentage", "cache-hit-rate", "prompt-cache",
+		"api-duration", "current-working-dir", "project-dir", "transcript-path", "repo", "pr",
+		"rate-limit-5h", "rate-limit-7d", "spend-limit", "task-model", "task-context",
+	}
+	for _, typ := range Types() {
+		assert.Equalf(t, slices.Contains(raw, typ), SupportsRawValue(typ), "%s", typ)
+	}
+	assert.False(t, SupportsRawValue("no-such-widget"))
+}
+
+func TestDefaultPrefix(t *testing.T) {
+	tests := map[string]string{
+		"context-percentage": "Ctx: ",
+		"tokens-input":       "In: ",
+		"rate-limits":        "Limit ",
+		"block-timer":        "Block: ",
+		"effort":             "Effort: ",
+		"session-cost":       "",
+		"model":              "",
+		"separator":          "",
+	}
+	for typ, want := range tests {
+		assert.Equal(t, want, DefaultPrefix(Get(typ)), typ)
+	}
+	assert.Empty(t, DefaultPrefix(nil))
 }

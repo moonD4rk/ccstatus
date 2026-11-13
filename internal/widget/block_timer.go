@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/moond4rk/ccstatus/internal/config"
-	"github.com/moond4rk/ccstatus/internal/jsonl"
 )
 
 const (
@@ -14,37 +13,24 @@ const (
 	barWidth      = 10
 )
 
-// BlockTimerWidget displays elapsed time within a 5-hour Claude Code block.
-// The block is the rolling 5-hour rate-limit window when rate_limits data is
-// available; otherwise it approximates the block as the current session.
+// BlockTimerWidget displays how far the rolling 5-hour rate-limit window has
+// run. It is hidden without rate_limits data: on accounts with no subscription
+// limits, and before the first API response.
 // Supports three display modes via metadata["display"]:
 //   - "time" (default): shows elapsed/total like "2h15m/5h"
 //   - "progress": shows progress bar "[=====>    ] 45%"
 //   - "percentage": shows just "45%"
 type BlockTimerWidget struct{}
 
-// Render returns the block timer display. See getElapsed for data-source order.
+// Render returns the block timer display.
 func (w *BlockTimerWidget) Render(item *config.WidgetItem, ctx RenderContext, _ *config.Settings) string {
-	elapsed := w.getElapsed(ctx)
-	if elapsed <= 0 {
+	elapsed, ok := blockElapsed(ctx)
+	if !ok {
 		return ""
 	}
-
-	// Clamp to block duration.
-	if elapsed > blockDuration {
-		elapsed = blockDuration
-	}
-
-	mode := "time"
-	if item.Metadata != nil {
-		if m, ok := item.Metadata["display"]; ok {
-			mode = m
-		}
-	}
-
 	pct := float64(elapsed) / float64(blockDuration) * 100
 
-	switch mode {
+	switch displayMode(item, "time") {
 	case "progress":
 		return formatProgressBar(pct)
 	case "percentage":
@@ -54,41 +40,20 @@ func (w *BlockTimerWidget) Render(item *config.WidgetItem, ctx RenderContext, _ 
 	}
 }
 
-// getElapsed determines the elapsed portion of the current 5-hour block.
-// Source order:
-//  1. rate_limits.five_hour.resets_at — the authoritative window end; the
-//     window started blockDuration earlier, so elapsed = blockDuration - timeUntilReset.
-//  2. cost.total_duration_ms — wall-clock since the session started (fallback
-//     for users without rate_limits, e.g. non-Pro/Max or before the first API call).
-//  3. JSONL transcript first-entry timestamp — last-ditch fallback.
-func (w *BlockTimerWidget) getElapsed(ctx RenderContext) time.Duration {
-	if ctx.Data == nil {
-		return 0
+// blockElapsed returns the time since the 5-hour window opened. The window ends
+// at rate_limits.five_hour.resets_at, so it opened blockDuration before that; a
+// reset time already past means the window ran its full length. It reports
+// false when the reset time is unknown or further away than a whole window.
+func blockElapsed(ctx RenderContext) (time.Duration, bool) {
+	if ctx.Data == nil || ctx.Data.RateLimits == nil || ctx.Data.RateLimits.FiveHour == nil ||
+		ctx.Data.RateLimits.FiveHour.ResetsAt == nil {
+		return 0, false
 	}
-
-	if ctx.Data.RateLimits != nil && ctx.Data.RateLimits.FiveHour != nil &&
-		ctx.Data.RateLimits.FiveHour.ResetsAt != nil {
-		resetsAt := time.Unix(*ctx.Data.RateLimits.FiveHour.ResetsAt, 0)
-		if elapsed := blockDuration - time.Until(resetsAt); elapsed > 0 {
-			return elapsed
-		}
+	left := max(time.Unix(*ctx.Data.RateLimits.FiveHour.ResetsAt, 0).Sub(ctx.now()), 0)
+	if left > blockDuration {
+		return 0, false
 	}
-
-	if ctx.Data.Cost != nil && ctx.Data.Cost.TotalDurationMS != nil {
-		ms := *ctx.Data.Cost.TotalDurationMS
-		if ms > 0 {
-			return time.Duration(ms) * time.Millisecond
-		}
-	}
-
-	if ctx.Data.TranscriptPath != "" {
-		start := jsonl.SessionStart(ctx.Data.TranscriptPath)
-		if !start.IsZero() {
-			return time.Since(start)
-		}
-	}
-
-	return 0
+	return blockDuration - left, true
 }
 
 func formatBlockTime(elapsed time.Duration) string {
@@ -130,17 +95,8 @@ func (w *BlockTimerWidget) displayModes() []string { return []string{"time", "pr
 // DefaultColor returns the default foreground color.
 func (w *BlockTimerWidget) DefaultColor() string { return defaultDimColor }
 
-// DisplayName returns the human-readable name.
-func (w *BlockTimerWidget) DisplayName() string { return "Block Timer" }
-
 // Description returns what this widget shows.
-func (w *BlockTimerWidget) Description() string { return "5-hour session block timer" }
-
-// SupportsRawValue returns false since display mode is controlled by metadata.
-func (w *BlockTimerWidget) SupportsRawValue() bool { return false }
+func (w *BlockTimerWidget) Description() string { return "Time into the 5-hour rate-limit window" }
 
 // DefaultPrefix returns the default prefix.
 func (w *BlockTimerWidget) DefaultPrefix() string { return "Block: " }
-
-// DefaultSuffix returns the default suffix.
-func (w *BlockTimerWidget) DefaultSuffix() string { return "" }

@@ -8,6 +8,7 @@ import (
 	"os"
 	"runtime/debug"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -99,8 +100,23 @@ func runStatusLine(cmd *cobra.Command, _ []string) error {
 		return cmd.Help()
 	}
 	data, err := io.ReadAll(cmd.InOrStdin())
-	renderStatusLine(cmd.OutOrStdout(), cmd.ErrOrStderr(), data, err, 0)
+	renderStatusLine(cmd.OutOrStdout(), cmd.ErrOrStderr(), data, err, renderOptions{})
 	return nil
+}
+
+// renderOptions adjusts a render for callers other than Claude Code, such as
+// `ccstatus preview`. The zero value renders as Claude Code needs it.
+type renderOptions struct {
+	width int       // terminal width in columns; 0 detects it
+	now   time.Time // the time countdowns are measured against; zero is the current time
+}
+
+// renderTime returns the time the render is measured against.
+func (o renderOptions) renderTime() time.Time {
+	if o.now.IsZero() {
+		return time.Now()
+	}
+	return o.now
 }
 
 // awaitsTypedInput reports whether the command's stdin is a terminal. Claude
@@ -110,11 +126,12 @@ func awaitsTypedInput(cmd *cobra.Command) bool {
 	return terminal.IsTerminal(cmd.InOrStdin())
 }
 
-// renderStatusLine writes the status line for the Claude Code payload in data,
-// at width columns or, when width is 0, the detected terminal width. It never
-// fails: Claude Code blanks the whole status line when the command exits
-// non-zero, so problems, a panic included, are reported as a red line instead.
-func renderStatusLine(stdout, stderr io.Writer, data []byte, readErr error, width int) {
+// renderStatusLine writes the status line for the Claude Code payload in data.
+// It never fails: Claude Code blanks the whole status line when the command
+// exits non-zero, so problems, a panic included, are reported as a red line
+// instead.
+func renderStatusLine(stdout, stderr io.Writer, data []byte, readErr error, opts renderOptions) {
+	width := opts.width
 	// Buffer all lines and write once to avoid partial reads when Claude Code
 	// reads from the pipe during rapid re-invocations.
 	var buf strings.Builder
@@ -151,6 +168,7 @@ func renderStatusLine(stdout, stderr io.Writer, data []byte, readErr error, widt
 		Data:          session,
 		TerminalWidth: width,
 		Git:           widget.NewGitCache(session.WorkingDir()),
+		Now:           opts.renderTime(),
 		RawInput:      data,
 	}
 	widget.PrefetchGit(settings.Lines, ctx)

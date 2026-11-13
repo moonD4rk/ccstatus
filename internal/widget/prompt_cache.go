@@ -28,15 +28,16 @@ func (w *PromptCacheWidget) Render(item *config.WidgetItem, ctx RenderContext, _
 	if pc == nil {
 		return ""
 	}
+	now := ctx.now()
 	switch displayMode(item, "status") {
 	case "ttl":
-		return cacheTTL(pc)
+		return cacheTTL(pc, now)
 	case "hit":
 		return cacheHit(pc, item.RawValue)
 	case "misses":
 		return cacheMisses(pc)
 	case "full":
-		parts := []string{cacheStatus(pc)}
+		parts := []string{cacheStatus(pc, now)}
 		if hit := cacheHit(pc, false); hit != "" {
 			parts = append(parts, hit+" hit")
 		}
@@ -45,7 +46,7 @@ func (w *PromptCacheWidget) Render(item *config.WidgetItem, ctx RenderContext, _
 		}
 		return strings.Join(parts, " · ")
 	default:
-		return cacheStatus(pc)
+		return cacheStatus(pc, now)
 	}
 }
 
@@ -62,7 +63,7 @@ func (w *PromptCacheWidget) Value(item *config.WidgetItem, ctx RenderContext) (f
 		}
 		return *pc.HitRatio * 100, true
 	}
-	left, _ := cacheTimeLeft(pc)
+	left, _ := cacheTimeLeft(pc, ctx.now())
 	return left.Minutes(), true
 }
 
@@ -72,7 +73,7 @@ func (w *PromptCacheWidget) DefaultColorFor(ctx RenderContext) string {
 	if pc == nil {
 		return ""
 	}
-	if _, warm := cacheTimeLeft(pc); warm {
+	if _, warm := cacheTimeLeft(pc, ctx.now()); warm {
 		return defaultGreenColor
 	}
 	return "brightBlack"
@@ -89,24 +90,24 @@ func promptCache(ctx RenderContext) *status.PromptCache {
 	return pc
 }
 
-// cacheTimeLeft returns the time until the cached prefix goes cold (zero when the
-// expiry is unknown) and whether it is still warm.
-func cacheTimeLeft(pc *status.PromptCache) (time.Duration, bool) {
+// cacheTimeLeft returns the time from now until the cached prefix goes cold
+// (zero when the expiry is unknown) and whether it is still warm.
+func cacheTimeLeft(pc *status.PromptCache, now time.Time) (time.Duration, bool) {
 	if pc.Warm == nil || !*pc.Warm {
 		return 0, false
 	}
 	if pc.ExpiresAt == nil {
 		return 0, true
 	}
-	left := time.Until(time.Unix(*pc.ExpiresAt, 0))
+	left := time.Unix(*pc.ExpiresAt, 0).Sub(now)
 	if left <= 0 {
 		return 0, false
 	}
 	return left, true
 }
 
-func cacheStatus(pc *status.PromptCache) string {
-	left, warm := cacheTimeLeft(pc)
+func cacheStatus(pc *status.PromptCache, now time.Time) string {
+	left, warm := cacheTimeLeft(pc, now)
 	switch {
 	case !warm:
 		return "cold"
@@ -117,8 +118,8 @@ func cacheStatus(pc *status.PromptCache) string {
 	}
 }
 
-func cacheTTL(pc *status.PromptCache) string {
-	left, warm := cacheTimeLeft(pc)
+func cacheTTL(pc *status.PromptCache, now time.Time) string {
+	left, warm := cacheTimeLeft(pc, now)
 	switch {
 	case !warm:
 		return "cold"
@@ -162,9 +163,6 @@ func (w *PromptCacheWidget) displayModes() []string {
 // DefaultColor returns the default foreground color.
 func (w *PromptCacheWidget) DefaultColor() string { return defaultGreenColor }
 
-// DisplayName returns the human-readable name.
-func (w *PromptCacheWidget) DisplayName() string { return "Prompt Cache" }
-
 // Description returns what this widget shows.
 func (w *PromptCacheWidget) Description() string {
 	return "Prompt cache warm/cold with time left, hit ratio, or misses"
@@ -175,6 +173,3 @@ func (w *PromptCacheWidget) SupportsRawValue() bool { return true }
 
 // DefaultPrefix returns the default prefix.
 func (w *PromptCacheWidget) DefaultPrefix() string { return "Cache: " }
-
-// DefaultSuffix returns the default suffix.
-func (w *PromptCacheWidget) DefaultSuffix() string { return "" }
