@@ -17,7 +17,7 @@ import (
 const defaultCommandTimeout = 3 * time.Second
 
 // CustomCommandWidget executes a shell command and displays its output.
-type CustomCommandWidget struct{ noAffix }
+type CustomCommandWidget struct{}
 
 // Render executes the configured command and returns its first line of stdout.
 // The command receives the full JSON session data via stdin. Everything the
@@ -73,11 +73,5 @@ func (w *CustomCommandWidget) Render(item *config.WidgetItem, ctx RenderContext,
 // DefaultColor returns the default foreground color.
 func (w *CustomCommandWidget) DefaultColor() string { return "white" }
 
-// DisplayName returns the human-readable name.
-func (w *CustomCommandWidget) DisplayName() string { return "Custom Command" }
-
 // Description returns what this widget shows.
 func (w *CustomCommandWidget) Description() string { return "Output from a shell command" }
-
-// SupportsRawValue returns false since this widget has no compact mode.
-func (w *CustomCommandWidget) SupportsRawValue() bool { return false }

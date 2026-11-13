@@ -6,7 +6,7 @@ import (
 )
 
 // GitWorktreeWidget displays the current git worktree name.
-type GitWorktreeWidget struct{ noAffix }
+type GitWorktreeWidget struct{}
 
 // Render returns the worktree name if in a linked worktree, empty otherwise.
 // Source order: workspace.git_worktree (any linked worktree), worktree.name
@@ -45,11 +45,5 @@ func worktreeFromJSON(data *status.Session) (string, bool) {
 // DefaultColor returns the default foreground color.
 func (w *GitWorktreeWidget) DefaultColor() string { return "magenta" }
 
-// DisplayName returns the human-readable name.
-func (w *GitWorktreeWidget) DisplayName() string { return "Git Worktree" }
-
 // Description returns what this widget shows.
 func (w *GitWorktreeWidget) Description() string { return "Current git worktree name" }
-
-// SupportsRawValue returns false since this widget has no compact mode.
-func (w *GitWorktreeWidget) SupportsRawValue() bool { return false }

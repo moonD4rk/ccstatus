@@ -7,7 +7,7 @@ import (
 )
 
 // GitChangesWidget displays the number of uncommitted changes.
-type GitChangesWidget struct{ noAffix }
+type GitChangesWidget struct{}
 
 // Render returns the uncommitted change count, or empty if there are none.
 func (w *GitChangesWidget) Render(_ *config.WidgetItem, ctx RenderContext, _ *config.Settings) string {
@@ -23,11 +23,5 @@ func (w *GitChangesWidget) gitFacts(RenderContext) []gitFact { return []gitFact{
 // DefaultColor returns the default foreground color.
 func (w *GitChangesWidget) DefaultColor() string { return "yellow" }
 
-// DisplayName returns the human-readable name.
-func (w *GitChangesWidget) DisplayName() string { return "Git Changes" }
-
 // Description returns what this widget shows.
 func (w *GitChangesWidget) Description() string { return "Uncommitted changes count" }
-
-// SupportsRawValue returns false.
-func (w *GitChangesWidget) SupportsRawValue() bool { return false }

@@ -35,7 +35,7 @@ func runWidgets(cmd *cobra.Command, _ []string) error {
 		if c := w.DefaultColor(); c != "" {
 			details = append(details, c)
 		}
-		if p := w.DefaultPrefix(); p != "" {
+		if p := widget.DefaultPrefix(w); p != "" {
 			details = append(details, fmt.Sprintf("prefix %q", p))
 		}
 		info := ""
