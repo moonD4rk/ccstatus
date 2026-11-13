@@ -19,7 +19,7 @@ func contextAt(pct float64) widget.RenderContext {
 func TestRenderLineThresholds(t *testing.T) {
 	settings := config.Settings{ColorLevel: 2, DefaultPadding: " "}
 	item := config.WidgetItem{
-		ID: "1", Type: "context-percentage", Color: "green",
+		Type: "context-percentage", Color: "green",
 		Thresholds: []config.Threshold{
 			{GTE: 70, Color: "yellow"},
 			{GTE: 90, Color: "red", Bold: true},
@@ -48,7 +48,7 @@ func TestRenderLineThresholds(t *testing.T) {
 	})
 
 	t.Run("non-numeric widgets ignore thresholds", func(t *testing.T) {
-		model := config.WidgetItem{ID: "1", Type: "model", Color: "cyan", Thresholds: item.Thresholds}
+		model := config.WidgetItem{Type: "model", Color: "cyan", Thresholds: item.Thresholds}
 		ctx := widget.RenderContext{Data: &status.Session{Model: status.ModelField{DisplayName: "Opus"}}}
 		assert.Equal(t, color.Apply("Opus", "cyan", "", false, 2), RenderLine([]config.WidgetItem{model}, &settings, ctx))
 	})
@@ -56,7 +56,7 @@ func TestRenderLineThresholds(t *testing.T) {
 
 func TestRenderLineDynamicDefaultColor(t *testing.T) {
 	settings := config.Settings{ColorLevel: 2, DefaultPadding: " "}
-	items := []config.WidgetItem{{ID: "1", Type: "prompt-cache"}}
+	items := []config.WidgetItem{{Type: "prompt-cache"}}
 	warm, cold := true, false
 	expires := time.Now().Add(10 * time.Minute).Unix()
 
@@ -66,7 +66,7 @@ func TestRenderLineDynamicDefaultColor(t *testing.T) {
 	coldCtx := widget.RenderContext{Data: &status.Session{PromptCache: &status.PromptCache{Warm: &cold}}}
 	assert.Equal(t, color.Apply("Cache: cold", "brightBlack", "", false, 2), RenderLine(items, &settings, coldCtx))
 
-	explicit := []config.WidgetItem{{ID: "1", Type: "prompt-cache", Color: "magenta"}}
+	explicit := []config.WidgetItem{{Type: "prompt-cache", Color: "magenta"}}
 	assert.Equal(t, color.Apply("Cache: cold", "magenta", "", false, 2), RenderLine(explicit, &settings, coldCtx))
 }
 
@@ -81,13 +81,12 @@ func TestRenderLineMaxWidth(t *testing.T) {
 		{"short text is untouched", config.WidgetItem{Type: "custom-text", CustomText: "main", MaxWidth: 10}, "main"},
 		{"long text ends in an ellipsis", config.WidgetItem{Type: "custom-text", CustomText: "feat/window-redesign", MaxWidth: 10}, "feat/wind…"},
 		{"wide runes count as two columns", config.WidgetItem{Type: "custom-text", CustomText: "Terraform 中的 badgebar 仓库", MaxWidth: 16}, "Terraform 中的…"},
-		{"the prefix is not counted", config.WidgetItem{Type: "custom-text", CustomText: "abcdef", Prefix: "S: ", MaxWidth: 4}, "S: abc…"},
+		{"the prefix is not counted", config.WidgetItem{Type: "custom-text", CustomText: "abcdef", Prefix: new("S: "), MaxWidth: 4}, "S: abc…"},
 		{"command output is capped the same way", config.WidgetItem{Type: "custom-command", CommandPath: "echo longstring", MaxWidth: 4}, "lon…"},
 		{"a cut never splits a multibyte rune", config.WidgetItem{Type: "custom-command", CommandPath: `printf 'a\303\251bc'`, MaxWidth: 3}, "aé…"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.item.ID = "1"
 			assert.Equal(t, tt.want, RenderLine([]config.WidgetItem{tt.item}, &settings, ctx))
 		})
 	}
@@ -110,18 +109,17 @@ func TestRenderLineMerge(t *testing.T) {
 	}}
 	tests := []struct {
 		name  string
-		merge any
+		merge bool
 		want  string
 	}{
-		{"no merge keeps padding", nil, "Opus v2.1.302"},
-		{"merge true joins without padding", true, "Opusv2.1.302"},
-		{"legacy no-padding behaves the same", "no-padding", "Opusv2.1.302"},
+		{"no merge keeps padding", false, "Opus v2.1.302"},
+		{"merge joins without padding", true, "Opusv2.1.302"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			items := []config.WidgetItem{
-				{ID: "1", Type: "model", Merge: tt.merge},
-				{ID: "2", Type: "version", Prefix: "v"},
+				{Type: "model", Merge: tt.merge},
+				{Type: "version", Prefix: new("v")},
 			}
 			assert.Equal(t, tt.want, RenderLine(items, &settings, ctx))
 		})
@@ -129,14 +127,14 @@ func TestRenderLineMerge(t *testing.T) {
 
 	t.Run("merge before a flex separator does not matter", func(t *testing.T) {
 		items := []config.WidgetItem{
-			{ID: "1", Type: "model", Merge: true},
-			{ID: "2", Type: "flex-separator"},
-			{ID: "3", Type: "version"},
+			{Type: "model", Merge: true},
+			{Type: "flex-separator"},
+			{Type: "version"},
 		}
 		flexCtx := ctx
 		flexCtx.TerminalWidth = 20
 		s := settings
-		s.FlexMode = "none"
+		s.FlexMode = config.FlexExact
 		assert.Equal(t, "Opus         2.1.302", RenderLine(items, &s, flexCtx))
 	})
 }

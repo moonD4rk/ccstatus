@@ -26,7 +26,7 @@ func TestRenderLine(t *testing.T) {
 		{
 			name: "single model widget",
 			items: []config.WidgetItem{
-				{ID: "1", Type: "model", Color: "cyan"},
+				{Type: "model", Color: "cyan"},
 			},
 			settings: config.Settings{ColorLevel: 2, DefaultPadding: " "},
 			data: &status.Session{
@@ -41,9 +41,9 @@ func TestRenderLine(t *testing.T) {
 		{
 			name: "model and separator and version",
 			items: []config.WidgetItem{
-				{ID: "1", Type: "model", Color: "cyan"},
-				{ID: "2", Type: "separator"},
-				{ID: "3", Type: "version", Color: "brightBlack"},
+				{Type: "model", Color: "cyan"},
+				{Type: "separator"},
+				{Type: "version", Color: "brightBlack"},
 			},
 			settings: config.Settings{ColorLevel: 2, DefaultSeparator: "|", DefaultPadding: " "},
 			data: &status.Session{
@@ -59,11 +59,11 @@ func TestRenderLine(t *testing.T) {
 		{
 			name: "empty widgets are skipped with separators cleaned",
 			items: []config.WidgetItem{
-				{ID: "1", Type: "model", Color: "cyan"},
-				{ID: "2", Type: "separator"},
-				{ID: "3", Type: "version"},
-				{ID: "4", Type: "separator"},
-				{ID: "5", Type: "custom-text", CustomText: "hello"},
+				{Type: "model", Color: "cyan"},
+				{Type: "separator"},
+				{Type: "version"},
+				{Type: "separator"},
+				{Type: "custom-text", CustomText: "hello"},
 			},
 			settings: config.Settings{ColorLevel: 2, DefaultSeparator: "|", DefaultPadding: " "},
 			data: &status.Session{
@@ -78,9 +78,9 @@ func TestRenderLine(t *testing.T) {
 		{
 			name: "all empty produces empty string",
 			items: []config.WidgetItem{
-				{ID: "1", Type: "version"},
-				{ID: "2", Type: "separator"},
-				{ID: "3", Type: "version"},
+				{Type: "version"},
+				{Type: "separator"},
+				{Type: "version"},
 			},
 			settings: config.Settings{ColorLevel: 2, DefaultSeparator: "|", DefaultPadding: " "},
 			data:     &status.Session{},
@@ -92,7 +92,7 @@ func TestRenderLine(t *testing.T) {
 		{
 			name: "color level 0 produces no ANSI codes",
 			items: []config.WidgetItem{
-				{ID: "1", Type: "model", Color: "cyan"},
+				{Type: "model", Color: "cyan"},
 			},
 			settings: config.Settings{ColorLevel: 0, DefaultPadding: " "},
 			data: &status.Session{
@@ -106,9 +106,9 @@ func TestRenderLine(t *testing.T) {
 		{
 			name: "unknown widget type is skipped",
 			items: []config.WidgetItem{
-				{ID: "1", Type: "model", Color: "cyan"},
-				{ID: "2", Type: "separator"},
-				{ID: "3", Type: "nonexistent-widget"},
+				{Type: "model", Color: "cyan"},
+				{Type: "separator"},
+				{Type: "nonexistent-widget"},
 			},
 			settings: config.Settings{ColorLevel: 2, DefaultSeparator: "|", DefaultPadding: " "},
 			data: &status.Session{
@@ -123,7 +123,7 @@ func TestRenderLine(t *testing.T) {
 		{
 			name: "truncation when terminal width is small",
 			items: []config.WidgetItem{
-				{ID: "1", Type: "custom-text", CustomText: "This is a very long status line text"},
+				{Type: "custom-text", CustomText: "This is a very long status line text"},
 			},
 			settings:      config.Settings{ColorLevel: 0, DefaultPadding: " "},
 			data:          &status.Session{},
@@ -137,9 +137,9 @@ func TestRenderLine(t *testing.T) {
 		{
 			name: "token widgets render formatted values with default prefix",
 			items: []config.WidgetItem{
-				{ID: "1", Type: "tokens-input"},
-				{ID: "2", Type: "separator"},
-				{ID: "3", Type: "context-percentage"},
+				{Type: "tokens-input"},
+				{Type: "separator"},
+				{Type: "context-percentage"},
 			},
 			settings: config.Settings{ColorLevel: 0, DefaultSeparator: "|", DefaultPadding: " "},
 			data: &status.Session{
@@ -156,7 +156,7 @@ func TestRenderLine(t *testing.T) {
 		{
 			name: "default prefix applied automatically",
 			items: []config.WidgetItem{
-				{ID: "1", Type: "context-percentage"},
+				{Type: "context-percentage"},
 			},
 			settings: config.Settings{ColorLevel: 0, DefaultPadding: " "},
 			data: &status.Session{
@@ -172,7 +172,7 @@ func TestRenderLine(t *testing.T) {
 		{
 			name: "widget with suffix and default prefix",
 			items: []config.WidgetItem{
-				{ID: "1", Type: "tokens-input", Suffix: " tok"},
+				{Type: "tokens-input", Suffix: " tok"},
 			},
 			settings: config.Settings{ColorLevel: 0, DefaultPadding: " "},
 			data: &status.Session{
@@ -186,9 +186,27 @@ func TestRenderLine(t *testing.T) {
 			},
 		},
 		{
+			name: "an empty prefix removes the default prefix",
+			items: []config.WidgetItem{
+				{Type: "context-percentage", Prefix: new("")},
+				{Type: "tokens-input", Prefix: new(""), Suffix: " in"},
+			},
+			settings: config.Settings{ColorLevel: 0, DefaultPadding: " "},
+			data: &status.Session{
+				ContextWindow: &status.ContextWindow{
+					UsedPercentage:   func() *float64 { v := 25.0; return &v }(),
+					TotalInputTokens: intPtr(50_000),
+				},
+			},
+			check: func(t *testing.T, result string) {
+				t.Helper()
+				assert.Equal(t, "25% 50.0k in", result)
+			},
+		},
+		{
 			name: "user prefix overrides default prefix",
 			items: []config.WidgetItem{
-				{ID: "1", Type: "tokens-input", Prefix: "Input: ", Suffix: " tokens"},
+				{Type: "tokens-input", Prefix: new("Input: "), Suffix: " tokens"},
 			},
 			settings: config.Settings{ColorLevel: 0, DefaultPadding: " "},
 			data: &status.Session{
@@ -204,7 +222,7 @@ func TestRenderLine(t *testing.T) {
 		{
 			name: "empty widget does not show prefix or suffix",
 			items: []config.WidgetItem{
-				{ID: "1", Type: "version", Prefix: "V: ", Suffix: "!"},
+				{Type: "version", Prefix: new("V: "), Suffix: "!"},
 			},
 			settings: config.Settings{ColorLevel: 0, DefaultPadding: " "},
 			data:     &status.Session{},
@@ -216,9 +234,9 @@ func TestRenderLine(t *testing.T) {
 		{
 			name: "flex separator expands to fill width",
 			items: []config.WidgetItem{
-				{ID: "1", Type: "custom-text", CustomText: "L"},
-				{ID: "2", Type: "flex-separator"},
-				{ID: "3", Type: "custom-text", CustomText: "R"},
+				{Type: "custom-text", CustomText: "L"},
+				{Type: "flex-separator"},
+				{Type: "custom-text", CustomText: "R"},
 			},
 			settings:      config.Settings{ColorLevel: 0, DefaultPadding: " "},
 			data:          &status.Session{},
@@ -233,9 +251,9 @@ func TestRenderLine(t *testing.T) {
 		{
 			name: "flex separator without terminal width uses single space",
 			items: []config.WidgetItem{
-				{ID: "1", Type: "custom-text", CustomText: "L"},
-				{ID: "2", Type: "flex-separator"},
-				{ID: "3", Type: "custom-text", CustomText: "R"},
+				{Type: "custom-text", CustomText: "L"},
+				{Type: "flex-separator"},
+				{Type: "custom-text", CustomText: "R"},
 			},
 			settings: config.Settings{ColorLevel: 0, DefaultPadding: " "},
 			data:     &status.Session{},
@@ -247,11 +265,11 @@ func TestRenderLine(t *testing.T) {
 		{
 			name: "two flex separators both expand (left/center/right)",
 			items: []config.WidgetItem{
-				{ID: "1", Type: "custom-text", CustomText: "L"},
-				{ID: "2", Type: "flex-separator"},
-				{ID: "3", Type: "custom-text", CustomText: "M"},
-				{ID: "4", Type: "flex-separator"},
-				{ID: "5", Type: "custom-text", CustomText: "R"},
+				{Type: "custom-text", CustomText: "L"},
+				{Type: "flex-separator"},
+				{Type: "custom-text", CustomText: "M"},
+				{Type: "flex-separator"},
+				{Type: "custom-text", CustomText: "R"},
 			},
 			settings:      config.Settings{ColorLevel: 0, DefaultPadding: " "},
 			data:          &status.Session{},
@@ -412,6 +430,7 @@ func TestCalculateFlexWidth(t *testing.T) {
 		{"full-until-compact below threshold", 100, "full-until-compact", 60, 30, 90},
 		{"full-until-compact at threshold", 100, "full-until-compact", 60, 60, 60},
 		{"full-until-compact above threshold", 100, "full-until-compact", 60, 80, 60},
+		{"exact mode leaves no margin", 100, "exact", 60, 95, 100},
 		{"unknown mode returns detected", 100, "unknown", 60, 0, 100},
 		{"empty mode returns detected", 100, "", 60, 0, 100},
 		{"clamps to minimum when padding exceeds width", 30, "full-minus-40", 60, 0, minFlexWidth},

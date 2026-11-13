@@ -88,15 +88,16 @@ func PostProcess(line string) string {
 // CalculateFlexWidth resolves the available terminal width based on flex mode.
 // The result is clamped to a positive minimum: a non-positive width would make
 // RenderLine skip truncation entirely (its guard is width > 0), letting the line
-// overflow — strictly worse than a narrow-but-bounded width.
+// overflow — strictly worse than a narrow-but-bounded width. config.FlexExact,
+// like a mode it does not know, leaves the width as detected.
 func CalculateFlexWidth(detected int, flexMode string, compactThreshold int, contextPct float64) int {
 	var width int
 	switch flexMode {
-	case "full":
+	case config.FlexFull:
 		width = detected - flexFullPadding
-	case "full-minus-40":
+	case config.FlexFullMinus40:
 		width = detected - flexCompactPadding
-	case "full-until-compact":
+	case config.FlexFullUntilCompact:
 		if contextPct >= float64(compactThreshold) {
 			width = detected - flexCompactPadding
 		} else {
@@ -178,7 +179,7 @@ func joinWithFlex(colored []string, segments []segment, settings *config.Setting
 func joinPadded(colored []string, segments []segment, padding string) string {
 	var b strings.Builder
 	for i, c := range colored {
-		if i > 0 && !segments[i-1].item.IsMerged() {
+		if i > 0 && !segments[i-1].item.Merge {
 			b.WriteString(padding)
 		}
 		b.WriteString(c)
@@ -201,9 +202,9 @@ func renderWidgets(items []config.WidgetItem, ctx widget.RenderContext, settings
 		}
 		if seg.text != "" {
 			seg.text = truncateWidget(seg.text, items[i].MaxWidth)
-			prefix := items[i].Prefix
-			if prefix == "" {
-				prefix = widget.DefaultPrefix(w)
+			prefix := widget.DefaultPrefix(w)
+			if items[i].Prefix != nil {
+				prefix = *items[i].Prefix
 			}
 			seg.text = prefix + seg.text + items[i].Suffix
 			if v, ok := w.(widget.Valuer); ok && len(items[i].Thresholds) > 0 {

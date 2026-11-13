@@ -257,7 +257,7 @@ func (w *TaskTokensWidget) DefaultColor() string { return defaultDimColor }
 func (w *TaskTokensWidget) Description() string { return "Subagent running token count" }
 
 // TaskContextWidget displays a subagent's context usage, tokenCount over its
-// model's context window, e.g. "23%" or a bar with metadata.display "bar".
+// model's context window, e.g. "23%" or a bar with display "bar".
 type TaskContextWidget struct{}
 
 func (w *TaskContextWidget) taskScope() {}
@@ -280,7 +280,7 @@ func (w *TaskContextWidget) Value(_ *config.WidgetItem, ctx RenderContext) (floa
 	return min(float64(t.TokenCount)/float64(*t.ContextWindowSize)*100, 100), true
 }
 
-func (w *TaskContextWidget) displayModes() []string { return []string{"percent", "bar"} }
+func (w *TaskContextWidget) displayModes() []string { return []string{"percent", BarDisplay} }
 
 // DefaultColor returns the default foreground color.
 func (w *TaskContextWidget) DefaultColor() string { return defaultDimColor }

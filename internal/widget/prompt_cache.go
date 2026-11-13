@@ -10,7 +10,7 @@ import (
 )
 
 // PromptCacheWidget displays the main conversation's prompt cache state.
-// Display modes via metadata["display"]:
+// Display modes:
 //   - "status" (default): "warm 42m" (time until the cache goes cold) or "cold"
 //   - "ttl": just the countdown, or "cold"
 //   - "hit": session hit ratio, e.g. "91%"

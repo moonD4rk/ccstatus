@@ -9,8 +9,7 @@ import (
 )
 
 // AddedDirsWidget displays directories added via /add-dir or --add-dir.
-// Default: "+N" (the count). With metadata["display"]="list", shows the joined
-// basenames. Renders empty when no directories have been added.
+// Default: "+N" (the count). With display "list", shows the joined basenames. Renders empty when no directories have been added.
 type AddedDirsWidget struct{}
 
 // Render returns the added-directories display, or empty if none.
@@ -19,7 +18,7 @@ func (w *AddedDirsWidget) Render(item *config.WidgetItem, ctx RenderContext, _ *
 		return ""
 	}
 	dirs := ctx.Data.Workspace.AddedDirs
-	if item.Metadata != nil && item.Metadata["display"] == "list" {
+	if displayMode(item, "count") == "list" {
 		names := make([]string, len(dirs))
 		for i, d := range dirs {
 			names[i] = filepath.Base(d)

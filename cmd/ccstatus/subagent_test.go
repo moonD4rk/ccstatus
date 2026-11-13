@@ -42,10 +42,10 @@ func writeSubagentConfig(t *testing.T) {
 	s, err := config.Load()
 	require.NoError(t, err)
 	s.SubagentLine = []config.WidgetItem{
-		{ID: "s1", Type: "task-name"},
-		{ID: "s2", Type: "task-status"},
-		{ID: "s3", Type: "separator"},
-		{ID: "s4", Type: "task-context"},
+		{Type: "task-name"},
+		{Type: "task-status"},
+		{Type: "separator"},
+		{Type: "task-context"},
 	}
 	require.NoError(t, config.Save(&s))
 }
@@ -244,21 +244,21 @@ func TestDumpAppend(t *testing.T) {
 func TestValidateWidgetScopes(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	s := config.DefaultSettings()
-	s.Lines = [][]config.WidgetItem{{{ID: "1", Type: "model"}, {ID: "2", Type: "task-name"}}}
+	s.Lines = [][]config.WidgetItem{{{Type: "model"}, {Type: "task-name"}}}
 	s.SubagentLine = []config.WidgetItem{
-		{ID: "s1", Type: "task-name"},
-		{ID: "s2", Type: "separator"},
-		{ID: "s3", Type: "git-branch"},
-		{ID: "1", Type: "custom-text", CustomText: "dup"},
+		{Type: "task-name"},
+		{Type: "separator"},
+		{Type: "git-branch"},
+		{Type: "custom-text", CustomText: "shared"},
 	}
 	require.NoError(t, config.Save(&s))
 
 	_, errOut, err := execValidate(t)
 	require.Error(t, err)
-	assert.Contains(t, errOut, "line 1 widget 2: task-name only works in subagentLine")
-	assert.Contains(t, errOut, "subagentLine widget 3: git-branch only works on the main status line")
-	assert.Contains(t, errOut, `subagentLine widget 4: duplicate id "1"`)
-	assert.NotContains(t, errOut, "subagentLine widget 2")
+	assert.Equal(t, []string{
+		"line 1 widget 2: task-name only works in subagentLine",
+		"subagentLine widget 3: git-branch only works on the main status line",
+	}, problemLines(errOut))
 }
 
 func TestInstallSubagentFlagAndUninstallReport(t *testing.T) {

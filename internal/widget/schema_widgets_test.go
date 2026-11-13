@@ -12,7 +12,7 @@ import (
 )
 
 func displayItem(mode string) config.WidgetItem {
-	return config.WidgetItem{Metadata: map[string]string{"display": mode}}
+	return config.WidgetItem{Display: mode}
 }
 
 func TestPromptCacheWidget(t *testing.T) {
@@ -47,7 +47,7 @@ func TestPromptCacheWidget(t *testing.T) {
 		{"ttl", warm, displayItem("ttl"), "42m"},
 		{"ttl cold", cold, displayItem("ttl"), "cold"},
 		{"hit", warm, displayItem("hit"), "91%"},
-		{"hit raw", warm, config.WidgetItem{RawValue: true, Metadata: map[string]string{"display": "hit"}}, "91.0"},
+		{"hit raw", warm, config.WidgetItem{RawValue: true, Display: "hit"}, "91.0"},
 		{"hit absent", cold, displayItem("hit"), ""},
 		{"misses with cause", warm, displayItem("misses"), "2 misses (tools_changed)"},
 		{"no misses", cold, displayItem("misses"), "0 misses"},
@@ -111,9 +111,9 @@ func TestSpendLimitWidget(t *testing.T) {
 		{"amount", full, config.WidgetItem{}, "$314.12 / $500.00"},
 		{"amount falls back to percent", pctOnly, config.WidgetItem{}, "104%"},
 		{"percent is not clamped", pctOnly, displayItem("percent"), "104%"},
-		{"percent raw", full, config.WidgetItem{RawValue: true, Metadata: map[string]string{"display": "percent"}}, "62.8"},
-		{"bar", full, config.WidgetItem{Metadata: map[string]string{"display": "bar", "barWidth": "10"}}, "▓▓▓▓▓▓░░░░ 63%"},
-		{"bar over the limit stays full width", pctOnly, config.WidgetItem{Metadata: map[string]string{"display": "bar", "barWidth": "4"}}, "▓▓▓▓ 104%"},
+		{"percent raw", full, config.WidgetItem{RawValue: true, Display: "percent"}, "62.8"},
+		{"bar", full, config.WidgetItem{Display: "bar", BarWidth: 10}, "▓▓▓▓▓▓░░░░ 63%"},
+		{"bar over the limit stays full width", pctOnly, config.WidgetItem{Display: "bar", BarWidth: 4}, "▓▓▓▓ 104%"},
 		{"reset", full, displayItem("reset"), "12d4h"},
 		{"full", full, displayItem("full"), "$314.12 / $500.00 monthly, resets 12d4h"},
 		{"full with percent only", pctOnly, displayItem("full"), "104%"},
@@ -190,7 +190,7 @@ func TestPercentageBars(t *testing.T) {
 	ctx := RenderContext{Data: &status.Session{ContextWindow: &status.ContextWindow{
 		UsedPercentage: floatPtr(32), RemainingPercentage: floatPtr(68),
 	}}}
-	bar := config.WidgetItem{Metadata: map[string]string{"display": "bar"}}
+	bar := config.WidgetItem{Display: "bar"}
 	assert.Equal(t, "▓▓▓░░░░░░░ 32%", Get("context-percentage").Render(&bar, ctx, &settings))
 	assert.Equal(t, "▓▓▓▓▓▓▓░░░ 68%", Get("remaining-percentage").Render(&bar, ctx, &settings))
 
