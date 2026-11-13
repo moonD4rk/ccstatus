@@ -3,13 +3,15 @@ package terminal
 
 import (
 	"context"
+	"io"
 	"os"
-	"os/exec"
 	"strconv"
 	"strings"
 	"time"
 
 	"golang.org/x/term"
+
+	"github.com/moond4rk/ccstatus/internal/proc"
 )
 
 const (
@@ -54,6 +56,13 @@ func Width(override int) int {
 		return w
 	}
 	return defaultWidth
+}
+
+// IsTerminal reports whether r is a terminal, where a read would wait for the
+// user to type rather than receive piped data.
+func IsTerminal(r io.Reader) bool {
+	f, ok := r.(*os.File)
+	return ok && term.IsTerminal(int(f.Fd())) //nolint:gosec // fd values are small, no overflow risk
 }
 
 // widthFromColumns parses the COLUMNS environment variable, returning 0 when it
@@ -108,7 +117,7 @@ func widthFromAncestorTTY() int {
 func ppidAndTTY(pid int) (ppid int, tty string) {
 	ctx, cancel := context.WithTimeout(context.Background(), psTimeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "ps", "-o", "ppid=,tty=", "-p", strconv.Itoa(pid)) //nolint:gosec // sanitized pid, not user input
+	cmd := proc.Command(ctx, "ps", "-o", "ppid=,tty=", "-p", strconv.Itoa(pid))
 	out, err := cmd.Output()
 	if err != nil {
 		return 0, ""

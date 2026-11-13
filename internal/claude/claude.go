@@ -3,6 +3,7 @@ package claude
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -37,9 +38,13 @@ type SubagentStatusLine struct {
 	Command string `json:"command"`
 }
 
-// Dir returns the Claude Code configuration directory.
-// It respects the CLAUDE_CONFIG_DIR environment variable,
-// falling back to ~/.claude.
+// ErrNoConfigDir reports that neither $CLAUDE_CONFIG_DIR nor the home directory
+// is known, so Claude Code's settings.json cannot be located.
+var ErrNoConfigDir = errors.New("cannot locate Claude Code's config directory: set $HOME or $CLAUDE_CONFIG_DIR")
+
+// Dir returns the Claude Code configuration directory, or "" when it cannot be
+// located. It respects the CLAUDE_CONFIG_DIR environment variable, falling back
+// to ~/.claude.
 func Dir() string {
 	if dir := os.Getenv("CLAUDE_CONFIG_DIR"); dir != "" {
 		return dir
@@ -51,9 +56,14 @@ func Dir() string {
 	return filepath.Join(home, ".claude")
 }
 
-// SettingsPath returns the full path to Claude Code's settings.json.
+// SettingsPath returns the full path to Claude Code's settings.json, or "" when
+// its directory cannot be located.
 func SettingsPath() string {
-	return filepath.Join(Dir(), settingsFileName)
+	dir := Dir()
+	if dir == "" {
+		return ""
+	}
+	return filepath.Join(dir, settingsFileName)
 }
 
 // InstallOptions configures the blocks written by Install. A nil field leaves
@@ -74,6 +84,9 @@ type InstallOptions struct {
 // file is created if it does not exist. Returns the path to the written file.
 func Install(opts InstallOptions) (string, error) {
 	path := SettingsPath()
+	if path == "" {
+		return "", ErrNoConfigDir
+	}
 	doc, err := readDocument(path)
 	if err != nil {
 		return "", err
@@ -162,6 +175,9 @@ type UninstallResult struct {
 // exist or nothing runs ccstatus.
 func Uninstall() (UninstallResult, error) {
 	res := UninstallResult{Path: SettingsPath()}
+	if res.Path == "" {
+		return res, ErrNoConfigDir
+	}
 	if _, err := os.Stat(res.Path); os.IsNotExist(err) {
 		return res, nil
 	}

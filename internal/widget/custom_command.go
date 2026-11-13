@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"os/exec"
 	"strings"
 	"time"
 
 	"github.com/moond4rk/ccstatus/internal/color"
 	"github.com/moond4rk/ccstatus/internal/config"
+	"github.com/moond4rk/ccstatus/internal/proc"
 )
 
 const defaultCommandTimeout = 3 * time.Second
@@ -18,7 +20,8 @@ const defaultCommandTimeout = 3 * time.Second
 type CustomCommandWidget struct{ noAffix }
 
 // Render executes the configured command and returns its first line of stdout.
-// The command receives the full JSON session data via stdin.
+// The command receives the full JSON session data via stdin. Everything the
+// command started is killed when the timeout expires.
 func (w *CustomCommandWidget) Render(item *config.WidgetItem, ctx RenderContext, _ *config.Settings) string {
 	cmdPath := item.CommandPath
 	if cmdPath == "" {
@@ -33,7 +36,7 @@ func (w *CustomCommandWidget) Render(item *config.WidgetItem, ctx RenderContext,
 	cmdCtx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	cmd := exec.CommandContext(cmdCtx, "sh", "-c", cmdPath)
+	cmd := proc.Command(cmdCtx, "sh", "-c", cmdPath)
 
 	// Forward the exact stdin Claude Code sent so the command sees the full
 	// official schema, including fields ccstatus does not model yet. Only when
@@ -48,7 +51,9 @@ func (w *CustomCommandWidget) Render(item *config.WidgetItem, ctx RenderContext,
 	}
 
 	out, err := cmd.Output()
-	if err != nil {
+	// A background job that keeps stdout open is not a failure: show what the
+	// command itself printed.
+	if err != nil && !errors.Is(err, exec.ErrWaitDelay) {
 		return ""
 	}
 
