@@ -7,7 +7,7 @@ import (
 )
 
 // TranscriptPathWidget displays the transcript file path.
-type TranscriptPathWidget struct{ noAffix }
+type TranscriptPathWidget struct{}
 
 // Render returns the transcript path.
 // RawValue mode returns the full path with ~ substitution; normal mode returns the base name.
@@ -23,9 +23,6 @@ func (w *TranscriptPathWidget) Render(item *config.WidgetItem, ctx RenderContext
 
 // DefaultColor returns the default foreground color.
 func (w *TranscriptPathWidget) DefaultColor() string { return defaultDimColor }
-
-// DisplayName returns the human-readable name.
-func (w *TranscriptPathWidget) DisplayName() string { return "Transcript Path" }
 
 // Description returns what this widget shows.
 func (w *TranscriptPathWidget) Description() string { return "Transcript file path" }

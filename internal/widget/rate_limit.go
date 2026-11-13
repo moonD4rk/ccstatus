@@ -2,19 +2,11 @@ package widget
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/moond4rk/ccstatus/internal/config"
 	"github.com/moond4rk/ccstatus/internal/status"
-)
-
-const (
-	defaultBarWidth = 10
-	// maxBarWidth caps metadata.barWidth: a bar wider than any terminal only
-	// costs memory.
-	maxBarWidth = 100
 )
 
 // rateLimitExtractor returns the rate-limit window a widget displays, or nil.
@@ -31,7 +23,6 @@ type rateLimitExtractor func(data *status.Session) *status.RateLimitWindow
 // or before the first API response).
 type RateLimitWidget struct {
 	extract       rateLimitExtractor
-	displayName   string
 	description   string
 	defaultPrefix string
 }
@@ -50,10 +41,10 @@ func (w *RateLimitWidget) Render(item *config.WidgetItem, ctx RenderContext, _ *
 	case "bar":
 		return rateLimitBar(window, barWidthFor(item))
 	case "reset":
-		return rateLimitTimeToReset(window)
+		return rateLimitTimeToReset(window, ctx.now())
 	case "full":
 		pct := rateLimitPercent(window, item.RawValue)
-		rst := rateLimitTimeToReset(window)
+		rst := rateLimitTimeToReset(window, ctx.now())
 		switch {
 		case pct == "":
 			return rst
@@ -86,47 +77,11 @@ func rateLimitBar(window *status.RateLimitWindow, width int) string {
 	return formatBlockBar(pct, width) + fmt.Sprintf(" %.0f%%", pct)
 }
 
-// clampPercent bounds a subscription window's usage to 0-100; Claude Code has
-// briefly reported values above 100.
-func clampPercent(pct float64) float64 {
-	return min(max(pct, 0), 100)
-}
-
-// formatBlockBar renders a fixed-width bar like "▓▓▓░░░░░░░" for the given percentage.
-func formatBlockBar(pct float64, width int) string {
-	if width <= 0 {
-		width = defaultBarWidth
-	}
-	filled := int(pct*float64(width)/100 + 0.5)
-	if filled < 0 {
-		filled = 0
-	}
-	if filled > width {
-		filled = width
-	}
-	return strings.Repeat("▓", filled) + strings.Repeat("░", width-filled)
-}
-
-func barWidthFor(item *config.WidgetItem) int {
-	if item.Metadata == nil {
-		return defaultBarWidth
-	}
-	if v, ok := item.Metadata["barWidth"]; ok {
-		if n, err := strconv.Atoi(v); err == nil && n > 0 {
-			return min(n, maxBarWidth)
-		}
-	}
-	return defaultBarWidth
-}
-
-func rateLimitTimeToReset(window *status.RateLimitWindow) string {
+func rateLimitTimeToReset(window *status.RateLimitWindow, now time.Time) string {
 	if window.ResetsAt == nil {
 		return ""
 	}
-	remaining := time.Until(time.Unix(*window.ResetsAt, 0))
-	if remaining < 0 {
-		remaining = 0
-	}
+	remaining := max(time.Unix(*window.ResetsAt, 0).Sub(now), 0)
 	return formatDuration(float64(remaining.Milliseconds()))
 }
 
@@ -149,9 +104,6 @@ func (w *RateLimitWidget) displayModes() []string { return []string{"percent", "
 // DefaultColor returns the default foreground color.
 func (w *RateLimitWidget) DefaultColor() string { return "yellow" }
 
-// DisplayName returns the human-readable name.
-func (w *RateLimitWidget) DisplayName() string { return w.displayName }
-
 // Description returns what this widget shows.
 func (w *RateLimitWidget) Description() string { return w.description }
 
@@ -160,9 +112,6 @@ func (w *RateLimitWidget) SupportsRawValue() bool { return true }
 
 // DefaultPrefix returns the default prefix for this widget.
 func (w *RateLimitWidget) DefaultPrefix() string { return w.defaultPrefix }
-
-// DefaultSuffix returns the default suffix for this widget.
-func (w *RateLimitWidget) DefaultSuffix() string { return "" }
 
 // RateLimitsWidget displays the Claude.ai rate-limit windows and the gateway
 // spend limit compactly, e.g. "5h: 3% / 7d: 12%" or "spend: $314.12/$500.00".
@@ -238,19 +187,10 @@ func (w *RateLimitWidget) Value(_ *config.WidgetItem, ctx RenderContext) (float6
 // DefaultColor returns the default foreground color.
 func (w *RateLimitsWidget) DefaultColor() string { return "yellow" }
 
-// DisplayName returns the human-readable name.
-func (w *RateLimitsWidget) DisplayName() string { return "Rate Limits" }
-
 // Description returns what this widget shows.
 func (w *RateLimitsWidget) Description() string {
 	return "Combined 5h/7d rate-limit usage and gateway spend limit"
 }
 
-// SupportsRawValue returns false since this widget has no compact mode.
-func (w *RateLimitsWidget) SupportsRawValue() bool { return false }
-
 // DefaultPrefix returns the default prefix for this widget.
 func (w *RateLimitsWidget) DefaultPrefix() string { return "Limit " }
-
-// DefaultSuffix returns the default suffix for this widget.
-func (w *RateLimitsWidget) DefaultSuffix() string { return "" }

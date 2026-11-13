@@ -52,7 +52,7 @@ func writeSubagentRows(stdout, stderr io.Writer, data []byte, readErr error) {
 		fmt.Fprintf(stderr, "ccstatus: reading stdin: %v\n", readErr)
 		return
 	}
-	rows, err := subagentRows(data, 0, stderr)
+	rows, err := subagentRows(data, renderOptions{}, stderr)
 	if err != nil {
 		fmt.Fprintf(stderr, "ccstatus: %v\n", err)
 		return
@@ -76,10 +76,10 @@ type subagentRow struct {
 }
 
 // subagentRows renders settings.subagentLine for every task in the payload, at
-// width columns or, when width is 0, the payload's "columns". Tasks whose status
-// is in settings.subagentHideStatuses get an empty row; tasks whose row renders
-// empty are left out.
-func subagentRows(data []byte, width int, stderr io.Writer) ([]subagentRow, error) {
+// opts.width columns or, when that is 0, the payload's "columns". Tasks whose
+// status is in settings.subagentHideStatuses get an empty row; tasks whose row
+// renders empty are left out.
+func subagentRows(data []byte, opts renderOptions, stderr io.Writer) ([]subagentRow, error) {
 	settings, err := config.Load()
 	if err != nil {
 		return nil, fmt.Errorf("settings.json: %w", err)
@@ -91,12 +91,14 @@ func subagentRows(data []byte, width int, stderr io.Writer) ([]subagentRow, erro
 	if len(dropped) > 0 {
 		fmt.Fprintf(stderr, "ccstatus: ignored fields with unexpected types: %s\n", strings.Join(dropped, ", "))
 	}
+	width := opts.width
 	if width <= 0 {
 		width = payload.Columns
 	}
 	if width <= 0 {
 		width = terminal.Width(settings.TerminalWidth)
 	}
+	now := opts.renderTime()
 	rows := make([]subagentRow, 0, len(payload.Tasks))
 	for i := range payload.Tasks {
 		task := &payload.Tasks[i]
@@ -107,7 +109,8 @@ func subagentRows(data []byte, width int, stderr io.Writer) ([]subagentRow, erro
 			rows = append(rows, subagentRow{ID: task.ID})
 			continue
 		}
-		content := render.PostProcess(render.RenderRow(settings.SubagentLine, &settings, widget.RenderContext{Task: task}, width))
+		ctx := widget.RenderContext{Task: task, Now: now}
+		content := render.PostProcess(render.RenderRow(settings.SubagentLine, &settings, ctx, width))
 		if content != "" {
 			rows = append(rows, subagentRow{ID: task.ID, Content: content})
 		}

@@ -9,7 +9,7 @@ import (
 // SessionLinesWidget displays the lines Claude added and removed this session
 // (cost.total_lines_added / total_lines_removed). The lines-* widgets show the
 // uncommitted git diff instead.
-type SessionLinesWidget struct{ noAffix }
+type SessionLinesWidget struct{}
 
 // Render returns "+N/-M", or empty when Claude has changed no lines.
 func (w *SessionLinesWidget) Render(_ *config.WidgetItem, ctx RenderContext, _ *config.Settings) string {
@@ -32,13 +32,7 @@ func (w *SessionLinesWidget) Render(_ *config.WidgetItem, ctx RenderContext, _ *
 // DefaultColor returns the default foreground color.
 func (w *SessionLinesWidget) DefaultColor() string { return defaultGreenColor }
 
-// DisplayName returns the human-readable name.
-func (w *SessionLinesWidget) DisplayName() string { return "Session Lines" }
-
 // Description returns what this widget shows.
 func (w *SessionLinesWidget) Description() string {
 	return "Lines Claude added and removed this session"
 }
-
-// SupportsRawValue returns false since this widget has no compact mode.
-func (w *SessionLinesWidget) SupportsRawValue() bool { return false }

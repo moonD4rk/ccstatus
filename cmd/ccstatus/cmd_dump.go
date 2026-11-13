@@ -69,7 +69,7 @@ func runDump(cmd *cobra.Command, _ []string) error {
 		writeSubagentRows(cmd.OutOrStdout(), stderr, data, err)
 		return nil
 	}
-	renderStatusLine(cmd.OutOrStdout(), stderr, data, err, 0)
+	renderStatusLine(cmd.OutOrStdout(), stderr, data, err, renderOptions{})
 	return nil
 }
 

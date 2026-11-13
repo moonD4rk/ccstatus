@@ -31,6 +31,10 @@ func runPreview(cmd *cobra.Command, _ []string) error {
 	width, _ := cmd.Flags().GetInt("width")
 	subagent, _ := cmd.Flags().GetBool("subagent")
 
+	// One instant, in the whole seconds the payload counts in, for both the
+	// sample's timestamps and the render, so the countdowns read the same on
+	// every run.
+	opts := renderOptions{width: width, now: time.Now().Truncate(time.Second)}
 	var data []byte
 	switch {
 	case input != "":
@@ -40,16 +44,16 @@ func runPreview(cmd *cobra.Command, _ []string) error {
 			return err
 		}
 	case subagent:
-		data = sample.Subagent(time.Now())
+		data = sample.Subagent(opts.now)
 	default:
-		data = sample.StatusLine(time.Now())
+		data = sample.StatusLine(opts.now)
 	}
 
 	if !subagent {
-		renderStatusLine(cmd.OutOrStdout(), cmd.ErrOrStderr(), data, nil, width)
+		renderStatusLine(cmd.OutOrStdout(), cmd.ErrOrStderr(), data, nil, opts)
 		return nil
 	}
-	rows, err := subagentRows(data, width, cmd.ErrOrStderr())
+	rows, err := subagentRows(data, opts, cmd.ErrOrStderr())
 	if err != nil {
 		return err
 	}

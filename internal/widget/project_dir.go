@@ -7,7 +7,7 @@ import (
 )
 
 // ProjectDirWidget displays the project root directory.
-type ProjectDirWidget struct{ noAffix }
+type ProjectDirWidget struct{}
 
 // Render returns the project directory from the workspace field.
 // RawValue mode returns the full path with ~ substitution; normal mode returns the base name.
@@ -24,9 +24,6 @@ func (w *ProjectDirWidget) Render(item *config.WidgetItem, ctx RenderContext, _ 
 
 // DefaultColor returns the default foreground color.
 func (w *ProjectDirWidget) DefaultColor() string { return "blue" }
-
-// DisplayName returns the human-readable name.
-func (w *ProjectDirWidget) DisplayName() string { return "Project Directory" }
 
 // Description returns what this widget shows.
 func (w *ProjectDirWidget) Description() string { return "Project root directory" }

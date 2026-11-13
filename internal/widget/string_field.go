@@ -12,10 +12,8 @@ type stringFieldExtractor func(data *status.Session) string
 type stringFieldWidget struct {
 	extract       stringFieldExtractor
 	defaultColor  string
-	displayName   string
 	description   string
 	defaultPrefix string
-	defaultSuffix string
 }
 
 // Render returns the extracted string value, or empty if unavailable.
@@ -29,17 +27,8 @@ func (w *stringFieldWidget) Render(_ *config.WidgetItem, ctx RenderContext, _ *c
 // DefaultColor returns the default foreground color.
 func (w *stringFieldWidget) DefaultColor() string { return w.defaultColor }
 
-// DisplayName returns the human-readable name.
-func (w *stringFieldWidget) DisplayName() string { return w.displayName }
-
 // Description returns what this widget shows.
 func (w *stringFieldWidget) Description() string { return w.description }
 
-// SupportsRawValue returns false since string field widgets have no compact mode.
-func (w *stringFieldWidget) SupportsRawValue() bool { return false }
-
 // DefaultPrefix returns the default prefix for this widget.
 func (w *stringFieldWidget) DefaultPrefix() string { return w.defaultPrefix }
-
-// DefaultSuffix returns the default suffix for this widget.
-func (w *stringFieldWidget) DefaultSuffix() string { return w.defaultSuffix }
