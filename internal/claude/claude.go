@@ -13,8 +13,9 @@ const (
 	settingsFileName      = "settings.json"
 	statusLineKey         = "statusLine"
 	subagentStatusLineKey = "subagentStatusLine"
-	statusLineCommand     = "ccstatus"
-	subagentCommand       = "ccstatus subagent"
+	// Command is the name Claude Code runs ccstatus by, resolved through PATH.
+	Command          = "ccstatus"
+	subagentArgument = "subagent"
 
 	// DefaultRefreshInterval is the refreshInterval a fresh install writes, so
 	// time-based widgets such as session-clock keep moving while Claude Code is
@@ -76,41 +77,63 @@ type InstallOptions struct {
 	Subagent        *bool // true writes subagentStatusLine; false removes ccstatus's
 }
 
+// InstallResult reports what Install wrote.
+type InstallResult struct {
+	Path    string // the settings.json written
+	Command string // the statusLine command: Command, or the absolute path that was kept
+}
+
 // Install registers ccstatus as the statusLine command in Claude Code's
 // settings.json, and as the subagentStatusLine command when opts.Subagent is
-// true. Every other key keeps its position and value. A fresh install, where no
-// statusLine ran ccstatus before, also sets refreshInterval to
-// DefaultRefreshInterval unless one is already set or opts overrides it. The
-// file is created if it does not exist. Returns the path to the written file.
-func Install(opts InstallOptions) (string, error) {
-	path := SettingsPath()
-	if path == "" {
-		return "", ErrNoConfigDir
+// true. Every other key keeps its position and value. The command is the bare
+// name, which Claude Code resolves through PATH, unless the block already runs
+// ccstatus by absolute path: that path is kept, without its arguments. A fresh
+// install, where no statusLine ran ccstatus before, also sets refreshInterval
+// to DefaultRefreshInterval unless one is already set or opts overrides it. The
+// file is created if it does not exist.
+func Install(opts InstallOptions) (InstallResult, error) {
+	res := InstallResult{Path: SettingsPath()}
+	if res.Path == "" {
+		return res, ErrNoConfigDir
 	}
-	doc, err := readDocument(path)
+	doc, err := readDocument(res.Path)
 	if err != nil {
-		return "", err
+		return res, err
 	}
 
 	raw, had := doc.get(statusLineKey)
-	sl := statusLineFor(decodeStatusLine(raw), opts, !had || !runsCCStatus(raw))
+	res.Command = binaryOf(raw)
+	sl := statusLineFor(decodeStatusLine(raw), res.Command, opts, !had || !runsCCStatus(raw))
 	if err := doc.set(statusLineKey, sl); err != nil {
-		return "", err
+		return res, err
 	}
-	if err := applySubagent(doc, opts.Subagent); err != nil {
-		return "", err
+	if err := applySubagent(doc, opts.Subagent, res.Command); err != nil {
+		return res, err
 	}
-	if err := writeDocument(path, doc); err != nil {
-		return "", err
-	}
-	return path, nil
+	return res, writeDocument(res.Path, doc)
 }
 
-// statusLineFor points sl at ccstatus and applies opts; fresh marks a
-// statusLine that did not run ccstatus before.
-func statusLineFor(sl StatusLine, opts InstallOptions, fresh bool) StatusLine {
+// binaryOf returns the way a statusLine-style block names the ccstatus binary
+// when that is an absolute path, so a path set by hand survives a re-install,
+// and the bare command name otherwise.
+func binaryOf(raw json.RawMessage) string {
+	var block struct {
+		Command string `json:"command"`
+	}
+	if json.Unmarshal(raw, &block) == nil {
+		if fields := strings.Fields(block.Command); len(fields) > 0 &&
+			filepath.IsAbs(fields[0]) && filepath.Base(fields[0]) == Command {
+			return fields[0]
+		}
+	}
+	return Command
+}
+
+// statusLineFor points sl at the ccstatus binary and applies opts; fresh marks
+// a statusLine that did not run ccstatus before.
+func statusLineFor(sl StatusLine, binary string, opts InstallOptions, fresh bool) StatusLine {
 	sl.Type = "command"
-	sl.Command = statusLineCommand
+	sl.Command = binary
 	if opts.Padding != nil {
 		sl.Padding = *opts.Padding
 	}
@@ -136,13 +159,18 @@ func statusLineFor(sl StatusLine, opts InstallOptions, fresh bool) StatusLine {
 }
 
 // applySubagent writes the subagentStatusLine block when enable is true and
-// removes ccstatus's block when it is false; nil leaves the key alone.
-func applySubagent(doc *document, enable *bool) error {
+// removes ccstatus's block when it is false; nil leaves the key alone. The
+// block runs the binary it already names by absolute path, else the one the
+// statusLine block runs.
+func applySubagent(doc *document, enable *bool, binary string) error {
 	switch {
 	case enable == nil:
 		return nil
 	case *enable:
-		return doc.set(subagentStatusLineKey, SubagentStatusLine{Type: "command", Command: subagentCommand})
+		if raw, ok := doc.get(subagentStatusLineKey); ok && binaryOf(raw) != Command {
+			binary = binaryOf(raw)
+		}
+		return doc.set(subagentStatusLineKey, SubagentStatusLine{Type: "command", Command: binary + " " + subagentArgument})
 	default:
 		if raw, ok := doc.get(subagentStatusLineKey); ok && runsCCStatus(raw) {
 			doc.remove(subagentStatusLineKey)
@@ -212,5 +240,5 @@ func runsCCStatus(raw json.RawMessage) bool {
 		return false
 	}
 	fields := strings.Fields(block.Command)
-	return len(fields) > 0 && filepath.Base(fields[0]) == statusLineCommand
+	return len(fields) > 0 && filepath.Base(fields[0]) == Command
 }

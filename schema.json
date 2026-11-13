@@ -1,0 +1,1059 @@
+{
+  "$id": "https://raw.githubusercontent.com/moonD4rk/ccstatus/main/schema.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "definitions": {
+    "color": {
+      "anyOf": [
+        {
+          "enum": [
+            "black",
+            "red",
+            "green",
+            "yellow",
+            "blue",
+            "magenta",
+            "cyan",
+            "white",
+            "brightBlack",
+            "brightRed",
+            "brightGreen",
+            "brightYellow",
+            "brightBlue",
+            "brightMagenta",
+            "brightCyan",
+            "brightWhite"
+          ]
+        },
+        {
+          "pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$",
+          "type": "string"
+        },
+        {
+          "pattern": "^(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])$",
+          "type": "string"
+        }
+      ],
+      "description": "A color: one of the 16 ANSI color names, a hex triplet such as \"#ff8700\", or a 256-color palette index \"0\" to \"255\"."
+    },
+    "lineWidget": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/widget"
+        },
+        {
+          "properties": {
+            "type": {
+              "enum": [
+                "added-dirs",
+                "agent-name",
+                "api-duration",
+                "block-timer",
+                "cache-creation",
+                "cache-hit-rate",
+                "context-length",
+                "context-percentage",
+                "context-percentage-usable",
+                "current-usage-input",
+                "current-usage-output",
+                "current-working-dir",
+                "custom-command",
+                "custom-text",
+                "effort",
+                "exceeds-200k",
+                "fast-mode",
+                "flex-separator",
+                "git-branch",
+                "git-changes",
+                "git-worktree",
+                "lines-added",
+                "lines-changed",
+                "lines-removed",
+                "model",
+                "output-style",
+                "pr",
+                "project-dir",
+                "prompt-cache",
+                "rate-limit-5h",
+                "rate-limit-7d",
+                "rate-limits",
+                "remaining-percentage",
+                "repo",
+                "separator",
+                "session-clock",
+                "session-cost",
+                "session-id",
+                "session-lines",
+                "session-name",
+                "spend-limit",
+                "terminal-width",
+                "thinking",
+                "tokens-cached",
+                "tokens-input",
+                "tokens-output",
+                "tokens-total",
+                "transcript-path",
+                "version",
+                "vim-mode"
+              ],
+              "enumDescriptions": [
+                "Directories added via /add-dir. Default color: blue.",
+                "Agent name when using --agent flag. Default color: cyan. Default prefix: \"Agent: \".",
+                "Total API response time. Default color: white. Default prefix: \"API: \".",
+                "Time into the 5-hour rate-limit window. Default color: white. Default prefix: \"Block: \".",
+                "Cache creation input token count. Default color: white. Default prefix: \"CacheW: \".",
+                "Session prompt cache hit ratio (falls back to the last request's cache reads). Default color: cyan. Default prefix: \"Cache: \".",
+                "Context window usage in tokens. Default color: white. Default prefix: \"CtxLen: \".",
+                "Context usage as percentage of max window. Default color: white. Default prefix: \"Ctx: \".",
+                "Context usage as % of the usable window (heuristic: 80% of max, leaving auto-compact headroom). Default color: white. Default prefix: \"Usable: \".",
+                "Current round input token count. Default color: white. Default prefix: \"CurIn: \".",
+                "Current round output token count. Default color: white. Default prefix: \"CurOut: \".",
+                "Current working directory. Default color: blue.",
+                "Output from a shell command. Default color: white.",
+                "User-defined static text. Default color: white.",
+                "Current reasoning effort level. Default color: cyan. Default prefix: \"Effort: \".",
+                "Warning when tokens exceed 200k threshold. Default color: red.",
+                "Shows Fast while fast mode is on. Default color: yellow.",
+                "Expands to fill remaining terminal width.",
+                "Current git branch name. Default color: magenta.",
+                "Uncommitted changes count. Default color: yellow.",
+                "Current git worktree name. Default color: magenta.",
+                "Uncommitted lines added (git diff). Default color: green.",
+                "Uncommitted lines added and removed (git diff). Default color: green.",
+                "Uncommitted lines removed (git diff). Default color: red.",
+                "Current Claude model name. Default color: cyan.",
+                "Current output style name. Default color: white. Default prefix: \"Style: \".",
+                "Open PR (#N) or GitLab merge request (!N) and review state. Default color: cyan.",
+                "Project root directory. Default color: blue.",
+                "Prompt cache warm/cold with time left, hit ratio, or misses. Default color: green. Default prefix: \"Cache: \".",
+                "5-hour rate-limit usage. Default color: yellow. Default prefix: \"5h limit: \".",
+                "7-day rate-limit usage. Default color: yellow. Default prefix: \"7d limit: \".",
+                "Combined 5h/7d rate-limit usage and gateway spend limit. Default color: yellow. Default prefix: \"Limit \".",
+                "Remaining context window percentage. Default color: white. Default prefix: \"Rem: \".",
+                "Repository owner/name from the origin remote, linked to its web page. Default color: blue.",
+                "Visual separator between widgets. Default color: white.",
+                "Session duration. Default color: white. Default prefix: \"Session: \".",
+                "Session cost in USD. Default color: green.",
+                "Claude Code session identifier. Default color: white.",
+                "Lines Claude added and removed this session. Default color: green.",
+                "Session name from --name or /rename, or the AI-generated title. Default color: white.",
+                "Claude apps gateway spend against its limit. Default color: yellow. Default prefix: \"Spend: \".",
+                "Line width in columns: the terminal width minus the flexMode margin. Default color: white.",
+                "Extended thinking indicator. Default color: magenta. Default prefix: \"Think: \".",
+                "Cached token count. Default color: white. Default prefix: \"Cached: \".",
+                "Input tokens currently in context (includes cache reads/writes). Default color: white. Default prefix: \"In: \".",
+                "Output tokens from the most recent API response. Default color: white. Default prefix: \"Out: \".",
+                "Total tokens currently in the context window (input + output). Default color: white. Default prefix: \"Total: \".",
+                "Transcript file path. Default color: white.",
+                "Claude Code version. Default color: white.",
+                "Current vim mode indicator. Default color: yellow. Default prefix: \"Vim: \"."
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "added-dirs"
+                ]
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "barWidth": false,
+              "character": false,
+              "commandPath": false,
+              "customText": false,
+              "display": {
+                "default": "count",
+                "enum": [
+                  "count",
+                  "list"
+                ]
+              },
+              "preserveColors": false,
+              "rawValue": {
+                "const": false
+              },
+              "thresholds": false,
+              "timeout": false
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "agent-name",
+                  "effort",
+                  "exceeds-200k",
+                  "fast-mode",
+                  "flex-separator",
+                  "git-changes",
+                  "git-worktree",
+                  "lines-added",
+                  "lines-changed",
+                  "lines-removed",
+                  "output-style",
+                  "session-lines",
+                  "session-name",
+                  "terminal-width",
+                  "thinking",
+                  "version",
+                  "vim-mode"
+                ]
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "barWidth": false,
+              "character": false,
+              "commandPath": false,
+              "customText": false,
+              "display": false,
+              "preserveColors": false,
+              "rawValue": {
+                "const": false
+              },
+              "thresholds": false,
+              "timeout": false
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "api-duration",
+                  "current-working-dir",
+                  "model",
+                  "pr",
+                  "project-dir",
+                  "repo",
+                  "session-clock",
+                  "session-id",
+                  "transcript-path"
+                ]
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "barWidth": false,
+              "character": false,
+              "commandPath": false,
+              "customText": false,
+              "display": false,
+              "preserveColors": false,
+              "thresholds": false,
+              "timeout": false
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "block-timer"
+                ]
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "character": false,
+              "commandPath": false,
+              "customText": false,
+              "display": {
+                "default": "time",
+                "enum": [
+                  "time",
+                  "bar",
+                  "percent"
+                ]
+              },
+              "preserveColors": false,
+              "rawValue": {
+                "const": false
+              },
+              "timeout": false
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "cache-creation",
+                  "context-length",
+                  "current-usage-input",
+                  "current-usage-output",
+                  "rate-limits",
+                  "tokens-cached",
+                  "tokens-input",
+                  "tokens-output",
+                  "tokens-total"
+                ]
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "barWidth": false,
+              "character": false,
+              "commandPath": false,
+              "customText": false,
+              "display": false,
+              "preserveColors": false,
+              "rawValue": {
+                "const": false
+              },
+              "timeout": false
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "cache-hit-rate",
+                  "context-percentage",
+                  "context-percentage-usable",
+                  "remaining-percentage"
+                ]
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "character": false,
+              "commandPath": false,
+              "customText": false,
+              "display": {
+                "default": "percent",
+                "enum": [
+                  "percent",
+                  "bar"
+                ]
+              },
+              "preserveColors": false,
+              "timeout": false
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "custom-command"
+                ]
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "barWidth": false,
+              "character": false,
+              "customText": false,
+              "display": false,
+              "rawValue": {
+                "const": false
+              },
+              "thresholds": false
+            },
+            "required": [
+              "commandPath"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "custom-text"
+                ]
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "barWidth": false,
+              "character": false,
+              "commandPath": false,
+              "display": false,
+              "preserveColors": false,
+              "rawValue": {
+                "const": false
+              },
+              "thresholds": false,
+              "timeout": false
+            },
+            "required": [
+              "customText"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "git-branch"
+                ]
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "barWidth": false,
+              "commandPath": false,
+              "customText": false,
+              "display": false,
+              "preserveColors": false,
+              "thresholds": false,
+              "timeout": false
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "prompt-cache"
+                ]
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "barWidth": false,
+              "character": false,
+              "commandPath": false,
+              "customText": false,
+              "display": {
+                "default": "status",
+                "enum": [
+                  "status",
+                  "ttl",
+                  "hit",
+                  "misses",
+                  "full"
+                ]
+              },
+              "preserveColors": false,
+              "timeout": false
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "rate-limit-5h",
+                  "rate-limit-7d"
+                ]
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "character": false,
+              "commandPath": false,
+              "customText": false,
+              "display": {
+                "default": "percent",
+                "enum": [
+                  "percent",
+                  "bar",
+                  "reset",
+                  "full"
+                ]
+              },
+              "preserveColors": false,
+              "timeout": false
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "separator"
+                ]
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "barWidth": false,
+              "commandPath": false,
+              "customText": false,
+              "display": false,
+              "preserveColors": false,
+              "rawValue": {
+                "const": false
+              },
+              "thresholds": false,
+              "timeout": false
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "session-cost"
+                ]
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "barWidth": false,
+              "character": false,
+              "commandPath": false,
+              "customText": false,
+              "display": false,
+              "preserveColors": false,
+              "timeout": false
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "spend-limit"
+                ]
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "character": false,
+              "commandPath": false,
+              "customText": false,
+              "display": {
+                "default": "amount",
+                "enum": [
+                  "amount",
+                  "percent",
+                  "bar",
+                  "reset",
+                  "full"
+                ]
+              },
+              "preserveColors": false,
+              "timeout": false
+            }
+          }
+        }
+      ]
+    },
+    "subagentWidget": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/widget"
+        },
+        {
+          "properties": {
+            "type": {
+              "enum": [
+                "custom-text",
+                "flex-separator",
+                "separator",
+                "task-context",
+                "task-cwd",
+                "task-effort",
+                "task-elapsed",
+                "task-label",
+                "task-model",
+                "task-name",
+                "task-sparkline",
+                "task-status",
+                "task-tokens",
+                "task-type"
+              ],
+              "enumDescriptions": [
+                "User-defined static text. Default color: white.",
+                "Expands to fill remaining terminal width.",
+                "Visual separator between widgets. Default color: white.",
+                "Subagent context usage as % of its model's window. Default color: white.",
+                "Base name of the subagent's working directory. Default color: blue.",
+                "Subagent effort level or token budget. Default color: cyan.",
+                "Running time of a running subagent. Default color: white.",
+                "Subagent progress summary, else its description. Default color: white.",
+                "Subagent model, e.g. Sonnet 5.5 (raw: model ID). Default color: cyan.",
+                "Subagent name, else its agent type. Default color: cyan.",
+                "Tokens a running subagent added per refresh tick. Default color: cyan.",
+                "Subagent state, colored: running, completed, failed, killed. Default color: white.",
+                "Subagent running token count. Default color: white.",
+                "Subagent type, such as Explore or a custom agent. Default color: magenta."
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "custom-text"
+                ]
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "barWidth": false,
+              "character": false,
+              "commandPath": false,
+              "display": false,
+              "preserveColors": false,
+              "rawValue": {
+                "const": false
+              },
+              "thresholds": false,
+              "timeout": false
+            },
+            "required": [
+              "customText"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "flex-separator",
+                  "task-cwd",
+                  "task-effort",
+                  "task-elapsed",
+                  "task-label",
+                  "task-name",
+                  "task-sparkline",
+                  "task-status",
+                  "task-type"
+                ]
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "barWidth": false,
+              "character": false,
+              "commandPath": false,
+              "customText": false,
+              "display": false,
+              "preserveColors": false,
+              "rawValue": {
+                "const": false
+              },
+              "thresholds": false,
+              "timeout": false
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "separator"
+                ]
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "barWidth": false,
+              "commandPath": false,
+              "customText": false,
+              "display": false,
+              "preserveColors": false,
+              "rawValue": {
+                "const": false
+              },
+              "thresholds": false,
+              "timeout": false
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "task-context"
+                ]
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "character": false,
+              "commandPath": false,
+              "customText": false,
+              "display": {
+                "default": "percent",
+                "enum": [
+                  "percent",
+                  "bar"
+                ]
+              },
+              "preserveColors": false,
+              "timeout": false
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "task-model"
+                ]
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "barWidth": false,
+              "character": false,
+              "commandPath": false,
+              "customText": false,
+              "display": false,
+              "preserveColors": false,
+              "thresholds": false,
+              "timeout": false
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "task-tokens"
+                ]
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "barWidth": false,
+              "character": false,
+              "commandPath": false,
+              "customText": false,
+              "display": false,
+              "preserveColors": false,
+              "rawValue": {
+                "const": false
+              },
+              "timeout": false
+            }
+          }
+        }
+      ]
+    },
+    "threshold": {
+      "additionalProperties": false,
+      "properties": {
+        "backgroundColor": {
+          "$ref": "#/definitions/color",
+          "description": "Background color from this value on."
+        },
+        "bold": {
+          "description": "Bold text from this value on.",
+          "type": "boolean"
+        },
+        "color": {
+          "$ref": "#/definitions/color",
+          "description": "Foreground color from this value on."
+        },
+        "gte": {
+          "description": "The value from which this threshold applies.",
+          "type": "number"
+        }
+      },
+      "required": [
+        "gte"
+      ],
+      "type": "object"
+    },
+    "widget": {
+      "additionalProperties": false,
+      "properties": {
+        "backgroundColor": {
+          "$ref": "#/definitions/color",
+          "description": "Background color."
+        },
+        "barWidth": {
+          "default": 10,
+          "description": "The width of a bar display, in columns.",
+          "maximum": 100,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "bold": {
+          "description": "Bold text.",
+          "type": "boolean"
+        },
+        "character": {
+          "description": "The text of a separator, or an icon before the git-branch name.",
+          "type": "string"
+        },
+        "color": {
+          "$ref": "#/definitions/color",
+          "description": "Foreground color, in place of the widget's default."
+        },
+        "commandPath": {
+          "description": "The shell command of a custom-command widget, run with sh -c and given Claude Code's JSON on stdin. The first line of its output is shown.",
+          "type": "string"
+        },
+        "customText": {
+          "description": "The text of a custom-text widget.",
+          "type": "string"
+        },
+        "display": {
+          "description": "One of the widget's display modes.",
+          "type": "string"
+        },
+        "maxWidth": {
+          "description": "Cap the widget's text at this many columns, ending it with an ellipsis. The prefix and suffix are not counted.",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "merge": {
+          "description": "Join this widget to the next one without defaultPadding.",
+          "type": "boolean"
+        },
+        "prefix": {
+          "description": "Text before the widget's output, in place of the widget's default prefix such as \"Ctx: \". An empty string removes the default.",
+          "type": "string"
+        },
+        "preserveColors": {
+          "description": "Keep the ANSI colors in custom-command output.",
+          "type": "boolean"
+        },
+        "rawValue": {
+          "description": "Use the widget's raw mode, on widgets that have one.",
+          "type": "boolean"
+        },
+        "suffix": {
+          "description": "Text after the widget's output.",
+          "type": "string"
+        },
+        "thresholds": {
+          "description": "Restyle a numeric widget by its value. The highest gte reached wins; below the first, the item's own colors apply.",
+          "items": {
+            "$ref": "#/definitions/threshold"
+          },
+          "type": "array"
+        },
+        "timeout": {
+          "default": 3000,
+          "description": "The custom-command timeout in milliseconds. When it expires, the command and everything it started are killed.",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "type": {
+          "description": "The widget to render.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "type": "object"
+    }
+  },
+  "description": "Settings of ccstatus, the status line formatter for Claude Code. Fields left out keep their defaults.",
+  "properties": {
+    "$schema": {
+      "description": "The JSON Schema this file follows, which lets an editor complete and check it.",
+      "type": "string"
+    },
+    "colorLevel": {
+      "default": 2,
+      "description": "0 disables color. 1 emits the 16 ANSI colors, 2 the 256-color palette, 3 true color; a color the level cannot express is mapped to the nearest one it can.",
+      "enum": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "type": "integer"
+    },
+    "compactThreshold": {
+      "default": 90,
+      "description": "The context percentage at which full-until-compact switches to the 40-column margin.",
+      "maximum": 100,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "defaultPadding": {
+      "default": " ",
+      "description": "Inserted between adjacent widgets, separators included, except after an item with merge.",
+      "type": "string"
+    },
+    "defaultSeparator": {
+      "default": "|",
+      "description": "The text a separator shows unless it sets character.",
+      "type": "string"
+    },
+    "flexMode": {
+      "default": "full-until-compact",
+      "description": "The right margin each row leaves: where the row is cut with \"...\" and how far a flex-separator fills.",
+      "enum": [
+        "full",
+        "full-minus-40",
+        "full-until-compact",
+        "exact"
+      ],
+      "enumDescriptions": [
+        "The terminal width minus 10 columns.",
+        "The terminal width minus 40 columns.",
+        "Minus 10 columns, then minus 40 once the context percentage reaches compactThreshold.",
+        "The terminal width, with no margin: for Claude Code's fullscreen rendering, where notifications get a row of their own."
+      ],
+      "type": "string"
+    },
+    "globalBold": {
+      "default": false,
+      "description": "Apply bold to all widgets.",
+      "type": "boolean"
+    },
+    "hyperlinks": {
+      "default": true,
+      "description": "Make the pr number and the repo name clickable OSC 8 links.",
+      "type": "boolean"
+    },
+    "inheritSeparatorColors": {
+      "default": false,
+      "description": "A separator without its own color takes the color of the widget before it.",
+      "type": "boolean"
+    },
+    "lines": {
+      "description": "The rows of the status line. Each row is a list of widget items, rendered left to right.",
+      "items": {
+        "items": {
+          "$ref": "#/definitions/lineWidget"
+        },
+        "type": "array"
+      },
+      "type": "array"
+    },
+    "overrideBackgroundColor": {
+      "$ref": "#/definitions/color",
+      "description": "Force one background color on every widget and separator."
+    },
+    "overrideForegroundColor": {
+      "$ref": "#/definitions/color",
+      "description": "Force one foreground color on every widget and separator."
+    },
+    "subagentHideStatuses": {
+      "description": "Task statuses whose subagent rows are hidden.",
+      "items": {
+        "enum": [
+          "running",
+          "completed",
+          "failed",
+          "killed"
+        ]
+      },
+      "type": "array"
+    },
+    "subagentLine": {
+      "description": "The row rendered for each subagent in Claude Code's agent panel. It takes the task-* widgets, separator, flex-separator and custom-text.",
+      "items": {
+        "$ref": "#/definitions/subagentWidget"
+      },
+      "type": "array"
+    },
+    "terminalWidth": {
+      "description": "Override the detected terminal width; the flexMode margin still applies. 0 detects it.",
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "title": "ccstatus settings",
+  "type": "object"
+}

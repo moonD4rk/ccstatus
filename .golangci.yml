@@ -142,6 +142,10 @@ linters:
           - mnd
           - lll
           - goconst
+      # JSON Schema keywords ("type", "enum", "$ref") read better spelled out.
+      - path: internal/schema/schema\.go
+        linters:
+          - goconst
 
 formatters:
   enable:

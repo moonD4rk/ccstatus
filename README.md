@@ -15,7 +15,8 @@ A customizable status line formatter for [Claude Code](https://code.claude.com/)
 - Custom subagent rows in Claude Code's agent panel (`subagentStatusLine`)
 - Multi-line status line with flex separator layout
 - Threshold colors (e.g. context % turning yellow, then red) and progress bars
-- ANSI 16-color support via [fatih/color](https://github.com/fatih/color)
+- The 16 ANSI colors, the 256-color palette and true color (`#rrggbb`)
+- A JSON Schema for `settings.json`, so editors complete and check it
 - Configurable via `~/.config/ccstatus/settings.json`
 - Automatic Claude Code integration via `install`/`uninstall` commands
 
@@ -60,6 +61,7 @@ ccstatus [command]
 | Command | Description |
 | --- | --- |
 | `init` | Generate default `settings.json` at the ccstatus config directory |
+| `schema` | Print the JSON Schema of `settings.json` |
 | `install` | Register ccstatus as the status line (and, with `--subagent`, subagent row) command in Claude Code's `settings.json` |
 | `uninstall` | Remove the blocks that run ccstatus from Claude Code's `settings.json` |
 | `validate` | Validate `settings.json` for correctness |
@@ -84,7 +86,7 @@ ccstatus [command]
 ccstatus init [--force]
 ```
 
-Generates a default `settings.json` at `~/.config/ccstatus/settings.json` (under `$XDG_CONFIG_HOME` when that is set). Use `--force` to overwrite an existing file.
+Generates a default `settings.json` at `~/.config/ccstatus/settings.json` (under `$XDG_CONFIG_HOME` when that is set). Use `--force` to overwrite an existing file. The file starts with a `$schema` reference, so editors complete and check it (see [Editor Support](#editor-support)).
 
 #### `ccstatus install`
 
@@ -106,6 +108,8 @@ Registers ccstatus in Claude Code's `~/.claude/settings.json` (or `$CLAUDE_CONFI
 ```
 
 Every other key keeps its position and value, the file is replaced atomically, and a symlinked `settings.json` (for example one managed by a dotfiles repo) stays a symlink. Re-running `install` keeps the `padding`, `refreshInterval` and `hideVimModeIndicator` you set by hand and points `command` back at `ccstatus`, which also ends a temporary `ccstatus dump`.
+
+Claude Code finds `ccstatus` through `PATH`. When it is not there, which is common after `go install`, the status line stays blank without an error, so `install` warns and names the fix: add the directory to `PATH`, or set `command` to the binary's absolute path. A command that names `ccstatus` by absolute path keeps that path on later installs, and `--subagent` uses it too.
 
 Optional flags:
 
@@ -132,7 +136,7 @@ Reads `settings.json` strictly. Rendering skips what it does not understand, so 
 
 - JSON errors and values of the wrong type, as `path:line:column`
 - unknown keys, with the key a typo resembles (`unknown field "tresholds" (did you mean "thresholds"?)`) or what replaced a removed one, and keys set twice
-- missing or unknown widget types, invalid color names (threshold and override colors included), and widgets on the wrong kind of line (`task-*` widgets belong in `subagentLine`)
+- missing or unknown widget types, invalid colors (threshold and override colors included), and widgets on the wrong kind of line (`task-*` widgets belong in `subagentLine`)
 - options that do nothing on their widget: `rawValue` without a raw mode, `display` values and `thresholds` the widget does not support, `barWidth` without a `bar` display, and `character`, `customText`, `commandPath`, `timeout` or `preserveColors` on another widget
 - a `custom-text` or `custom-command` without its text or command, and a threshold without `gte`
 - out-of-range values: an unknown `flexMode`, `colorLevel` outside 0–3, `compactThreshold` outside 0–100, `barWidth` outside 1–100, a negative `maxWidth`, `timeout` or `terminalWidth`, and a `subagentHideStatuses` entry that is not a documented task status
@@ -153,7 +157,7 @@ Reads JSON from stdin (same as normal mode), saves it to a file, and renders the
 ccstatus preview [--input FILE] [--width N] [--subagent]
 ```
 
-Renders your current `settings.json` against the full sample payload from the official docs, with its timestamps moved to now, so you can try a layout without starting Claude Code. `--input` renders a payload of your own (for example a `dump` capture); `--width N` renders as if the terminal were `N` columns wide (the flex-mode margin still applies); `--subagent` renders `subagentLine` for a sample task list, at the sample's `columns` unless `--width` is set.
+Renders your current `settings.json` against the full sample payload from the official docs, with its timestamps moved to now and a sample branch and diff for the git widgets, so you can try a layout without starting Claude Code. `--input` renders a payload of your own (for example a `dump` capture); `--width N` renders as if the terminal were `N` columns wide (the flex-mode margin still applies); `--subagent` renders `subagentLine` for a sample task list, at the sample's `columns` unless `--width` is set.
 
 #### `ccstatus subagent`
 
@@ -162,6 +166,14 @@ ccstatus subagent
 ```
 
 The `subagentStatusLine` command (set up by `ccstatus install --subagent`). Claude Code pipes the visible subagents as `{"columns", "tasks": [...]}`; ccstatus renders `subagentLine` for each task and prints one `{"id", "content"}` JSON line per row. A task whose status is listed in `subagentHideStatuses` gets an empty `content`, which hides its row. Rows that render empty, and every row on any error, are left out so Claude Code keeps its default rendering.
+
+#### `ccstatus schema`
+
+```bash
+ccstatus schema
+```
+
+Prints the JSON Schema of `settings.json`, generated from the widget registry of the installed version. See [Editor Support](#editor-support).
 
 #### `ccstatus widgets`
 
@@ -214,6 +226,7 @@ To customize, edit the `lines` array in `settings.json` — e.g. swap `rate-limi
 
 ```json
 {
+  "$schema": "https://raw.githubusercontent.com/moonD4rk/ccstatus/main/schema.json",
   "colorLevel": 2,
   "hyperlinks": true,
   "flexMode": "full-until-compact",
@@ -244,7 +257,8 @@ To customize, edit the `lines` array in `settings.json` — e.g. swap `rate-limi
 
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
-| `colorLevel` | int | `2` | `0` disables color; `1`–`3` all enable ANSI 16-color output |
+| `$schema` | string | (set by `init`) | The JSON Schema editors use to complete and check the file; ccstatus does not read it |
+| `colorLevel` | int | `2` | `0` disables color; `1` emits the 16 ANSI colors, `2` the 256-color palette, `3` true color (see [Available Colors](#available-colors)) |
 | `hyperlinks` | bool | `true` | Make the `pr` number and the `repo` name clickable OSC 8 links. Set `false` if your terminal, tmux or SSH session prints the escape codes instead |
 | `flexMode` | string | `"full-until-compact"` | Right margin each main line leaves: where the line is cut with `...` and how far `flex-separator` fills (see [Flex Modes](#flex-modes)) |
 | `compactThreshold` | int | `90` | Context % (0–100) at which `full-until-compact` switches to the wider (−40 col) right margin |
@@ -261,8 +275,8 @@ To customize, edit the `lines` array in `settings.json` — e.g. swap `rate-limi
 | Field | Type | Description |
 | --- | --- | --- |
 | `type` | string | Widget type (see list below) |
-| `color` | string | Foreground color name |
-| `backgroundColor` | string | Background color name |
+| `color` | string | Foreground color: a name, `#rrggbb` or a palette index (see [Available Colors](#available-colors)) |
+| `backgroundColor` | string | Background color, written the same way |
 | `bold` | bool | Bold text |
 | `prefix` | string | Text before the widget output, in place of the widget's default prefix such as `Ctx: ` (`ccstatus widgets` lists them); `""` removes the default |
 | `suffix` | string | Text after widget output |
@@ -322,6 +336,16 @@ To keep the panel short, `subagentHideStatuses` hides the rows of tasks in the l
 "subagentHideStatuses": ["completed", "killed"]
 ```
 
+### Editor Support
+
+`settings.json` has a JSON Schema, generated from the widget registry. With it an editor completes widget types (with what each one shows), option names, display modes and colors, and flags most of what `ccstatus validate` reports as you type. `ccstatus init` writes the reference; add it to an existing file as the first key:
+
+```json
+"$schema": "https://raw.githubusercontent.com/moonD4rk/ccstatus/main/schema.json"
+```
+
+That URL follows the latest version. `ccstatus schema > schema.json` writes the schema of the version you have installed, to reference by path instead.
+
 ### Upgrading Settings
 
 Settings written for v0.5 and earlier still render, without the options that changed. `ccstatus validate` names each one:
@@ -339,6 +363,12 @@ Settings written for v0.5 and earlier still render, without the options that cha
 8 basic: `black`, `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, `white`
 
 8 bright: `brightBlack`, `brightRed`, `brightGreen`, `brightYellow`, `brightBlue`, `brightMagenta`, `brightCyan`, `brightWhite`
+
+Hex: `"#ff8700"`, or the short form `"#f80"`
+
+256-color palette: an index as a string, `"0"` to `"255"`, such as `"208"`
+
+The names are your terminal theme's own 16 colors, at every `colorLevel`. Hex and palette colors depend on the level: `3` emits a hex color exactly, `2` (the default) maps it to the nearest palette color, and `1` maps hex and palette colors to the nearest of the 16. Set `colorLevel` to `3` when your terminal supports true color.
 
 ## Available Widgets
 
@@ -378,7 +408,7 @@ Settings written for v0.5 and earlier still render, without the options that cha
 | `transcript-path` | JSON | Transcript file name (raw: the full path) | white |
 | `added-dirs` | JSON | Directories added via `/add-dir` (`display`: `list` for names) | blue |
 | `repo` | JSON | Repository `owner/name` from the origin remote, an OSC 8 link to `https://host/owner/name` (raw: name only, unlinked) | blue |
-| `pr` | JSON | Open PR number + review state, e.g. `#1234 approved`, or `!1234` for a GitLab merge request; the number is an OSC 8 link when `pr.url` is present (raw: number) | cyan |
+| `pr` | JSON | Open PR number + review state, e.g. `#1234 approved`, or `!1234` for a GitLab merge request; the number is an OSC 8 link when `pr.url` is present (raw: number). Colored by review state: green approved, yellow pending, red changes requested, dim draft | by state |
 | `lines-changed` | Git | Uncommitted lines changed (+N/-M) | green |
 | `lines-added` | Git | Uncommitted lines added | green |
 | `lines-removed` | Git | Uncommitted lines removed | red |

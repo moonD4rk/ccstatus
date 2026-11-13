@@ -91,6 +91,7 @@ func newRootCmd() *cobra.Command {
 		newWidgetsCmd(),
 		newSubagentCmd(),
 		newPreviewCmd(),
+		newSchemaCmd(),
 	)
 	return cmd
 }
@@ -107,8 +108,17 @@ func runStatusLine(cmd *cobra.Command, _ []string) error {
 // renderOptions adjusts a render for callers other than Claude Code, such as
 // `ccstatus preview`. The zero value renders as Claude Code needs it.
 type renderOptions struct {
-	width int       // terminal width in columns; 0 detects it
-	now   time.Time // the time countdowns are measured against; zero is the current time
+	width int                // terminal width in columns; 0 detects it
+	now   time.Time          // the time countdowns are measured against; zero is the current time
+	git   widget.GitProvider // stands in for the repository in the session directory; nil reads it
+}
+
+// gitCache returns the git lookups for a session working in dir.
+func (o renderOptions) gitCache(dir string) *widget.GitCache {
+	if o.git != nil {
+		return widget.NewGitCacheWithProvider(o.git)
+	}
+	return widget.NewGitCache(dir)
 }
 
 // renderTime returns the time the render is measured against.
@@ -167,7 +177,7 @@ func renderStatusLine(stdout, stderr io.Writer, data []byte, readErr error, opts
 	ctx := widget.RenderContext{
 		Data:          session,
 		TerminalWidth: width,
-		Git:           widget.NewGitCache(session.WorkingDir()),
+		Git:           opts.gitCache(session.WorkingDir()),
 		Now:           opts.renderTime(),
 		RawInput:      data,
 	}

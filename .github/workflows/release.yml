@@ -14,10 +14,12 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ inputs.version }}
     steps:
       - name: Validate version format
         run: |
-          if [[ ! "${{ inputs.version }}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
+          if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
             echo "Error: Version must be in format v0.0.0 or v0.0.0-suffix"
             exit 1
           fi
@@ -32,10 +34,17 @@ jobs:
         with:
           go-version-file: 'go.mod'
 
-      - name: Create and push tag
-        run: |
-          git tag ${{ inputs.version }}
-          git push origin ${{ inputs.version }}
+      # Everything that can fail without the tag runs before the tag is pushed,
+      # so a failing test or a broken release config leaves no orphan tag.
+      - name: Run Tests
+        run: go test ./...
+
+      - name: Check GoReleaser config
+        uses: goreleaser/goreleaser-action@v7
+        with:
+          distribution: goreleaser
+          version: '~> v2'
+          args: check
 
       - name: Mint homebrew-tap token
         id: tap-token
@@ -45,6 +54,11 @@ jobs:
           private-key: ${{ secrets.MOOND4RK_CI_RELEASE_APP_PRIVATE_KEY }}
           owner: moonD4rk
           repositories: homebrew-tap
+
+      - name: Create and push tag
+        run: |
+          git tag "$VERSION"
+          git push origin "$VERSION"
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v7

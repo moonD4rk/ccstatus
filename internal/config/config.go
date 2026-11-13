@@ -30,21 +30,24 @@ func FlexModes() []string {
 
 // Settings represents the ccstatus configuration.
 type Settings struct {
+	// Schema is the "$schema" reference editors use to complete and check the
+	// file. ccstatus itself does not read it.
+	Schema                  string         `json:"$schema,omitempty"`
 	Lines                   [][]WidgetItem `json:"lines"`
 	FlexMode                string         `json:"flexMode"`
 	CompactThreshold        int            `json:"compactThreshold"`
 	ColorLevel              int            `json:"colorLevel"`
 	Hyperlinks              bool           `json:"hyperlinks"`
 	TerminalWidth           int            `json:"terminalWidth,omitempty"`
-	DefaultSeparator        string         `json:"defaultSeparator,omitempty"`
-	DefaultPadding          string         `json:"defaultPadding,omitempty"`
+	DefaultSeparator        string         `json:"defaultSeparator"`
+	DefaultPadding          string         `json:"defaultPadding"`
 	InheritSeparatorColors  bool           `json:"inheritSeparatorColors"`
 	OverrideBackgroundColor string         `json:"overrideBackgroundColor,omitempty"`
 	OverrideForegroundColor string         `json:"overrideForegroundColor,omitempty"`
 	GlobalBold              bool           `json:"globalBold"`
 	// SubagentLine is the row `ccstatus subagent` renders for each subagent in
 	// Claude Code's agent panel.
-	SubagentLine []WidgetItem `json:"subagentLine,omitempty"`
+	SubagentLine []WidgetItem `json:"subagentLine"`
 	// SubagentHideStatuses lists the task statuses, such as "completed", whose
 	// rows `ccstatus subagent` hides from the agent panel.
 	SubagentHideStatuses []string `json:"subagentHideStatuses,omitempty"`

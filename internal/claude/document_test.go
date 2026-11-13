@@ -87,9 +87,9 @@ func TestInstallSubagent(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("CLAUDE_CONFIG_DIR", dir)
 
-	path, err := Install(InstallOptions{Subagent: ptr(true)})
+	res, err := Install(InstallOptions{Subagent: ptr(true)})
 	require.NoError(t, err)
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(res.Path)
 	require.NoError(t, err)
 	assert.Contains(t, string(data), `"subagentStatusLine": {
     "type": "command",
@@ -98,7 +98,7 @@ func TestInstallSubagent(t *testing.T) {
 
 	_, err = Install(InstallOptions{Subagent: ptr(false)})
 	require.NoError(t, err)
-	data, err = os.ReadFile(path)
+	data, err = os.ReadFile(res.Path)
 	require.NoError(t, err)
 	assert.NotContains(t, string(data), "subagentStatusLine")
 

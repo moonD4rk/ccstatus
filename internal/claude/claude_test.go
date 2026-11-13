@@ -65,11 +65,11 @@ func TestInstall(t *testing.T) {
 		tmpDir := t.TempDir()
 		t.Setenv("CLAUDE_CONFIG_DIR", tmpDir)
 
-		path, err := Install(InstallOptions{})
+		res, err := Install(InstallOptions{})
 		require.NoError(t, err)
-		assert.Equal(t, filepath.Join(tmpDir, "settings.json"), path)
+		assert.Equal(t, InstallResult{Path: filepath.Join(tmpDir, "settings.json"), Command: "ccstatus"}, res)
 
-		data, err := os.ReadFile(path)
+		data, err := os.ReadFile(res.Path)
 		require.NoError(t, err)
 
 		var settings map[string]any
@@ -268,4 +268,51 @@ func TestUninstallInvalidJSON(t *testing.T) {
 
 	_, err := Uninstall()
 	assert.Error(t, err)
+}
+
+func TestInstallKeepsAnAbsoluteBinaryPath(t *testing.T) {
+	abs := filepath.Join(string(filepath.Separator), "opt", "tools", "bin", "ccstatus")
+	tests := []struct {
+		name         string
+		existing     string
+		subagent     *bool
+		wantCommand  string
+		wantSubagent string
+	}{
+		{"a bare command stays bare", `{"statusLine": {"type": "command", "command": "ccstatus"}}`, ptr(true), "ccstatus", "ccstatus subagent"},
+		{"an absolute path is kept", `{"statusLine": {"type": "command", "command": "` + abs + `"}}`, nil, abs, ""},
+		{
+			"its arguments are dropped, which ends a temporary dump",
+			`{"statusLine": {"type": "command", "command": "` + abs + ` dump --append"}}`, nil, abs, "",
+		},
+		{"the subagent block follows the status line's binary", `{"statusLine": {"type": "command", "command": "` + abs + `"}}`, ptr(true), abs, abs + " subagent"},
+		{
+			"the subagent block keeps its own absolute path",
+			`{"statusLine": {"type": "command", "command": "ccstatus"}, "subagentStatusLine": {"type": "command", "command": "` + abs + ` dump --subagent"}}`,
+			ptr(true), "ccstatus", abs + " subagent",
+		},
+		{"another program's path is replaced", `{"statusLine": {"type": "command", "command": "/usr/local/bin/other-status"}}`, nil, "ccstatus", ""},
+		{"a relative path is not kept", `{"statusLine": {"type": "command", "command": "./bin/ccstatus"}}`, nil, "ccstatus", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			t.Setenv("CLAUDE_CONFIG_DIR", dir)
+			path := filepath.Join(dir, "settings.json")
+			require.NoError(t, os.WriteFile(path, []byte(tt.existing), 0o600))
+
+			res, err := Install(InstallOptions{Subagent: tt.subagent})
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantCommand, res.Command)
+			assert.Equal(t, tt.wantCommand, readStatusLine(t, path)["command"])
+
+			data, err := os.ReadFile(path)
+			require.NoError(t, err)
+			var settings map[string]map[string]any
+			require.NoError(t, json.Unmarshal(data, &settings))
+			if tt.wantSubagent != "" {
+				assert.Equal(t, tt.wantSubagent, settings["subagentStatusLine"]["command"])
+			}
+		})
+	}
 }
