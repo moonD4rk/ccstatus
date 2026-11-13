@@ -39,9 +39,9 @@ func writeDeterministicConfig(t *testing.T) {
 	s.ColorLevel = 0
 	s.TerminalWidth = 200
 	s.Lines = [][]config.WidgetItem{{
-		{ID: "1", Type: "model"},
-		{ID: "2", Type: "separator"},
-		{ID: "3", Type: "context-percentage"},
+		{Type: "model"},
+		{Type: "separator"},
+		{Type: "context-percentage"},
 	}}
 	require.NoError(t, config.Save(&s))
 }

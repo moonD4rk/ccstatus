@@ -25,8 +25,8 @@ func (c *countingGit) Worktree() string   { c.worktreeCalls.Add(1); return c.fak
 func TestPrefetchGit(t *testing.T) {
 	settings := config.DefaultSettings()
 	lines := [][]config.WidgetItem{
-		{{ID: "1", Type: "git-branch"}, {ID: "2", Type: "lines-added"}, {ID: "3", Type: "lines-removed"}},
-		{{ID: "4", Type: "git-worktree"}, {ID: "5", Type: "model"}},
+		{{Type: "git-branch"}, {Type: "lines-added"}, {Type: "lines-removed"}},
+		{{Type: "git-worktree"}, {Type: "model"}},
 	}
 
 	t.Run("each needed lookup runs once, unused ones never", func(t *testing.T) {

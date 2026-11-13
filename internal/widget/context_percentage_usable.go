@@ -33,7 +33,9 @@ func (w *ContextPercentageUsableWidget) Value(_ *config.WidgetItem, ctx RenderCo
 	return min(float64(length)/float64(cfg.UsableTokens)*100, 100), true
 }
 
-func (w *ContextPercentageUsableWidget) displayModes() []string { return []string{"percent", "bar"} }
+func (w *ContextPercentageUsableWidget) displayModes() []string {
+	return []string{"percent", BarDisplay}
+}
 
 // DefaultColor returns the default foreground color.
 func (w *ContextPercentageUsableWidget) DefaultColor() string { return defaultDimColor }

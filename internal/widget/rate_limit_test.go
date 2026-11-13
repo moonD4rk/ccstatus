@@ -23,7 +23,7 @@ func TestRateLimitPercentIsClamped(t *testing.T) {
 	}{
 		{"rate-limit-5h", config.WidgetItem{}, "100%"},
 		{"rate-limit-5h", config.WidgetItem{RawValue: true}, "100.0"},
-		{"rate-limit-5h", config.WidgetItem{Metadata: map[string]string{"display": "bar", "barWidth": "4"}}, "▓▓▓▓ 100%"},
+		{"rate-limit-5h", config.WidgetItem{Display: "bar", BarWidth: 4}, "▓▓▓▓ 100%"},
 		{"rate-limit-7d", config.WidgetItem{}, "0%"},
 		{"rate-limits", config.WidgetItem{}, "5h: 100% / 7d: 0%"},
 	}
@@ -42,7 +42,7 @@ func TestDisplayModes(t *testing.T) {
 	}{
 		{"rate-limit-5h", []string{"percent", "bar", "reset", "full"}, true},
 		{"rate-limit-7d", []string{"percent", "bar", "reset", "full"}, true},
-		{"block-timer", []string{"time", "progress", "percentage"}, true},
+		{"block-timer", []string{"time", "bar", "percent"}, true},
 		{"added-dirs", []string{"count", "list"}, true},
 		{"model", nil, false},
 		{"no-such-widget", nil, false},
