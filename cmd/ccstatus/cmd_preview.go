@@ -16,8 +16,8 @@ func newPreviewCmd() *cobra.Command {
 		Use:   "preview",
 		Short: "Render your settings against sample data",
 		Long: "Render the current settings.json against a sample Claude Code payload (the official docs'\n" +
-			"full example, timestamps moved to now) or against --input FILE, so a layout can be tried\n" +
-			"without starting Claude Code. --subagent previews subagentLine rows instead.",
+			"full example, timestamps moved to now, with a sample git branch and diff) or against --input FILE,\n" +
+			"so a layout can be tried without starting Claude Code. --subagent previews subagentLine rows instead.",
 		RunE: runPreview,
 	}
 	cmd.Flags().String("input", "", "Payload file to render instead of the built-in sample")
@@ -47,6 +47,7 @@ func runPreview(cmd *cobra.Command, _ []string) error {
 		data = sample.Subagent(opts.now)
 	default:
 		data = sample.StatusLine(opts.now)
+		opts.git = sample.Git{} // the sample's directories do not exist
 	}
 
 	if !subagent {

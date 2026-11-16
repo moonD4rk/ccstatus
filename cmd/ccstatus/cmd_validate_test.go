@@ -81,11 +81,20 @@ func TestValidate(t *testing.T) {
 		}, problemLines(errOut))
 	})
 
-	t.Run("invalid color fails", func(t *testing.T) {
-		saveConfigWithLines(t, [][]config.WidgetItem{{{Type: "model", Color: "chartreuse"}}})
+	t.Run("colors are names, hex triplets or palette indexes", func(t *testing.T) {
+		saveConfigWithLines(t, [][]config.WidgetItem{{
+			{Type: "model", Color: "chartreuse"},
+			{Type: "model", Color: "#ff8700", BackgroundColor: "236"},
+			{Type: "model", Color: "#f80", BackgroundColor: "brightBlack"},
+			{Type: "model", Color: "#ff87", BackgroundColor: "256"},
+		}})
 		_, errOut, err := execValidate(t)
 		require.Error(t, err)
-		assert.Contains(t, errOut, "invalid color")
+		assert.Equal(t, []string{
+			`line 1 widget 1: invalid color "chartreuse" (want a color name, #rrggbb or a palette index 0-255)`,
+			`line 1 widget 4: invalid color "#ff87" (want a color name, #rrggbb or a palette index 0-255)`,
+			`line 1 widget 4: invalid backgroundColor "256" (want a color name, #rrggbb or a palette index 0-255)`,
+		}, problemLines(errOut))
 	})
 
 	t.Run("out-of-range globals fail", func(t *testing.T) {
@@ -200,7 +209,7 @@ func TestValidate(t *testing.T) {
 		require.Error(t, err)
 		assert.Equal(t, []string{
 			"line 1 widget 1: model does not support thresholds",
-			`line 1 widget 2 threshold 1: invalid color "amber"`,
+			`line 1 widget 2 threshold 1: invalid color "amber" (want a color name, #rrggbb or a palette index 0-255)`,
 		}, problemLines(errOut))
 	})
 

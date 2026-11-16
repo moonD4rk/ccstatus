@@ -286,6 +286,20 @@ func TestSaveKeepsAnEmptyPrefix(t *testing.T) {
 	assert.Equal(t, s.Lines, loaded.Lines)
 }
 
+func TestSaveKeepsExplicitEmpties(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	s := DefaultSettings()
+	s.DefaultPadding = ""
+	s.DefaultSeparator = ""
+	s.Lines = [][]WidgetItem{}
+	s.SubagentLine = []WidgetItem{}
+	require.NoError(t, Save(&s))
+
+	loaded, err := Load()
+	require.NoError(t, err)
+	assert.Equal(t, s, loaded, "an explicit empty must not come back as the default")
+}
+
 func TestFlexModes(t *testing.T) {
 	assert.Equal(t, []string{"full", "full-minus-40", "full-until-compact", "exact"}, FlexModes())
 	assert.Contains(t, FlexModes(), DefaultSettings().FlexMode)
