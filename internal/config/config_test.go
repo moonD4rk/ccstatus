@@ -13,7 +13,6 @@ import (
 func TestDefaultSettings(t *testing.T) {
 	s := DefaultSettings()
 
-	assert.Equal(t, CurrentVersion, s.Version)
 	assert.Equal(t, 2, s.ColorLevel)
 	assert.True(t, s.Hyperlinks)
 	assert.Equal(t, "full-until-compact", s.FlexMode)
@@ -110,7 +109,6 @@ func TestSaveAndLoad(t *testing.T) {
 
 	loaded, err := Load()
 	require.NoError(t, err)
-	assert.Equal(t, original.Version, loaded.Version)
 	assert.Equal(t, 3, loaded.ColorLevel)
 	assert.Equal(t, "full", loaded.FlexMode)
 }
@@ -130,14 +128,14 @@ func TestLoadInvalidJSON(t *testing.T) {
 
 func TestParseMergesDefaults(t *testing.T) {
 	t.Run("omitted fields keep their defaults", func(t *testing.T) {
-		s, err := Parse([]byte(`{"lines":[[{"id":"1","type":"model"}]]}`))
+		s, err := Parse([]byte(`{"lines":[[{"type":"model"}]]}`))
 		require.NoError(t, err)
 		def := DefaultSettings()
 		assert.Equal(t, def.ColorLevel, s.ColorLevel)
 		assert.Equal(t, def.DefaultPadding, s.DefaultPadding)
 		assert.Equal(t, def.FlexMode, s.FlexMode)
 		assert.Equal(t, def.CompactThreshold, s.CompactThreshold)
-		assert.Equal(t, [][]WidgetItem{{{ID: "1", Type: "model"}}}, s.Lines)
+		assert.Equal(t, [][]WidgetItem{{{Type: "model"}}}, s.Lines)
 	})
 
 	t.Run("explicit values win, including zero", func(t *testing.T) {
@@ -168,9 +166,9 @@ func TestParseMergesDefaults(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, DefaultSettings().SubagentLine, s.SubagentLine)
 
-		s, err = Parse([]byte(`{"subagentLine":[{"id":"a","type":"task-name"}]}`))
+		s, err = Parse([]byte(`{"subagentLine":[{"type":"task-name"}]}`))
 		require.NoError(t, err)
-		assert.Equal(t, []WidgetItem{{ID: "a", Type: "task-name"}}, s.SubagentLine)
+		assert.Equal(t, []WidgetItem{{Type: "task-name"}}, s.SubagentLine)
 
 		s, err = Parse([]byte(`{"subagentLine":[]}`))
 		require.NoError(t, err)
@@ -215,25 +213,82 @@ func TestParseReportsPosition(t *testing.T) {
 	}
 }
 
-func TestWidgetItem_IsMerged(t *testing.T) {
-	tests := []struct {
-		name  string
-		merge any
-		want  bool
-	}{
-		{name: "nil merge", merge: nil, want: false},
-		{name: "true merge", merge: true, want: true},
-		{name: "false merge", merge: false, want: false},
-		{name: "no-padding merge", merge: "no-padding", want: true},
-		{name: "unknown string", merge: "unknown", want: false},
+func TestParseWidgetItemOptions(t *testing.T) {
+	parse := func(t *testing.T, item string) WidgetItem {
+		t.Helper()
+		s, err := Parse([]byte(`{"lines":[[` + item + `]]}`))
+		require.NoError(t, err)
+		return s.Lines[0][0]
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			w := WidgetItem{Merge: tt.merge}
-			assert.Equal(t, tt.want, w.IsMerged())
-		})
-	}
+	t.Run("prefix tells absent from empty", func(t *testing.T) {
+		assert.Nil(t, parse(t, `{"type":"model"}`).Prefix)
+		assert.Nil(t, parse(t, `{"type":"model","prefix":null}`).Prefix)
+
+		empty := parse(t, `{"type":"model","prefix":""}`).Prefix
+		require.NotNil(t, empty)
+		assert.Empty(t, *empty)
+
+		set := parse(t, `{"type":"model","prefix":"M: "}`).Prefix
+		require.NotNil(t, set)
+		assert.Equal(t, "M: ", *set)
+	})
+
+	t.Run("display and barWidth are fields of the item", func(t *testing.T) {
+		item := parse(t, `{"type":"rate-limit-5h","display":"bar","barWidth":20}`)
+		assert.Equal(t, WidgetItem{Type: "rate-limit-5h", Display: "bar", BarWidth: 20}, item)
+	})
+
+	t.Run("merge is a boolean", func(t *testing.T) {
+		assert.True(t, parse(t, `{"type":"model","merge":true}`).Merge)
+		assert.False(t, parse(t, `{"type":"model"}`).Merge)
+	})
+
+	t.Run("removed keys are ignored, so an old file still renders", func(t *testing.T) {
+		item := parse(t, `{"id":"1","type":"model","metadata":{"display":"bar","barWidth":"20"}}`)
+		assert.Equal(t, WidgetItem{Type: "model"}, item)
+
+		s, err := Parse([]byte(`{"version":4,"colorLevel":1}`))
+		require.NoError(t, err)
+		assert.Equal(t, 1, s.ColorLevel)
+	})
+
+	t.Run("values of the wrong type are decode errors", func(t *testing.T) {
+		for _, item := range []string{
+			`{"type":"model","merge":"no-padding"}`,
+			`{"type":"rate-limit-5h","barWidth":"20"}`,
+			`{"type":"model","prefix":7}`,
+		} {
+			_, err := Parse([]byte(`{"lines":[[` + item + `]]}`))
+			var posErr *PositionError
+			require.ErrorAs(t, err, &posErr, item)
+		}
+	})
+}
+
+func TestSaveKeepsAnEmptyPrefix(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	s := DefaultSettings()
+	s.Lines = [][]WidgetItem{{
+		{Type: "context-percentage", Prefix: new("")},
+		{Type: "model"},
+	}}
+	require.NoError(t, Save(&s))
+
+	data, err := os.ReadFile(Path())
+	require.NoError(t, err)
+	assert.Contains(t, string(data), `"prefix": ""`)
+	assert.NotContains(t, string(data), `"id"`)
+	assert.NotContains(t, string(data), `"version"`)
+
+	loaded, err := Load()
+	require.NoError(t, err)
+	assert.Equal(t, s.Lines, loaded.Lines)
+}
+
+func TestFlexModes(t *testing.T) {
+	assert.Equal(t, []string{"full", "full-minus-40", "full-until-compact", "exact"}, FlexModes())
+	assert.Contains(t, FlexModes(), DefaultSettings().FlexMode)
 }
 
 func TestWidgetItem_ThresholdFor(t *testing.T) {

@@ -35,13 +35,13 @@ func TestPreviewTimeWidgetsAreExact(t *testing.T) {
 	s := config.DefaultSettings()
 	s.ColorLevel = 0
 	s.Lines = [][]config.WidgetItem{{
-		{ID: "1", Type: "prompt-cache"},
-		{ID: "2", Type: "separator"},
-		{ID: "3", Type: "rate-limit-5h", Metadata: map[string]string{"display": "reset"}},
-		{ID: "4", Type: "separator"},
-		{ID: "5", Type: "spend-limit", Metadata: map[string]string{"display": "reset"}},
-		{ID: "6", Type: "separator"},
-		{ID: "7", Type: "block-timer"},
+		{Type: "prompt-cache"},
+		{Type: "separator"},
+		{Type: "rate-limit-5h", Display: "reset"},
+		{Type: "separator"},
+		{Type: "spend-limit", Display: "reset"},
+		{Type: "separator"},
+		{Type: "block-timer"},
 	}}
 	require.NoError(t, config.Save(&s))
 

@@ -59,11 +59,11 @@ A review of ccstatus after RFC 006 found the project healthy: lint clean, 80-97%
 | `id` and `version` are removed | Delete them |
 | `metadata.display` and `metadata.barWidth` become `display` (string) and `barWidth` (number) | Move the two keys up and drop the quotes around the number |
 | `merge` is a boolean | `"no-padding"` becomes `true` |
-| `prefix` and `suffix` distinguish absent from empty | `"prefix": ""` now removes a default prefix |
+| `prefix` distinguishes absent from empty | `"prefix": ""` now removes a default prefix |
 | `block-timer` takes `time`, `bar` and `percent`, honors `barWidth` and supports thresholds | `progress` becomes `bar`, `percentage` becomes `percent` |
 | `flexMode` gains `exact`: the terminal width with no margin | For Claude Code's fullscreen rendering, where notifications have their own row |
 
-Rendering stays lenient: it ignores keys it does not know. `validate` reads the file strictly instead and reports, with its location, every unknown key (naming the replacement for a removed one), every option that has no effect on its widget (`rawValue`, `display`, `barWidth`, `character`, `customText`, `commandPath`, `timeout`, `preserveColors`), a `custom-text` or `custom-command` without its text or command, and out-of-range numbers.
+Rendering stays lenient: it ignores keys it does not know, so a file from an earlier version still renders. `validate` reads the file strictly instead and reports, with its location, every unknown key (naming the replacement for a removed one and the key a typo resembles), every key set twice, every option that has no effect on its widget (`rawValue`, `display`, `barWidth`, `character`, `customText`, `commandPath`, `timeout`, `preserveColors`), a `custom-text` or `custom-command` without its text or command, a threshold without `gte`, and out-of-range numbers. Without a settings file it says that the defaults are in use.
 
 ### PR 4: Colors, JSON Schema and tooling
 

@@ -34,7 +34,7 @@ func (w *percentageWidget) Value(_ *config.WidgetItem, ctx RenderContext) (float
 	return w.extract(ctx.Data)
 }
 
-func (w *percentageWidget) displayModes() []string { return []string{"percent", "bar"} }
+func (w *percentageWidget) displayModes() []string { return []string{"percent", BarDisplay} }
 
 func (w *percentageWidget) DefaultColor() string {
 	if w.defaultColor != "" {

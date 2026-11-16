@@ -10,16 +10,26 @@ import (
 )
 
 const (
-	// CurrentVersion is the current settings schema version.
-	CurrentVersion = 4
-
 	configDirName  = "ccstatus"
 	configFileName = "settings.json"
 )
 
+// The flex modes: the right margin a main status line leaves, which is where
+// the line is cut and how far a flex-separator fills.
+const (
+	FlexFull             = "full"               // the terminal width minus 10
+	FlexFullMinus40      = "full-minus-40"      // the terminal width minus 40
+	FlexFullUntilCompact = "full-until-compact" // minus 10, then minus 40 from compactThreshold on
+	FlexExact            = "exact"              // the terminal width
+)
+
+// FlexModes returns the values the flexMode setting accepts.
+func FlexModes() []string {
+	return []string{FlexFull, FlexFullMinus40, FlexFullUntilCompact, FlexExact}
+}
+
 // Settings represents the ccstatus configuration.
 type Settings struct {
-	Version                 int            `json:"version"`
 	Lines                   [][]WidgetItem `json:"lines"`
 	FlexMode                string         `json:"flexMode"`
 	CompactThreshold        int            `json:"compactThreshold"`
@@ -43,55 +53,54 @@ type Settings struct {
 // DefaultSettings returns the default ccstatus configuration.
 func DefaultSettings() Settings {
 	return Settings{
-		Version:          CurrentVersion,
 		ColorLevel:       2,
 		Hyperlinks:       true,
-		FlexMode:         "full-until-compact",
+		FlexMode:         FlexFullUntilCompact,
 		CompactThreshold: 90,
 		DefaultSeparator: "|",
 		DefaultPadding:   " ",
 		Lines: [][]WidgetItem{
 			{
 				// model · effort | Fast | context % | git branch worktree | +added -removed | $cost
-				{ID: "1", Type: "model", Color: "cyan"},
-				{ID: "2", Type: "effort", Color: "cyan", Prefix: "· "},
-				{ID: "3", Type: "separator"},
-				{ID: "4", Type: "fast-mode"},
-				{ID: "5", Type: "separator"},
-				{ID: "6", Type: "context-percentage", Color: "brightBlack", Thresholds: usageThresholds("white")},
-				{ID: "7", Type: "separator"},
-				{ID: "8", Type: "git-branch", Color: "magenta"},
-				{ID: "9", Type: "git-worktree", Color: "brightBlack"},
-				{ID: "10", Type: "separator"},
-				{ID: "11", Type: "lines-added", Color: "green"},
-				{ID: "12", Type: "lines-removed", Color: "red"},
-				{ID: "13", Type: "separator"},
-				{ID: "14", Type: "session-cost", Color: "green"},
+				{Type: "model", Color: "cyan"},
+				{Type: "effort", Color: "cyan", Prefix: new("· ")},
+				{Type: "separator"},
+				{Type: "fast-mode"},
+				{Type: "separator"},
+				{Type: "context-percentage", Color: "brightBlack", Thresholds: usageThresholds("white")},
+				{Type: "separator"},
+				{Type: "git-branch", Color: "magenta"},
+				{Type: "git-worktree", Color: "brightBlack"},
+				{Type: "separator"},
+				{Type: "lines-added", Color: "green"},
+				{Type: "lines-removed", Color: "red"},
+				{Type: "separator"},
+				{Type: "session-cost", Color: "green"},
 			},
 			{
 				// current dir | rate limits (5h/7d) | session clock | session name  (plain separator, left-aligned)
-				{ID: "15", Type: "current-working-dir", Color: "blue", RawValue: true},
-				{ID: "16", Type: "separator"},
-				{ID: "17", Type: "rate-limits", Color: "white", Thresholds: usageThresholds("brightWhite")},
-				{ID: "18", Type: "separator"},
-				{ID: "19", Type: "session-clock", Color: "white"},
-				{ID: "20", Type: "separator"},
-				{ID: "21", Type: "session-name", MaxWidth: 30},
+				{Type: "current-working-dir", Color: "blue", RawValue: true},
+				{Type: "separator"},
+				{Type: "rate-limits", Color: "white", Thresholds: usageThresholds("brightWhite")},
+				{Type: "separator"},
+				{Type: "session-clock", Color: "white"},
+				{Type: "separator"},
+				{Type: "session-name", MaxWidth: 30},
 			},
 		},
 		// name status elapsed | model · effort tokens context% sparkline | label
 		SubagentLine: []WidgetItem{
-			{ID: "s1", Type: "task-name", Color: "cyan"},
-			{ID: "s2", Type: "task-status"},
-			{ID: "s3", Type: "task-elapsed"},
-			{ID: "s4", Type: "separator"},
-			{ID: "s5", Type: "task-model"},
-			{ID: "s6", Type: "task-effort", Prefix: "· "},
-			{ID: "s7", Type: "task-tokens"},
-			{ID: "s8", Type: "task-context", Color: "brightBlack", Thresholds: usageThresholds("white")},
-			{ID: "s9", Type: "task-sparkline"},
-			{ID: "s10", Type: "separator"},
-			{ID: "s11", Type: "task-label"},
+			{Type: "task-name", Color: "cyan"},
+			{Type: "task-status"},
+			{Type: "task-elapsed"},
+			{Type: "separator"},
+			{Type: "task-model"},
+			{Type: "task-effort", Prefix: new("· ")},
+			{Type: "task-tokens"},
+			{Type: "task-context", Color: "brightBlack", Thresholds: usageThresholds("white")},
+			{Type: "task-sparkline"},
+			{Type: "separator"},
+			{Type: "task-label"},
 		},
 	}
 }

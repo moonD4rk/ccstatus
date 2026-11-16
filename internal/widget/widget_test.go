@@ -1433,15 +1433,15 @@ func TestBlockTimerWidget(t *testing.T) {
 		{"a window that just opened", "", 5 * time.Hour, "<1m/5h"},
 		{"a reset time already past is a full window", "", -time.Hour, "5h/5h"},
 		{"a reset further away than a window is not one", "", 10 * time.Hour, ""},
-		{"percentage mode", "percentage", 150 * time.Minute, "50%"},
-		{"progress mode", "progress", 150 * time.Minute, "[=====>    ] 50%"},
-		{"progress mode at the end", "progress", 0, "[==========] 100%"},
+		{"percent mode", "percent", 150 * time.Minute, "50%"},
+		{"bar mode", "bar", 150 * time.Minute, "▓▓▓▓▓░░░░░ 50%"},
+		{"bar mode at the end", "bar", 0, "▓▓▓▓▓▓▓▓▓▓ 100%"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			item := config.WidgetItem{}
 			if tt.display != "" {
-				item.Metadata = map[string]string{"display": tt.display}
+				item.Display = tt.display
 			}
 			assert.Equal(t, tt.want, w.Render(&item, resetsIn(tt.left), &settings))
 		})
@@ -1458,6 +1458,19 @@ func TestBlockTimerWidget(t *testing.T) {
 		} {
 			assert.Empty(t, w.Render(&item, RenderContext{Now: now, Data: data}, &settings))
 		}
+	})
+
+	t.Run("bar mode honors barWidth", func(t *testing.T) {
+		item := config.WidgetItem{Display: "bar", BarWidth: 4}
+		assert.Equal(t, "▓▓░░ 50%", w.Render(&item, resetsIn(150*time.Minute), &settings))
+	})
+
+	t.Run("exposes the share of the window for thresholds", func(t *testing.T) {
+		v, ok := w.Value(&config.WidgetItem{}, resetsIn(time.Hour))
+		require.True(t, ok)
+		assert.InDelta(t, 80, v, 0.001)
+		_, ok = w.Value(&config.WidgetItem{}, RenderContext{Now: now, Data: &status.Session{}})
+		assert.False(t, ok)
 	})
 
 	assert.Equal(t, defaultDimColor, w.DefaultColor())
@@ -1529,7 +1542,7 @@ func TestRateLimitWidget(t *testing.T) {
 	})
 
 	t.Run("reset mode shows time to reset", func(t *testing.T) {
-		item := config.WidgetItem{Metadata: map[string]string{"display": "reset"}}
+		item := config.WidgetItem{Display: "reset"}
 		ctx := RenderContext{Data: &status.Session{
 			RateLimits: &status.RateLimits{FiveHour: &status.RateLimitWindow{
 				ResetsAt: int64Ptr(time.Now().Add(2 * time.Hour).Unix()),
@@ -1540,7 +1553,7 @@ func TestRateLimitWidget(t *testing.T) {
 	})
 
 	t.Run("full mode combines percent and reset", func(t *testing.T) {
-		item := config.WidgetItem{Metadata: map[string]string{"display": "full"}}
+		item := config.WidgetItem{Display: "full"}
 		ctx := RenderContext{Data: &status.Session{
 			RateLimits: &status.RateLimits{FiveHour: &status.RateLimitWindow{
 				UsedPercentage: floatPtr(30),
@@ -1553,7 +1566,7 @@ func TestRateLimitWidget(t *testing.T) {
 	})
 
 	t.Run("bar mode renders a block bar", func(t *testing.T) {
-		item := config.WidgetItem{Metadata: map[string]string{"display": "bar"}}
+		item := config.WidgetItem{Display: "bar"}
 		ctx := RenderContext{Data: &status.Session{
 			RateLimits: &status.RateLimits{FiveHour: &status.RateLimitWindow{UsedPercentage: floatPtr(30)}},
 		}}
@@ -1561,7 +1574,7 @@ func TestRateLimitWidget(t *testing.T) {
 	})
 
 	t.Run("bar mode honors barWidth", func(t *testing.T) {
-		item := config.WidgetItem{Metadata: map[string]string{"display": "bar", "barWidth": "5"}}
+		item := config.WidgetItem{Display: "bar", BarWidth: 5}
 		ctx := RenderContext{Data: &status.Session{
 			RateLimits: &status.RateLimits{FiveHour: &status.RateLimitWindow{UsedPercentage: floatPtr(40)}},
 		}}
@@ -1569,7 +1582,7 @@ func TestRateLimitWidget(t *testing.T) {
 	})
 
 	t.Run("barWidth is capped", func(t *testing.T) {
-		item := config.WidgetItem{Metadata: map[string]string{"display": "bar", "barWidth": "9000000000000000000"}}
+		item := config.WidgetItem{Display: "bar", BarWidth: 9000000000000000000}
 		ctx := RenderContext{Data: &status.Session{
 			RateLimits: &status.RateLimits{FiveHour: &status.RateLimitWindow{UsedPercentage: floatPtr(50)}},
 		}}
@@ -1577,7 +1590,7 @@ func TestRateLimitWidget(t *testing.T) {
 	})
 
 	t.Run("bar mode hidden when used_percentage absent", func(t *testing.T) {
-		item := config.WidgetItem{Metadata: map[string]string{"display": "bar"}}
+		item := config.WidgetItem{Display: "bar"}
 		ctx := RenderContext{Data: &status.Session{
 			RateLimits: &status.RateLimits{FiveHour: &status.RateLimitWindow{}},
 		}}
@@ -1789,7 +1802,7 @@ func TestAddedDirsWidget(t *testing.T) {
 	})
 
 	t.Run("list mode shows basenames", func(t *testing.T) {
-		item := config.WidgetItem{Metadata: map[string]string{"display": "list"}}
+		item := config.WidgetItem{Display: "list"}
 		ctx := RenderContext{Data: &status.Session{
 			Workspace: &status.Workspace{AddedDirs: []string{"/home/x/foo", "/home/x/bar"}},
 		}}

@@ -22,7 +22,7 @@ func TestInstallHideVimIndicatorHint(t *testing.T) {
 		{
 			name:  "hiding with a vim-mode widget",
 			args:  []string{"--hide-vim-indicator"},
-			lines: [][]config.WidgetItem{{{ID: "1", Type: "model"}}, {{ID: "2", Type: "vim-mode"}}},
+			lines: [][]config.WidgetItem{{{Type: "model"}}, {{Type: "vim-mode"}}},
 		},
 		{name: "unhiding", args: []string{"--hide-vim-indicator=false"}},
 		{name: "flag not given", args: nil},

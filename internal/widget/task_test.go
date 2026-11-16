@@ -49,7 +49,7 @@ func TestTaskWidgets(t *testing.T) {
 		{"task-effort", done, config.WidgetItem{}, "32k"},
 		{"task-tokens", running, config.WidgetItem{}, "45.2k"},
 		{"task-context", running, config.WidgetItem{}, "23%"},
-		{"task-context", running, config.WidgetItem{Metadata: map[string]string{"display": "bar"}}, "▓▓░░░░░░░░ 23%"},
+		{"task-context", running, config.WidgetItem{Display: "bar"}, "▓▓░░░░░░░░ 23%"},
 		{"task-context", done, config.WidgetItem{}, ""},
 		{"task-sparkline", running, config.WidgetItem{}, "▅▅█"},
 		{"task-sparkline", done, config.WidgetItem{}, ""},

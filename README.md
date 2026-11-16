@@ -128,7 +128,16 @@ Removes the `statusLine` and `subagentStatusLine` blocks whose command runs ccst
 ccstatus validate
 ```
 
-Checks `settings.json` for JSON errors (reported as `path:line:column`), missing or unknown widget types, missing or duplicate widget IDs, invalid color names (threshold and override colors included), an unknown `flexMode`, `colorLevel` outside 0–3, `compactThreshold` outside 0–100, a negative `maxWidth`, `metadata.display` values and `thresholds` the widget does not support, a `subagentHideStatuses` entry that is not a documented task status, and widgets on the wrong kind of line (`task-*` widgets belong in `subagentLine`). Exits non-zero when any problem is found, so it works as a CI gate.
+Reads `settings.json` strictly. Rendering skips what it does not understand, so a typo costs nothing but the effect you wanted; `validate` reports each one with its location:
+
+- JSON errors and values of the wrong type, as `path:line:column`
+- unknown keys, with the key a typo resembles (`unknown field "tresholds" (did you mean "thresholds"?)`) or what replaced a removed one, and keys set twice
+- missing or unknown widget types, invalid color names (threshold and override colors included), and widgets on the wrong kind of line (`task-*` widgets belong in `subagentLine`)
+- options that do nothing on their widget: `rawValue` without a raw mode, `display` values and `thresholds` the widget does not support, `barWidth` without a `bar` display, and `character`, `customText`, `commandPath`, `timeout` or `preserveColors` on another widget
+- a `custom-text` or `custom-command` without its text or command, and a threshold without `gte`
+- out-of-range values: an unknown `flexMode`, `colorLevel` outside 0–3, `compactThreshold` outside 0–100, `barWidth` outside 1–100, a negative `maxWidth`, `timeout` or `terminalWidth`, and a `subagentHideStatuses` entry that is not a documented task status
+
+Exits non-zero when any problem is found, so it works as a CI gate. Without a settings file it says that the defaults are in use and exits zero.
 
 #### `ccstatus dump`
 
@@ -199,13 +208,12 @@ Sonnet | Ctx: 12% | main | +4 | $0.05
 ~/dev/myproj | Session: 30m
 ```
 
-To customize, edit the `lines` array in `settings.json` — e.g. swap `rate-limits` for the per-window `rate-limit-5h` (`metadata.display`: `bar`/`reset`/`full`), or add `prompt-cache` / `cache-hit-rate`. Fields you leave out of `settings.json` keep their defaults. (If line 1 is getting truncated with `...`, see `terminalWidth` below.)
+To customize, edit the `lines` array in `settings.json` — e.g. swap `rate-limits` for the per-window `rate-limit-5h` (`display`: `bar`/`reset`/`full`), or add `prompt-cache` / `cache-hit-rate`. Fields you leave out of `settings.json` keep their defaults. (If line 1 is getting truncated with `...`, see `terminalWidth` below.)
 
 ### Settings Reference
 
 ```json
 {
-  "version": 4,
   "colorLevel": 2,
   "hyperlinks": true,
   "flexMode": "full-until-compact",
@@ -216,10 +224,9 @@ To customize, edit the `lines` array in `settings.json` — e.g. swap `rate-limi
   "globalBold": false,
   "lines": [
     [
-      { "id": "1", "type": "model", "color": "cyan" },
-      { "id": "2", "type": "separator" },
+      { "type": "model", "color": "cyan" },
+      { "type": "separator" },
       {
-        "id": "3",
         "type": "context-percentage",
         "color": "brightBlack",
         "thresholds": [
@@ -237,7 +244,6 @@ To customize, edit the `lines` array in `settings.json` — e.g. swap `rate-limi
 
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
-| `version` | int | `4` | Config schema version |
 | `colorLevel` | int | `2` | `0` disables color; `1`–`3` all enable ANSI 16-color output |
 | `hyperlinks` | bool | `true` | Make the `pr` number and the `repo` name clickable OSC 8 links. Set `false` if your terminal, tmux or SSH session prints the escape codes instead |
 | `flexMode` | string | `"full-until-compact"` | Right margin each main line leaves: where the line is cut with `...` and how far `flex-separator` fills (see [Flex Modes](#flex-modes)) |
@@ -254,25 +260,25 @@ To customize, edit the `lines` array in `settings.json` — e.g. swap `rate-limi
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `id` | string | Unique identifier, across `lines` and `subagentLine` |
 | `type` | string | Widget type (see list below) |
 | `color` | string | Foreground color name |
 | `backgroundColor` | string | Background color name |
 | `bold` | bool | Bold text |
-| `prefix` | string | Text before widget output; empty keeps the widget's default, such as `Ctx: ` (`ccstatus widgets` lists them) |
+| `prefix` | string | Text before the widget output, in place of the widget's default prefix such as `Ctx: ` (`ccstatus widgets` lists them); `""` removes the default |
 | `suffix` | string | Text after widget output |
 | `character` | string | The text of a `separator`, or an icon before the `git-branch` name |
-| `rawValue` | bool | Use compact/raw output mode |
+| `rawValue` | bool | Use the widget's raw mode, on widgets that have one (the widget tables say what it shows) |
+| `display` | string | One of the widget's display modes, such as `bar` (the widget tables list them, the default first) |
+| `barWidth` | number | Width of a `bar` display in columns, 1–100 (default `10`) |
 | `maxWidth` | number | Cap the widget's text at this many columns, ending it with `…` (the prefix and suffix are not counted; wide characters count as two) |
-| `merge` | bool/string | Join this widget to the next one without `defaultPadding` (`true`, or the legacy `"no-padding"`) |
-| `metadata` | object | Widget-specific options as strings, such as `{ "display": "bar", "barWidth": "20" }`; `barWidth` sizes every `bar` display |
+| `merge` | bool | Join this widget to the next one without `defaultPadding` |
 | `customText` | string | The text of `custom-text` |
 | `commandPath` | string | Shell command for `custom-command`, run with `sh -c` and given Claude Code's JSON on stdin; the first line of its output is shown |
 | `timeout` | number | `custom-command` timeout in milliseconds (default `3000`); when it expires, the command and everything it started are killed and the widget is left out |
 | `preserveColors` | bool | Keep the ANSI colors in `custom-command` output |
 | `thresholds` | array | Restyle a numeric widget by value: `[{ "gte": 70, "color": "yellow" }, { "gte": 90, "color": "red", "bold": true }]`. The highest `gte` reached wins; below the first, `color` applies. Each entry may set `color`, `backgroundColor`, `bold` |
 
-Thresholds work on widgets that render a number: the context and remaining percentages, `cache-hit-rate`, the rate-limit widgets (`rate-limits` uses the highest of its limits), `spend-limit`, `prompt-cache` (minutes until cold, or the hit percentage in `hit` mode), `session-cost`, `context-length`, the token counts, and `task-tokens` / `task-context` in `subagentLine`. `ccstatus validate` flags thresholds on any other widget.
+Thresholds work on widgets that render a number: the context and remaining percentages, `cache-hit-rate`, the rate-limit widgets (`rate-limits` uses the highest of its limits), `spend-limit`, `prompt-cache` (minutes until cold, or the hit percentage in `hit` mode), `session-cost`, `context-length`, the token counts, `block-timer` (the percentage of the window that has run), and `task-tokens` / `task-context` in `subagentLine`. `ccstatus validate` flags thresholds on any other widget.
 
 ### Flex Modes
 
@@ -281,6 +287,7 @@ Thresholds work on widgets that render a number: the context and remaining perce
 | `full` | Terminal width - 10 characters |
 | `full-minus-40` | Terminal width - 40 characters |
 | `full-until-compact` | Terminal width - 10, switching to - 40 once context % >= `compactThreshold` (default) |
+| `exact` | Terminal width, with no margin: for Claude Code's fullscreen rendering, where notifications get a row of their own |
 
 ### Subagent Rows
 
@@ -288,17 +295,17 @@ With `ccstatus install --subagent`, Claude Code runs `ccstatus subagent` for the
 
 ```json
 "subagentLine": [
-  { "id": "s1", "type": "task-name", "color": "cyan" },
-  { "id": "s2", "type": "task-status" },
-  { "id": "s3", "type": "task-elapsed" },
-  { "id": "s4", "type": "separator" },
-  { "id": "s5", "type": "task-model" },
-  { "id": "s6", "type": "task-effort", "prefix": "· " },
-  { "id": "s7", "type": "task-tokens" },
-  { "id": "s8", "type": "task-context", "color": "brightBlack", "thresholds": [{ "gte": 30, "color": "white" }, { "gte": 60, "color": "yellow" }, { "gte": 90, "color": "red" }] },
-  { "id": "s9", "type": "task-sparkline" },
-  { "id": "s10", "type": "separator" },
-  { "id": "s11", "type": "task-label" }
+  { "type": "task-name", "color": "cyan" },
+  { "type": "task-status" },
+  { "type": "task-elapsed" },
+  { "type": "separator" },
+  { "type": "task-model" },
+  { "type": "task-effort", "prefix": "· " },
+  { "type": "task-tokens" },
+  { "type": "task-context", "color": "brightBlack", "thresholds": [{ "gte": 30, "color": "white" }, { "gte": 60, "color": "yellow" }, { "gte": 90, "color": "red" }] },
+  { "type": "task-sparkline" },
+  { "type": "separator" },
+  { "type": "task-label" }
 ]
 ```
 
@@ -314,6 +321,18 @@ To keep the panel short, `subagentHideStatuses` hides the rows of tasks in the l
 ```json
 "subagentHideStatuses": ["completed", "killed"]
 ```
+
+### Upgrading Settings
+
+Settings written for v0.5 and earlier still render, without the options that changed. `ccstatus validate` names each one:
+
+| Before | Now |
+| --- | --- |
+| `"id": "1"` on every item, `"version": 4` | Removed: delete them |
+| `"metadata": { "display": "bar", "barWidth": "20" }` | `"display": "bar", "barWidth": 20` on the item itself |
+| `"merge": "no-padding"` | `"merge": true` |
+| `block-timer` display `progress` / `percentage` | `bar` / `percent` |
+| `"prefix": ""` kept the default prefix | It removes the default prefix |
 
 ### Available Colors
 
@@ -343,21 +362,21 @@ To keep the panel short, `subagentHideStatuses` hides the rows of tasks in the l
 | `current-usage-output` | JSON | Current round output tokens | white |
 | `cache-creation` | JSON | Cache creation tokens | white |
 | `context-length` | JSON | Context usage in tokens | white |
-| `context-percentage` | JSON | Context usage % (`metadata.display`: `bar` for `▓▓▓░░░░░░░ 32%`) | white |
+| `context-percentage` | JSON | Context usage % (`display`: `bar` for `▓▓▓░░░░░░░ 32%`) | white |
 | `context-percentage-usable` | JSON | Usable context % (heuristic: 80% of max, leaving auto-compact headroom; `bar` display) | white |
 | `remaining-percentage` | JSON | Remaining context % (`bar` display) | white |
 | `cache-hit-rate` | JSON | Session prompt cache hit ratio (`prompt_cache.hit_ratio`; older Claude Code: the last request's cache reads; `bar` display) | cyan |
-| `prompt-cache` | JSON | Prompt cache state, e.g. `warm 42m` / `cold` — green while warm, dim once cold (`metadata.display`: `status`/`ttl`/`hit`/`misses`/`full`, e.g. `warm 42m · 91% hit · 2 misses (tools_changed)`) | green |
+| `prompt-cache` | JSON | Prompt cache state, e.g. `warm 42m` / `cold` — green while warm, dim once cold (`display`: `status`/`ttl`/`hit`/`misses`/`full`, e.g. `warm 42m · 91% hit · 2 misses (tools_changed)`) | green |
 | `api-duration` | JSON | Total API response time this session | white |
-| `block-timer` | JSON | Time into the 5-hour rate-limit window, e.g. `2h47m/5h`; hidden without rate-limit data (`metadata.display`: `time`/`progress`/`percentage`) | white |
+| `block-timer` | JSON | Time into the 5-hour rate-limit window, e.g. `2h47m/5h`; hidden without rate-limit data (`display`: `time`/`bar`/`percent`) | white |
 | `rate-limits` | JSON | Combined limits, e.g. `5h: 3% / 7d: 12%` or `spend: $314.12/$500.00` behind a Claude apps gateway (each shown only when present) | yellow |
-| `spend-limit` | JSON | Claude apps gateway spend limit, e.g. `$314.12 / $500.00` (`63%` until the dollar amounts arrive; `metadata.display`: `amount`/`percent`/`bar`/`reset`/`full`) | yellow |
-| `rate-limit-5h` | JSON | 5-hour rate-limit usage (`metadata.display`: `percent`/`bar`/`reset`/`full`; `metadata.barWidth`) | yellow |
-| `rate-limit-7d` | JSON | 7-day rate-limit usage (`metadata.display`: `percent`/`bar`/`reset`/`full`; `metadata.barWidth`) | yellow |
+| `spend-limit` | JSON | Claude apps gateway spend limit, e.g. `$314.12 / $500.00` (`63%` until the dollar amounts arrive; `display`: `amount`/`percent`/`bar`/`reset`/`full`) | yellow |
+| `rate-limit-5h` | JSON | 5-hour rate-limit usage (`display`: `percent`/`bar`/`reset`/`full`) | yellow |
+| `rate-limit-7d` | JSON | 7-day rate-limit usage (`display`: `percent`/`bar`/`reset`/`full`) | yellow |
 | `current-working-dir` | JSON | Current directory name (raw: the full path, `~`-shortened) | blue |
 | `project-dir` | JSON | Project root directory name (raw: the full path) | blue |
 | `transcript-path` | JSON | Transcript file name (raw: the full path) | white |
-| `added-dirs` | JSON | Directories added via `/add-dir` (`metadata.display`: `list` for names) | blue |
+| `added-dirs` | JSON | Directories added via `/add-dir` (`display`: `list` for names) | blue |
 | `repo` | JSON | Repository `owner/name` from the origin remote, an OSC 8 link to `https://host/owner/name` (raw: name only, unlinked) | blue |
 | `pr` | JSON | Open PR number + review state, e.g. `#1234 approved`, or `!1234` for a GitLab merge request; the number is an OSC 8 link when `pr.url` is present (raw: number) | cyan |
 | `lines-changed` | Git | Uncommitted lines changed (+N/-M) | green |
