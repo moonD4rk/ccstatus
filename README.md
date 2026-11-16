@@ -349,7 +349,7 @@ To keep the panel short, `subagentHideStatuses` hides the rows of tasks in the l
 | `cache-hit-rate` | JSON | Session prompt cache hit ratio (`prompt_cache.hit_ratio`; older Claude Code: the last request's cache reads; `bar` display) | cyan |
 | `prompt-cache` | JSON | Prompt cache state, e.g. `warm 42m` / `cold` — green while warm, dim once cold (`metadata.display`: `status`/`ttl`/`hit`/`misses`/`full`, e.g. `warm 42m · 91% hit · 2 misses (tools_changed)`) | green |
 | `api-duration` | JSON | Total API response time this session | white |
-| `block-timer` | JSON/JSONL | 5-hour block timer (uses the rate-limit window when available; `metadata.display`: `time`/`progress`/`percentage`) | white |
+| `block-timer` | JSON | Time into the 5-hour rate-limit window, e.g. `2h47m/5h`; hidden without rate-limit data (`metadata.display`: `time`/`progress`/`percentage`) | white |
 | `rate-limits` | JSON | Combined limits, e.g. `5h: 3% / 7d: 12%` or `spend: $314.12/$500.00` behind a Claude apps gateway (each shown only when present) | yellow |
 | `spend-limit` | JSON | Claude apps gateway spend limit, e.g. `$314.12 / $500.00` (`63%` until the dollar amounts arrive; `metadata.display`: `amount`/`percent`/`bar`/`reset`/`full`) | yellow |
 | `rate-limit-5h` | JSON | 5-hour rate-limit usage (`metadata.display`: `percent`/`bar`/`reset`/`full`; `metadata.barWidth`) | yellow |

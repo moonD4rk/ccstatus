@@ -1,9 +1,12 @@
 package terminal
 
 import (
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestWidth(t *testing.T) {
@@ -23,7 +26,7 @@ func TestWidth(t *testing.T) {
 		assert.Positive(t, Width(-5))
 	})
 
-	t.Run("COLUMNS is honored before fd/tty fallbacks", func(t *testing.T) {
+	t.Run("COLUMNS is honored before the attached terminal", func(t *testing.T) {
 		t.Setenv("COLUMNS", "123")
 		assert.Equal(t, 123, Width(0))
 	})
@@ -52,15 +55,12 @@ func TestWidthFromColumns(t *testing.T) {
 	}
 }
 
-func TestWidthFromTTYName(t *testing.T) {
-	for _, name := range []string{"", " ", "?", "??", "-", "nonexistent-tty-xyz"} {
-		assert.Zero(t, widthFromTTYName(name), "name %q should not resolve to a width", name)
-	}
-}
+func TestIsTerminal(t *testing.T) {
+	assert.False(t, IsTerminal(strings.NewReader("{}")), "a reader that is not a file")
 
-func TestPpidAndTTY(t *testing.T) {
-	// Looking up an obviously invalid pid must not panic and must report no tty.
-	ppid, tty := ppidAndTTY(-1)
-	assert.Zero(t, ppid)
-	assert.Empty(t, tty)
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
+	defer r.Close()
+	defer w.Close()
+	assert.False(t, IsTerminal(r), "a pipe")
 }

@@ -32,17 +32,8 @@ func (w *ContextLengthWidget) Value(_ *config.WidgetItem, ctx RenderContext) (fl
 // DefaultColor returns the default foreground color.
 func (w *ContextLengthWidget) DefaultColor() string { return defaultDimColor }
 
-// DisplayName returns the human-readable name.
-func (w *ContextLengthWidget) DisplayName() string { return "Context Length" }
-
 // Description returns what this widget shows.
 func (w *ContextLengthWidget) Description() string { return "Context window usage in tokens" }
 
-// SupportsRawValue returns false since formatting is always applied.
-func (w *ContextLengthWidget) SupportsRawValue() bool { return false }
-
 // DefaultPrefix returns the default prefix.
 func (w *ContextLengthWidget) DefaultPrefix() string { return "CtxLen: " }
-
-// DefaultSuffix returns the default suffix.
-func (w *ContextLengthWidget) DefaultSuffix() string { return "" }

@@ -9,7 +9,7 @@ import (
 )
 
 // CurrentDirWidget displays the current working directory.
-type CurrentDirWidget struct{ noAffix }
+type CurrentDirWidget struct{}
 
 // Render returns the current directory from the workspace or cwd field.
 // RawValue mode returns the full path with ~ substitution; normal mode returns the base name.
@@ -49,9 +49,6 @@ func shortenHome(path string) string {
 
 // DefaultColor returns the default foreground color.
 func (w *CurrentDirWidget) DefaultColor() string { return "blue" }
-
-// DisplayName returns the human-readable name.
-func (w *CurrentDirWidget) DisplayName() string { return "Current Directory" }
 
 // Description returns what this widget shows.
 func (w *CurrentDirWidget) Description() string { return "Current working directory" }

@@ -3,10 +3,18 @@ package widget
 
 import (
 	"sync"
+	"time"
 
 	"github.com/moond4rk/ccstatus/internal/config"
 	"github.com/moond4rk/ccstatus/internal/git"
 	"github.com/moond4rk/ccstatus/internal/status"
+)
+
+// The widget types the render pipeline and the validator treat specially.
+const (
+	TypeSeparator     = "separator"
+	TypeFlexSeparator = "flex-separator"
+	TypeCustomText    = "custom-text"
 )
 
 // RenderContext carries runtime data available to all widgets during rendering.
@@ -15,6 +23,10 @@ type RenderContext struct {
 	Data          *status.Session
 	TerminalWidth int
 	Git           *GitCache
+	// Now is the time the render started. Widgets measure countdowns and elapsed
+	// times against it instead of reading the clock, so one render is consistent
+	// and reproducible. The zero value means the current time.
+	Now time.Time
 	// RawInput is the exact stdin Claude Code piped in, forwarded verbatim to
 	// custom commands so they see the full official schema (including fields
 	// ccstatus does not model yet). Nil when unavailable.
@@ -22,6 +34,15 @@ type RenderContext struct {
 	// Task is the subagent row `ccstatus subagent` is rendering. Nil on the main
 	// status line, where task widgets render empty.
 	Task *status.Task
+}
+
+// now returns the render time, falling back to the clock for a context that
+// sets none.
+func (ctx RenderContext) now() time.Time {
+	if ctx.Now.IsZero() {
+		return time.Now()
+	}
+	return ctx.Now
 }
 
 // GitProvider supplies git repository facts for one render cycle.
@@ -148,7 +169,9 @@ func PrefetchGit(lines [][]config.WidgetItem, ctx RenderContext) {
 	wg.Wait()
 }
 
-// Widget defines the contract for all status line widgets.
+// Widget defines the contract for all status line widgets. What only some
+// widgets have (a label, a raw mode, a numeric value, display modes) is an
+// optional interface below.
 type Widget interface {
 	// Render produces the widget text for the status line.
 	// Returns empty string if the widget has nothing to display.
@@ -157,22 +180,36 @@ type Widget interface {
 	// DefaultColor returns the default foreground color name.
 	DefaultColor() string
 
-	// DisplayName returns the human-readable widget name.
-	DisplayName() string
-
 	// Description returns a short description of what the widget shows.
 	Description() string
+}
 
-	// SupportsRawValue indicates if the widget has a compact output mode.
-	SupportsRawValue() bool
-
-	// DefaultPrefix returns text prepended to the output when the user set none.
-	// Embed noAffix to inherit "".
+// defaultPrefixer is implemented by widgets that label their output, such as
+// "Ctx: "; an item's own prefix replaces the label.
+type defaultPrefixer interface {
 	DefaultPrefix() string
+}
 
-	// DefaultSuffix returns text appended to the output when the user set none.
-	// Embed noAffix to inherit "".
-	DefaultSuffix() string
+// DefaultPrefix returns the label w puts before its output, or "" when it has
+// none.
+func DefaultPrefix(w Widget) string {
+	if p, ok := w.(defaultPrefixer); ok {
+		return p.DefaultPrefix()
+	}
+	return ""
+}
+
+// rawValuer is implemented by widgets whose output changes with an item's
+// rawValue.
+type rawValuer interface {
+	SupportsRawValue() bool
+}
+
+// SupportsRawValue reports whether rawValue changes what the widget type
+// renders.
+func SupportsRawValue(widgetType string) bool {
+	w, ok := Get(widgetType).(rawValuer)
+	return ok && w.SupportsRawValue()
 }
 
 // Valuer is implemented by numeric widgets: Value exposes the number the widget
@@ -200,7 +237,7 @@ var registry = map[string]Widget{
 	"model":         &ModelWidget{},
 	"version":       &VersionWidget{},
 	"session-cost":  &SessionCostWidget{},
-	"session-clock": &SessionClockWidget{},
+	"session-clock": &durationWidget{extract: sessionDuration, description: "Session duration", defaultPrefix: "Session: "},
 
 	// Git
 	"git-branch":   &GitBranchWidget{},
@@ -213,48 +250,48 @@ var registry = map[string]Widget{
 	// quantity; context-length also falls back to total_input_tokens when
 	// current_usage is null (e.g. just after /compact), so it does not blank out.
 	"tokens-input": &tokenWidget{
-		extract: extractInputTokens, displayName: "Input Tokens", description: "Input tokens currently in context (includes cache reads/writes)",
+		extract: extractInputTokens, description: "Input tokens currently in context (includes cache reads/writes)",
 		defaultPrefix: "In: ",
 	},
 	"tokens-output": &tokenWidget{
-		extract: extractOutputTokens, displayName: "Output Tokens", description: "Output tokens from the most recent API response",
+		extract: extractOutputTokens, description: "Output tokens from the most recent API response",
 		defaultPrefix: "Out: ",
 	},
 	"tokens-cached": &tokenWidget{
-		extract: extractCachedTokens, displayName: "Cached Tokens", description: "Cached token count",
+		extract: extractCachedTokens, description: "Cached token count",
 		defaultPrefix: "Cached: ",
 	},
 	"tokens-total": &tokenWidget{
-		extract: extractTotalTokens, displayName: "Total Tokens", description: "Total tokens currently in the context window (input + output)",
+		extract: extractTotalTokens, description: "Total tokens currently in the context window (input + output)",
 		defaultPrefix: "Total: ",
 	},
 
 	"current-usage-input": &tokenWidget{
-		extract: extractCurrentInputTokens, displayName: "Current Input Tokens", description: "Current round input token count",
+		extract: extractCurrentInputTokens, description: "Current round input token count",
 		defaultPrefix: "CurIn: ",
 	},
 	"current-usage-output": &tokenWidget{
-		extract: extractCurrentOutputTokens, displayName: "Current Output Tokens", description: "Current round output token count",
+		extract: extractCurrentOutputTokens, description: "Current round output token count",
 		defaultPrefix: "CurOut: ",
 	},
 	"cache-creation": &tokenWidget{
-		extract: extractCacheCreationTokens, displayName: "Cache Creation Tokens", description: "Cache creation input token count",
+		extract: extractCacheCreationTokens, description: "Cache creation input token count",
 		defaultPrefix: "CacheW: ",
 	},
 
 	// Context window
 	"context-length": &ContextLengthWidget{},
 	"context-percentage": &percentageWidget{
-		extract: status.ContextPercentage, displayName: "Context %", description: "Context usage as percentage of max window",
+		extract: status.ContextPercentage, description: "Context usage as percentage of max window",
 		defaultPrefix: "Ctx: ",
 	},
 	"context-percentage-usable": &ContextPercentageUsableWidget{},
 	"remaining-percentage": &percentageWidget{
-		extract: status.RemainingPercentage, displayName: "Remaining %", description: "Remaining context window percentage",
+		extract: status.RemainingPercentage, description: "Remaining context window percentage",
 		defaultPrefix: "Rem: ",
 	},
 	"cache-hit-rate": &percentageWidget{
-		extract: status.CacheHitRate, displayName: "Cache Hit Rate",
+		extract:       status.CacheHitRate,
 		description:   "Session prompt cache hit ratio (falls back to the last request's cache reads)",
 		defaultPrefix: "Cache: ", defaultColor: "cyan",
 	},
@@ -273,17 +310,17 @@ var registry = map[string]Widget{
 	"session-lines":       &SessionLinesWidget{},
 
 	// Cost and duration
-	"api-duration": &APIDurationWidget{},
+	"api-duration": &durationWidget{extract: apiDuration, description: "Total API response time", defaultPrefix: "API: "},
 	"block-timer":  &BlockTimerWidget{},
 
 	// Rate limits
 	"rate-limits": &RateLimitsWidget{},
 	"rate-limit-5h": &RateLimitWidget{
-		extract: fiveHourWindow, displayName: "5h Rate Limit", description: "5-hour rate-limit usage",
+		extract: fiveHourWindow, description: "5-hour rate-limit usage",
 		defaultPrefix: "5h limit: ",
 	},
 	"rate-limit-7d": &RateLimitWidget{
-		extract: sevenDayWindow, displayName: "7d Rate Limit", description: "7-day rate-limit usage",
+		extract: sevenDayWindow, description: "7-day rate-limit usage",
 		defaultPrefix: "7d limit: ",
 	},
 	"spend-limit": &SpendLimitWidget{},
@@ -298,7 +335,6 @@ var registry = map[string]Widget{
 			return data.OutputStyle.Name
 		},
 		defaultColor:  defaultDimColor,
-		displayName:   "Output Style",
 		description:   "Current output style name",
 		defaultPrefix: "Style: ",
 	},
@@ -310,7 +346,6 @@ var registry = map[string]Widget{
 			return data.Vim.Mode
 		},
 		defaultColor:  "yellow",
-		displayName:   "Vim Mode",
 		description:   "Current vim mode indicator",
 		defaultPrefix: "Vim: ",
 	},
@@ -322,7 +357,6 @@ var registry = map[string]Widget{
 			return data.Agent.Name
 		},
 		defaultColor:  "cyan",
-		displayName:   "Agent Name",
 		description:   "Agent name when using --agent flag",
 		defaultPrefix: "Agent: ",
 	},
@@ -334,7 +368,6 @@ var registry = map[string]Widget{
 			return data.Effort.Level
 		},
 		defaultColor:  "cyan",
-		displayName:   "Reasoning Effort",
 		description:   "Current reasoning effort level",
 		defaultPrefix: "Effort: ",
 	},
@@ -346,7 +379,6 @@ var registry = map[string]Widget{
 			return "on"
 		},
 		defaultColor:  "magenta",
-		displayName:   "Thinking",
 		description:   "Extended thinking indicator",
 		defaultPrefix: "Think: ",
 	},
@@ -358,7 +390,6 @@ var registry = map[string]Widget{
 			return "Fast"
 		},
 		defaultColor: "yellow",
-		displayName:  "Fast Mode",
 		description:  "Shows Fast while fast mode is on",
 	},
 	"session-name": &stringFieldWidget{
@@ -366,7 +397,6 @@ var registry = map[string]Widget{
 			return data.SessionName
 		},
 		defaultColor: defaultDimColor,
-		displayName:  "Session Name",
 		description:  "Session name from --name or /rename, or the AI-generated title",
 	},
 	"exceeds-200k":   &Exceeds200KWidget{},
@@ -375,59 +405,48 @@ var registry = map[string]Widget{
 	// Subagent rows (subagentLine only)
 	"task-name": &taskFieldWidget{
 		extract: taskName, color: "cyan",
-		displayName: "Task Name", description: "Subagent name, else its agent type",
+		description: "Subagent name, else its agent type",
 	},
 	"task-type": &taskFieldWidget{
 		extract: func(t *status.Task, _ *config.WidgetItem) string { return t.AgentType }, color: "magenta",
-		displayName: "Task Agent Type", description: "Subagent type, such as Explore or a custom agent",
+		description: "Subagent type, such as Explore or a custom agent",
 	},
 	"task-status": &taskFieldWidget{
 		extract: func(t *status.Task, _ *config.WidgetItem) string { return t.Status }, colorFor: taskStatusColor,
-		color: defaultDimColor, displayName: "Task Status", description: "Subagent state, colored: running, completed, failed, killed",
+		color: defaultDimColor, description: "Subagent state, colored: running, completed, failed, killed",
 	},
 	"task-label": &taskFieldWidget{
 		extract: taskLabel, color: defaultDimColor,
-		displayName: "Task Label", description: "Subagent progress summary, else its description",
+		description: "Subagent progress summary, else its description",
 	},
-	"task-elapsed": &taskFieldWidget{
-		extract: taskElapsed, color: defaultDimColor,
-		displayName: "Task Elapsed", description: "Running time of a running subagent",
-	},
+	"task-elapsed": &TaskElapsedWidget{},
 	"task-model": &taskFieldWidget{
 		extract: taskModel, color: "cyan", raw: true,
-		displayName: "Task Model", description: "Subagent model, e.g. Sonnet 5.5 (raw: model ID)",
+		description: "Subagent model, e.g. Sonnet 5.5 (raw: model ID)",
 	},
 	"task-effort": &taskFieldWidget{
 		extract: taskEffort, color: "cyan",
-		displayName: "Task Effort", description: "Subagent effort level or token budget",
+		description: "Subagent effort level or token budget",
 	},
 	"task-tokens":  &TaskTokensWidget{},
 	"task-context": &TaskContextWidget{},
 	"task-sparkline": &taskFieldWidget{
 		extract: taskSparkline, color: "cyan",
-		displayName: "Task Sparkline", description: "Tokens a running subagent added per refresh tick",
+		description: "Tokens a running subagent added per refresh tick",
 	},
 	"task-cwd": &taskFieldWidget{
 		extract: taskCwd, color: "blue",
-		displayName: "Task Directory", description: "Base name of the subagent's working directory",
+		description: "Base name of the subagent's working directory",
 	},
 
 	// User-defined
-	"custom-text":    &CustomTextWidget{},
+	TypeCustomText:   &CustomTextWidget{},
 	"custom-command": &CustomCommandWidget{},
 
 	// Layout
-	"separator":      &SeparatorWidget{},
-	"flex-separator": &FlexSeparatorWidget{},
+	TypeSeparator:     &SeparatorWidget{},
+	TypeFlexSeparator: &FlexSeparatorWidget{},
 }
-
-// noAffix provides empty default prefix/suffix. Embed it in widgets that add no
-// affix of their own, so every Widget satisfies the interface without boilerplate.
-// User-configured WidgetItem.Prefix/Suffix always take precedence over defaults.
-type noAffix struct{}
-
-func (noAffix) DefaultPrefix() string { return "" }
-func (noAffix) DefaultSuffix() string { return "" }
 
 // Get returns the widget for the given type string, or nil if unknown.
 func Get(widgetType string) Widget {

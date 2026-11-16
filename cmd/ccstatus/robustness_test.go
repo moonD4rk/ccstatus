@@ -36,7 +36,7 @@ func TestRenderStatusLineSurvivesPanic(t *testing.T) {
 	var stdout bytes.Buffer
 	stderr := &panicOnce{}
 	require.NotPanics(t, func() {
-		renderStatusLine(&stdout, stderr, []byte(payload), nil, 120)
+		renderStatusLine(&stdout, stderr, []byte(payload), nil, renderOptions{width: 120})
 	})
 	assert.Equal(t, "ccstatus: internal error: boom (please report it)\n", plain(stdout.String()))
 	assert.Contains(t, stderr.String(), "ccstatus: panic: boom")

@@ -49,7 +49,8 @@ A review of ccstatus after RFC 006 found the project healthy: lint clean, 80-97%
 - `Widget` shrinks to `Render`, `DefaultColor` and `Description`. A default prefix and a raw mode become optional interfaces; `DisplayName`, `DefaultSuffix` and `noAffix` go, as nothing reads them.
 - `block-timer` reads only `rate_limits.five_hour.resets_at` and is hidden without it. The session-duration and transcript fallbacks described a different quantity, and `internal/jsonl` goes with them.
 - Terminal width is `terminalWidth`, then `COLUMNS`, then the attached terminal, then 80. The `/dev/tty` and `ps` ancestor probes predate the `COLUMNS` contract of Claude Code v2.1.153.
-- `RenderContext.Now` carries the render time, so widgets never read the clock and a whole render is reproducible in tests.
+- `RenderContext.Now` carries the render time, so widgets never read the clock and a whole render is reproducible in tests. `preview` uses one instant, in whole seconds, for its sample and its render; before, a countdown could read a minute short.
+- The formatters widgets share move into one file, and the `separator` and `flex-separator` type names are defined once.
 
 ### PR 3: Settings schema
 

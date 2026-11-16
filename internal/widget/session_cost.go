@@ -47,18 +47,8 @@ func formatCost(cost float64) string {
 // DefaultColor returns the default foreground color.
 func (w *SessionCostWidget) DefaultColor() string { return defaultGreenColor }
 
-// DisplayName returns the human-readable name.
-func (w *SessionCostWidget) DisplayName() string { return "Session Cost" }
-
 // Description returns what this widget shows.
 func (w *SessionCostWidget) Description() string { return "Session cost in USD" }
 
 // SupportsRawValue returns true since this widget supports compact output.
 func (w *SessionCostWidget) SupportsRawValue() bool { return true }
-
-// DefaultPrefix returns the default prefix. The "$" sign is self-explanatory,
-// so no label prefix is added by default.
-func (w *SessionCostWidget) DefaultPrefix() string { return "" }
-
-// DefaultSuffix returns the default suffix.
-func (w *SessionCostWidget) DefaultSuffix() string { return "" }

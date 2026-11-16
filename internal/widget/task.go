@@ -1,7 +1,6 @@
 package widget
 
 import (
-	"fmt"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -29,7 +28,7 @@ func IsTaskWidget(widgetType string) bool {
 // line and subagent rows.
 func IsSharedWidget(widgetType string) bool {
 	switch widgetType {
-	case "separator", "flex-separator", "custom-text":
+	case TypeSeparator, TypeFlexSeparator, TypeCustomText:
 		return true
 	}
 	return false
@@ -37,11 +36,9 @@ func IsSharedWidget(widgetType string) bool {
 
 // taskFieldWidget renders one text field of the subagent task being rendered.
 type taskFieldWidget struct {
-	noAffix
 	extract     func(task *status.Task, item *config.WidgetItem) string
 	colorFor    func(task *status.Task) string
 	color       string
-	displayName string
 	description string
 	raw         bool
 }
@@ -66,9 +63,6 @@ func (w *taskFieldWidget) DefaultColorFor(ctx RenderContext) string {
 
 // DefaultColor returns the default foreground color.
 func (w *taskFieldWidget) DefaultColor() string { return w.color }
-
-// DisplayName returns the human-readable name.
-func (w *taskFieldWidget) DisplayName() string { return w.displayName }
 
 // Description returns what this widget shows.
 func (w *taskFieldWidget) Description() string { return w.description }
@@ -106,32 +100,6 @@ func taskStatusColor(t *status.Task) string {
 		return "brightBlack"
 	default:
 		return ""
-	}
-}
-
-// taskElapsed is empty unless the task is running: the payload has no end time,
-// so a finished task's age would keep growing.
-func taskElapsed(t *status.Task, _ *config.WidgetItem) string {
-	if t.Status != status.TaskRunning || t.StartTime <= 0 {
-		return ""
-	}
-	elapsed := time.Since(time.UnixMilli(t.StartTime))
-	if elapsed < 0 {
-		return ""
-	}
-	return formatElapsed(elapsed)
-}
-
-// formatElapsed renders a running time with second precision below an hour,
-// "45s" or "1m23s", and like every other duration from there on: "1h2m".
-func formatElapsed(d time.Duration) string {
-	switch {
-	case d < time.Minute:
-		return fmt.Sprintf("%ds", int(d.Seconds()))
-	case d < time.Hour:
-		return fmt.Sprintf("%dm%ds", int(d.Minutes()), int(d.Seconds())%60)
-	default:
-		return formatDuration(float64(d.Milliseconds()))
 	}
 }
 
@@ -194,15 +162,6 @@ func taskEffort(t *status.Task, _ *config.WidgetItem) string {
 	}
 }
 
-// compactTokens formats a token budget, dropping a ".0" for whole thousands
-// ("32k" rather than "32.0k").
-func compactTokens(n int) string {
-	if n >= 1000 && n < 1_000_000 && n%1000 == 0 {
-		return fmt.Sprintf("%dk", n/1000)
-	}
-	return status.FormatTokens(n)
-}
-
 func taskCwd(t *status.Task, _ *config.WidgetItem) string {
 	if t.Cwd == "" {
 		return ""
@@ -244,8 +203,34 @@ func sparkline(samples []int) string {
 	return b.String()
 }
 
+// TaskElapsedWidget displays how long a running subagent has been running, e.g.
+// "1m23s".
+type TaskElapsedWidget struct{}
+
+func (w *TaskElapsedWidget) taskScope() {}
+
+// Render is empty unless the task is running: the payload has no end time, so a
+// finished task's age would keep growing.
+func (w *TaskElapsedWidget) Render(_ *config.WidgetItem, ctx RenderContext, _ *config.Settings) string {
+	t := ctx.Task
+	if t == nil || t.Status != status.TaskRunning || t.StartTime <= 0 {
+		return ""
+	}
+	elapsed := ctx.now().Sub(time.UnixMilli(t.StartTime))
+	if elapsed < 0 {
+		return ""
+	}
+	return formatElapsed(elapsed)
+}
+
+// DefaultColor returns the default foreground color.
+func (w *TaskElapsedWidget) DefaultColor() string { return defaultDimColor }
+
+// Description returns what this widget shows.
+func (w *TaskElapsedWidget) Description() string { return "Running time of a running subagent" }
+
 // TaskTokensWidget displays a subagent's running token count, e.g. "45.2k".
-type TaskTokensWidget struct{ noAffix }
+type TaskTokensWidget struct{}
 
 func (w *TaskTokensWidget) taskScope() {}
 
@@ -268,18 +253,12 @@ func (w *TaskTokensWidget) Value(_ *config.WidgetItem, ctx RenderContext) (float
 // DefaultColor returns the default foreground color.
 func (w *TaskTokensWidget) DefaultColor() string { return defaultDimColor }
 
-// DisplayName returns the human-readable name.
-func (w *TaskTokensWidget) DisplayName() string { return "Task Tokens" }
-
 // Description returns what this widget shows.
 func (w *TaskTokensWidget) Description() string { return "Subagent running token count" }
 
-// SupportsRawValue returns false since this widget has no compact mode.
-func (w *TaskTokensWidget) SupportsRawValue() bool { return false }
-
 // TaskContextWidget displays a subagent's context usage, tokenCount over its
 // model's context window, e.g. "23%" or a bar with metadata.display "bar".
-type TaskContextWidget struct{ noAffix }
+type TaskContextWidget struct{}
 
 func (w *TaskContextWidget) taskScope() {}
 
@@ -305,9 +284,6 @@ func (w *TaskContextWidget) displayModes() []string { return []string{"percent",
 
 // DefaultColor returns the default foreground color.
 func (w *TaskContextWidget) DefaultColor() string { return defaultDimColor }
-
-// DisplayName returns the human-readable name.
-func (w *TaskContextWidget) DisplayName() string { return "Task Context %" }
 
 // Description returns what this widget shows.
 func (w *TaskContextWidget) Description() string {

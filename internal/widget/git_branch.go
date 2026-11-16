@@ -5,7 +5,7 @@ import (
 )
 
 // GitBranchWidget displays the current git branch name.
-type GitBranchWidget struct{ noAffix }
+type GitBranchWidget struct{}
 
 // Render returns the current git branch, optionally prefixed with a character.
 func (w *GitBranchWidget) Render(item *config.WidgetItem, ctx RenderContext, _ *config.Settings) string {
@@ -26,9 +26,6 @@ func (w *GitBranchWidget) gitFacts(RenderContext) []gitFact { return []gitFact{f
 
 // DefaultColor returns the default foreground color.
 func (w *GitBranchWidget) DefaultColor() string { return "magenta" }
-
-// DisplayName returns the human-readable name.
-func (w *GitBranchWidget) DisplayName() string { return "Git Branch" }
 
 // Description returns what this widget shows.
 func (w *GitBranchWidget) Description() string { return "Current git branch name" }

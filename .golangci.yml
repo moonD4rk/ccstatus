@@ -73,6 +73,10 @@ linters:
         - whyNoLint
         - singleCaseSwitch
         - exitAfterDefer
+      settings:
+        # widget.RenderContext is an immutable per-render value every widget takes by value.
+        hugeParam:
+          sizeThreshold: 128
     gocyclo:
       min-complexity: 15
     godox:
