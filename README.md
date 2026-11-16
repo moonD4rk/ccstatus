@@ -175,6 +175,8 @@ cat /tmp/ccstatus-dump.json | ccstatus
 ccstatus preview --width 120
 ```
 
+Run by hand in a terminal with nothing piped in, `ccstatus` prints its help instead of waiting for input.
+
 ## Configuration
 
 Settings are stored at `~/.config/ccstatus/settings.json` (or `$XDG_CONFIG_HOME/ccstatus/settings.json`). Edit manually to customize.
@@ -266,7 +268,7 @@ To customize, edit the `lines` array in `settings.json` — e.g. swap `rate-limi
 | `metadata` | object | Widget-specific options as strings, such as `{ "display": "bar", "barWidth": "20" }`; `barWidth` sizes every `bar` display |
 | `customText` | string | The text of `custom-text` |
 | `commandPath` | string | Shell command for `custom-command`, run with `sh -c` and given Claude Code's JSON on stdin; the first line of its output is shown |
-| `timeout` | number | `custom-command` timeout in milliseconds (default `3000`) |
+| `timeout` | number | `custom-command` timeout in milliseconds (default `3000`); when it expires, the command and everything it started are killed and the widget is left out |
 | `preserveColors` | bool | Keep the ANSI colors in `custom-command` output |
 | `thresholds` | array | Restyle a numeric widget by value: `[{ "gte": 70, "color": "yellow" }, { "gte": 90, "color": "red", "bold": true }]`. The highest `gte` reached wins; below the first, `color` applies. Each entry may set `color`, `backgroundColor`, `bold` |
 
@@ -330,7 +332,7 @@ To keep the panel short, `subagentHideStatuses` hides the rows of tasks in the l
 | `session-cost` | JSON | Session cost in USD | green |
 | `session-clock` | JSON | Session duration | white |
 | `output-style` | JSON | Output style name | white |
-| `git-branch` | Git | Current branch name | magenta |
+| `git-branch` | Git | Current branch name, or the short commit hash on a detached HEAD | magenta |
 | `git-changes` | Git | Uncommitted changes count | yellow |
 | `git-worktree` | JSON/Git | Worktree name | magenta |
 | `tokens-input` | JSON | Input tokens in current context, incl. cache (~= `context-length` since CC v2.1.132) | white |
@@ -371,8 +373,8 @@ To keep the panel short, `subagentHideStatuses` hides the rows of tasks in the l
 | `terminal-width` | System | Line width: the terminal width minus the `flexMode` margin | white |
 | `custom-text` | - | User-defined static text | white |
 | `custom-command` | System | Shell command output | white |
-| `separator` | - | Visual separator | white |
-| `flex-separator` | - | Fills remaining width | - |
+| `separator` | - | Visual separator; dropped at either end of a row, beside a `flex-separator` and after another separator | white |
+| `flex-separator` | - | Fills the remaining width, keeping at least one column between the groups it separates | - |
 
 ### Subagent Row Widgets
 
@@ -410,6 +412,7 @@ ccstatus never exits non-zero while rendering, because Claude Code hides the who
 
 - A `settings.json` that fails to parse renders the default layout below a red `ccstatus: settings.json:LINE:COL: ... (run ccstatus validate)` line. Other mistakes, such as an unknown widget type or color name, are skipped without a message; `ccstatus validate` lists them.
 - Input that is not JSON renders a single red `ccstatus: invalid input: ...` line.
+- A crash while rendering is caught and shown as a red `ccstatus: internal error: ...` line, with the stack trace on stderr.
 - A field whose type changed in a newer Claude Code is coerced when that is unambiguous (a quoted number, a fractional epoch) or dropped otherwise, and the rest still renders; dropped fields are listed on stderr, which `claude --debug` logs.
 
 Use `ccstatus dump` to capture the raw JSON that Claude Code sends:

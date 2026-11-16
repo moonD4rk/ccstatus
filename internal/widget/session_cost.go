@@ -6,7 +6,11 @@ import (
 	"github.com/moond4rk/ccstatus/internal/config"
 )
 
-const costPrecisionThreshold = 0.01
+const (
+	costPrecisionThreshold = 0.01
+	// costRoundsToZero is the cost below which four decimals read as zero.
+	costRoundsToZero = 0.00005
+)
 
 // SessionCostWidget displays the session cost in USD.
 type SessionCostWidget struct{}
@@ -31,8 +35,10 @@ func (w *SessionCostWidget) Value(_ *config.WidgetItem, ctx RenderContext) (floa
 	return *ctx.Data.Cost.TotalCostUSD, true
 }
 
+// formatCost renders dollars with two decimals, and with four below one cent so
+// a session that has barely started still shows movement.
 func formatCost(cost float64) string {
-	if cost < costPrecisionThreshold {
+	if cost >= costRoundsToZero && cost < costPrecisionThreshold {
 		return fmt.Sprintf("%.4f", cost)
 	}
 	return fmt.Sprintf("%.2f", cost)

@@ -37,6 +37,9 @@ func newValidateCmd() *cobra.Command {
 // line. It reports every problem and exits non-zero when any are found, so it
 // is usable as a CI gate.
 func runValidate(cmd *cobra.Command, _ []string) error {
+	if config.Path() == "" {
+		return config.ErrNoConfigDir
+	}
 	settings, err := config.Load()
 	if err != nil {
 		var posErr *config.PositionError

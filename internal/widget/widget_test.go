@@ -2,6 +2,7 @@ package widget
 
 import (
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -523,6 +524,15 @@ func TestSessionCostWidget(t *testing.T) {
 			Cost: &status.CostInfo{TotalCostUSD: floatPtr(0.0012)},
 		}}
 		assert.Equal(t, "$0.0012", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("a cost that rounds to zero is not shown with 4 decimals", func(t *testing.T) {
+		for _, cost := range []float64{0, 0.00004} {
+			ctx := RenderContext{Data: &status.Session{Cost: &status.CostInfo{TotalCostUSD: floatPtr(cost)}}}
+			assert.Equal(t, "$0.00", w.Render(&config.WidgetItem{}, ctx, &settings), cost)
+		}
+		ctx := RenderContext{Data: &status.Session{Cost: &status.CostInfo{TotalCostUSD: floatPtr(0.00005)}}}
+		assert.Equal(t, "$0.0001", w.Render(&config.WidgetItem{}, ctx, &settings))
 	})
 
 	t.Run("raw value omits dollar sign", func(t *testing.T) {
@@ -1382,6 +1392,22 @@ func TestCustomCommandWidget(t *testing.T) {
 		assert.Empty(t, w.Render(&item, ctx, &settings))
 	})
 
+	t.Run("the timeout covers every command the shell runs", func(t *testing.T) {
+		for _, command := range []string{"sleep 5", "sleep 5; echo late", "sleep 5 | cat"} {
+			item := config.WidgetItem{CommandPath: command, Timeout: 100}
+			start := time.Now()
+			assert.Empty(t, w.Render(&item, RenderContext{Data: &status.Session{}}, &settings), command)
+			assert.Less(t, time.Since(start), 2*time.Second, command)
+		}
+	})
+
+	t.Run("a background job does not hold the output back", func(t *testing.T) {
+		item := config.WidgetItem{CommandPath: "sleep 5 & echo ready"}
+		start := time.Now()
+		assert.Equal(t, "ready", w.Render(&item, RenderContext{Data: &status.Session{}}, &settings))
+		assert.Less(t, time.Since(start), 2*time.Second)
+	})
+
 	t.Run("pipes JSON to stdin", func(t *testing.T) {
 		item := config.WidgetItem{CommandPath: "cat | jq -r .version 2>/dev/null || echo fallback"}
 		ctx := RenderContext{Data: &status.Session{Version: "1.0.80"}}
@@ -1632,6 +1658,14 @@ func TestRateLimitWidget(t *testing.T) {
 			RateLimits: &status.RateLimits{FiveHour: &status.RateLimitWindow{UsedPercentage: floatPtr(40)}},
 		}}
 		assert.Equal(t, "▓▓░░░ 40%", w.Render(&item, ctx, &settings))
+	})
+
+	t.Run("barWidth is capped", func(t *testing.T) {
+		item := config.WidgetItem{Metadata: map[string]string{"display": "bar", "barWidth": "9000000000000000000"}}
+		ctx := RenderContext{Data: &status.Session{
+			RateLimits: &status.RateLimits{FiveHour: &status.RateLimitWindow{UsedPercentage: floatPtr(50)}},
+		}}
+		assert.Equal(t, strings.Repeat("▓", 50)+strings.Repeat("░", 50)+" 50%", w.Render(&item, ctx, &settings))
 	})
 
 	t.Run("bar mode hidden when used_percentage absent", func(t *testing.T) {

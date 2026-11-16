@@ -122,16 +122,16 @@ func taskElapsed(t *status.Task, _ *config.WidgetItem) string {
 	return formatElapsed(elapsed)
 }
 
-// formatElapsed renders a running time with second precision: "45s", "1m23s",
-// "1h02m".
+// formatElapsed renders a running time with second precision below an hour,
+// "45s" or "1m23s", and like every other duration from there on: "1h2m".
 func formatElapsed(d time.Duration) string {
 	switch {
 	case d < time.Minute:
 		return fmt.Sprintf("%ds", int(d.Seconds()))
 	case d < time.Hour:
-		return fmt.Sprintf("%dm%02ds", int(d.Minutes()), int(d.Seconds())%60)
+		return fmt.Sprintf("%dm%ds", int(d.Minutes()), int(d.Seconds())%60)
 	default:
-		return fmt.Sprintf("%dh%02dm", int(d.Hours()), int(d.Minutes())%60)
+		return formatDuration(float64(d.Milliseconds()))
 	}
 }
 
@@ -144,13 +144,18 @@ func taskModel(t *status.Task, item *config.WidgetItem) string {
 
 // shortModelName turns a model ID such as "claude-sonnet-5-5",
 // "claude-opus-4-7[1m]" or "claude-3-5-haiku-20241022" into "Sonnet 5.5",
-// "Opus 4.7" or "Haiku 3.5". IDs in another form are returned unchanged.
+// "Opus 4.7" or "Haiku 3.5". It reads through what a provider wraps around the
+// ID: a Bedrock "us.anthropic." prefix and "-v1:0" suffix, a Vertex "@date"
+// suffix, a gateway "anthropic/" prefix. IDs in another form are returned
+// unchanged.
 func shortModelName(id string) string {
-	rest, ok := strings.CutPrefix(id, "claude-")
-	if !ok {
+	const marker = "claude-"
+	start := strings.LastIndex(id, marker)
+	if start < 0 {
 		return id
 	}
-	if i := strings.IndexByte(rest, '['); i >= 0 {
+	rest := id[start+len(marker):]
+	if i := strings.IndexAny(rest, "[@"); i >= 0 {
 		rest = rest[:i]
 	}
 	var family string

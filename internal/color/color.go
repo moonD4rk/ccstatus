@@ -2,8 +2,10 @@
 package color
 
 import (
+	"iter"
 	"strings"
 
+	"github.com/clipperhouse/uax29/v2/graphemes"
 	fcolor "github.com/fatih/color"
 	"github.com/mattn/go-runewidth"
 )
@@ -94,16 +96,52 @@ func StripANSI(s string) string {
 	return b.String()
 }
 
+// variationSelector16 asks for the emoji presentation of the symbol before it.
+const variationSelector16 = "\ufe0f"
+
 // VisibleWidth returns the terminal display width of s, ignoring ANSI escape
-// sequences and counting wide (CJK, emoji) runes as 2 and zero-width (combining)
-// runes as 0.
+// sequences. It is the sum of the widths of the grapheme clusters of s: wide
+// (CJK, emoji) clusters count as 2 and zero-width (combining) ones as 0.
 func VisibleWidth(s string) int {
-	return cellWidth.StringWidth(StripANSI(s))
+	width := 0
+	for _, w := range Clusters(StripANSI(s)) {
+		width += w
+	}
+	return width
 }
 
-// RuneWidth returns the terminal display width of a single rune (0, 1, or 2).
-func RuneWidth(r rune) int {
-	return cellWidth.RuneWidth(r)
+// Clusters iterates over the grapheme clusters of s, which must hold no escape
+// sequences, with the display width of each. A cluster is what a terminal draws
+// as one glyph: an emoji with its modifiers, a letter with its combining marks.
+// Together the clusters cover every byte of s.
+func Clusters(s string) iter.Seq2[string, int] {
+	return func(yield func(string, int) bool) {
+		g := graphemes.FromString(s)
+		end := 0
+		for g.Next() {
+			end = g.End()
+			if !yield(g.Value(), clusterWidth(g.Value())) {
+				return
+			}
+		}
+		// The segmenter stops at a multibyte sequence cut short by the end of s.
+		for ; end < len(s); end++ {
+			if !yield(s[end:end+1], clusterWidth(s[end:end+1])) {
+				return
+			}
+		}
+	}
+}
+
+// clusterWidth returns the display width of one grapheme cluster. go-runewidth
+// keeps a text-style symbol at one column when a variation selector turns it
+// into an emoji, such as U+26A0 U+FE0F; terminals draw that emoji two wide.
+func clusterWidth(cluster string) int {
+	w := cellWidth.StringWidth(cluster)
+	if w == 1 && strings.Contains(cluster, variationSelector16) {
+		return 2
+	}
+	return w
 }
 
 // ScanEscape returns the index just past the ANSI escape sequence beginning at

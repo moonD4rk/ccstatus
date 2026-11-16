@@ -43,6 +43,23 @@ func TestSettingsPath(t *testing.T) {
 	assert.Equal(t, "/tmp/test-claude/settings.json", SettingsPath())
 }
 
+func TestNoConfigDir(t *testing.T) {
+	t.Setenv("CLAUDE_CONFIG_DIR", "")
+	t.Setenv("HOME", "")
+	t.Chdir(t.TempDir())
+
+	assert.Empty(t, Dir())
+	assert.Empty(t, SettingsPath(), "never a path relative to the working directory")
+
+	_, err := Install(InstallOptions{})
+	require.ErrorIs(t, err, ErrNoConfigDir)
+	_, err = Uninstall()
+	require.ErrorIs(t, err, ErrNoConfigDir)
+	entries, err := os.ReadDir(".")
+	require.NoError(t, err)
+	assert.Empty(t, entries)
+}
+
 func TestInstall(t *testing.T) {
 	t.Run("fresh install", func(t *testing.T) {
 		tmpDir := t.TempDir()

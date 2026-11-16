@@ -47,6 +47,9 @@ func runDump(cmd *cobra.Command, _ []string) error {
 		output = defaultDumpOutput(appendMode, subagent)
 	}
 	stderr := cmd.ErrOrStderr()
+	if awaitsTypedInput(cmd) {
+		return cmd.Help()
+	}
 
 	data, err := io.ReadAll(cmd.InOrStdin())
 	if err == nil {

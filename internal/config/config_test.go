@@ -73,6 +73,25 @@ func TestLoadMissingFile(t *testing.T) {
 	assert.Equal(t, DefaultSettings(), s)
 }
 
+func TestNoConfigDir(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", "")
+	t.Setenv("HOME", "")
+	t.Chdir(t.TempDir())
+
+	assert.Empty(t, Dir())
+	assert.Empty(t, Path(), "never a path relative to the working directory")
+
+	s, err := Load()
+	require.NoError(t, err)
+	assert.Equal(t, DefaultSettings(), s)
+
+	defaults := DefaultSettings()
+	require.ErrorIs(t, Save(&defaults), ErrNoConfigDir)
+	entries, err := os.ReadDir(".")
+	require.NoError(t, err)
+	assert.Empty(t, entries)
+}
+
 func TestSaveAndLoad(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", tmpDir)

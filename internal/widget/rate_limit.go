@@ -10,7 +10,12 @@ import (
 	"github.com/moond4rk/ccstatus/internal/status"
 )
 
-const defaultBarWidth = 10
+const (
+	defaultBarWidth = 10
+	// maxBarWidth caps metadata.barWidth: a bar wider than any terminal only
+	// costs memory.
+	maxBarWidth = 100
+)
 
 // rateLimitExtractor returns the rate-limit window a widget displays, or nil.
 type rateLimitExtractor func(data *status.Session) *status.RateLimitWindow
@@ -108,7 +113,7 @@ func barWidthFor(item *config.WidgetItem) int {
 	}
 	if v, ok := item.Metadata["barWidth"]; ok {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {
-			return n
+			return min(n, maxBarWidth)
 		}
 	}
 	return defaultBarWidth

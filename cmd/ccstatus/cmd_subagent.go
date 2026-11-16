@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"runtime/debug"
 	"slices"
 	"strings"
 
@@ -30,15 +31,23 @@ func newSubagentCmd() *cobra.Command {
 }
 
 func runSubagent(cmd *cobra.Command, _ []string) error {
+	if awaitsTypedInput(cmd) {
+		return cmd.Help()
+	}
 	data, err := io.ReadAll(cmd.InOrStdin())
 	writeSubagentRows(cmd.OutOrStdout(), cmd.ErrOrStderr(), data, err)
 	return nil
 }
 
 // writeSubagentRows prints one {"id","content"} JSON line per subagent row of
-// the payload in data. On any error it prints nothing, so Claude Code keeps its
-// default rows.
+// the payload in data. On any error, a panic included, it prints nothing, so
+// Claude Code keeps its default rows.
 func writeSubagentRows(stdout, stderr io.Writer, data []byte, readErr error) {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Fprintf(stderr, "ccstatus: panic: %v\n%s", r, debug.Stack())
+		}
+	}()
 	if readErr != nil {
 		fmt.Fprintf(stderr, "ccstatus: reading stdin: %v\n", readErr)
 		return

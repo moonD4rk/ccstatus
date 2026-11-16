@@ -3,10 +3,13 @@ package git
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/moond4rk/ccstatus/internal/proc"
 )
 
 const gitTimeout = 2 * time.Second
@@ -22,9 +25,15 @@ type Repo struct {
 // run executes `git args...` in the repo directory and returns trimmed stdout.
 // The bool is false on any failure (not a repo, git missing, timeout).
 func (r Repo) run(args ...string) (string, bool) {
+	out, err := r.output(args...)
+	return out, err == nil
+}
+
+// output is run with the command's error, for callers that tell exit codes apart.
+func (r Repo) output(args ...string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), gitTimeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "git", args...)
+	cmd := proc.Command(ctx, "git", args...)
 	if r.Dir != "" {
 		cmd.Dir = r.Dir
 	}
@@ -32,13 +41,24 @@ func (r Repo) run(args ...string) (string, bool) {
 	cmd.Env = append(os.Environ(), "GIT_OPTIONAL_LOCKS=0")
 	out, err := cmd.Output()
 	if err != nil {
-		return "", false
+		return "", err
 	}
-	return strings.TrimSpace(string(out)), true
+	return strings.TrimSpace(string(out)), nil
 }
 
-// Branch returns the current git branch name, or empty string if not in a git repository.
+// Branch returns the current branch name, also on a branch with no commits yet.
+// On a detached HEAD it returns the abbreviated commit hash, and outside a git
+// repository the empty string.
 func (r Repo) Branch() string {
-	out, _ := r.run("rev-parse", "--abbrev-ref", "HEAD")
-	return out
+	out, err := r.output("symbolic-ref", "--short", "-q", "HEAD")
+	if err == nil {
+		return out
+	}
+	// With -q, exit status 1 means HEAD is not a symbolic ref, i.e. detached.
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) && exitErr.ExitCode() == 1 {
+		commit, _ := r.run("rev-parse", "--short", "HEAD")
+		return commit
+	}
+	return ""
 }
